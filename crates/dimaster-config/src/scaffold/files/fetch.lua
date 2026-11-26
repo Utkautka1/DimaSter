@@ -3,6 +3,7 @@
 --
 -- info: user, host, os, kernel, uptime, packages, shell, desktop, session,
 --       terminal, cpu, gpu, memory, disk. Чего узнать не удалось — nil.
+-- tr(текст): перевод на язык терминала.
 -- color(имя, текст): black red green yellow blue magenta cyan white, bold.
 -- dimaster: hostname, desktop, session, ssh, profile, config_dir.
 --
@@ -40,7 +41,7 @@ local lines = { color("bold", color("magenta", info.user .. "@" .. info.host)), 
 for _, row in ipairs(rows) do
   local title, value = row[1], info[row[2]]
   if value then
-    lines[#lines + 1] = color("bold", color("blue", title)) .. ": " .. value
+    lines[#lines + 1] = color("bold", color("blue", tr(title))) .. ": " .. value
   end
 end
 

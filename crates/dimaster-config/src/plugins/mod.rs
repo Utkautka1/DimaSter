@@ -7,6 +7,7 @@
 mod api;
 mod status;
 
+use dimaster_i18n::tr;
 use std::cell::{Cell, RefCell};
 use std::path::Path;
 use std::rc::Rc;
@@ -16,7 +17,7 @@ use mlua::{Function, HookTriggers, Lua, Table, VmState};
 
 use crate::context;
 
-pub use status::{Segment, StatusLine};
+pub use status::{BarStyle, Segment, StatusBar, StatusLine};
 
 // дольше этого один вызов плагина выполняться не должен
 const BUDGET: Duration = Duration::from_millis(100);
@@ -60,7 +61,7 @@ fn limit_time(lua: &Lua, deadline: Rc<Cell<Instant>>) -> mlua::Result<()> {
     };
     lua.set_global_hook(triggers, move |_, _| {
         if Instant::now() > deadline.get() {
-            return Err(mlua::Error::runtime("плагин выполняется слишком долго"));
+            return Err(mlua::Error::runtime(tr("плагин выполняется слишком долго")));
         }
         Ok(VmState::Continue)
     })

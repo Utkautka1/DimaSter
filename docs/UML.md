@@ -14,6 +14,11 @@ graph TD
     grid --> image
     app --> image
     image -.-> ffmpeg
+    app --> i18n[dimaster-i18n]
+    config --> i18n
+    grid --> i18n
+    font --> i18n
+    render --> i18n
     app --> pty[dimaster-pty]
     grid --> vt[dimaster-vt]
 ```
@@ -136,6 +141,16 @@ classDiagram
     class Segment { text; color; background; rounded }
     class Minimap { origin }
     View *-- Status
+    class StatusBar { style; rows }
+    class Ui { panel; title; palette; history; marks; scrollbar; minimap; monitor; texts }
+    class CursorLook { thickness; width; height; radius; opacity; speed; linear; trail }
+    Config *-- Ui
+    Config *-- CursorLook
+    class Drawn { rects; labels }
+    View ..> Drawn
+    class BarStyle { top; margin; padding; background; radius; opacity }
+    StatusBar *-- BarStyle
+    Status *-- StatusBar
     Status ..> Sampler : отдельный поток
     Status *-- StatusLine
     StatusLine *-- Segment

@@ -90,12 +90,11 @@ pub(crate) struct View {
     pub(crate) wake: Arc<dyn Fn() + Send + Sync>,
 }
 
-fn grid_size(window: &Window, fonts: &FontSystem, config: &Config) -> Size {
+fn grid_size(window: &Window, fonts: &FontSystem, config: &Config, bar: u32) -> Size {
     let size = window.inner_size();
     let metrics = fonts.metrics();
     let padding = config.padding;
-    let reserved = settings::title_height(config, metrics.cell_height)
-        + settings::status_height(config, metrics.cell_height);
+    let reserved = settings::title_height(config, metrics.cell_height) + bar;
     let height = size.height.saturating_sub(reserved);
     let cells = |pixels: u32, pad: u32, cell: u32| (pixels.saturating_sub(pad * 2) / cell) as usize;
     Size {
@@ -121,7 +120,7 @@ impl View {
         args: &[String],
         wake: impl Fn() + Send + Sync + 'static,
     ) -> Self {
-        let term = Terminal::new(grid_size(&window, &fonts, &config));
+        let term = Terminal::new(grid_size(&window, &fonts, &config, 0));
         window.request_redraw();
         let mut view = Self::initial(window, renderer, fonts, config, term, args, Arc::new(wake));
         view.apply_to_terminal();
@@ -183,7 +182,12 @@ impl View {
     }
 
     fn grid_size(&self) -> Size {
-        grid_size(&self.window, &self.fonts, &self.config)
+        grid_size(
+            &self.window,
+            &self.fonts,
+            &self.config,
+            self.status_height(),
+        )
     }
 
     /// Запускает shell, когда размер устоялся: иначе программы из автозапуска
@@ -348,7 +352,7 @@ impl View {
         let (metrics, cursor) = (self.fonts.metrics(), self.term.cursor());
         let at = |cells: usize, size: u32, pad: u32| pad + cells as u32 * size;
         let x = at(cursor.col, metrics.cell_width, self.config.padding.0);
-        let y = at(cursor.row, metrics.cell_height, self.config.padding.1) + self.title_height();
+        let y = at(cursor.row, metrics.cell_height, self.config.padding.1) + self.content_top();
         let size = PhysicalSize::new(metrics.cell_width, metrics.cell_height);
         self.window
             .set_ime_cursor_area(PhysicalPosition::new(x, y), size);
@@ -403,7 +407,7 @@ impl View {
         (
             index(x, self.config.padding.0, metrics.cell_width, size.cols),
             index(
-                y - f64::from(self.title_height()),
+                y - f64::from(self.content_top()),
                 self.config.padding.1,
                 metrics.cell_height,
                 size.rows,

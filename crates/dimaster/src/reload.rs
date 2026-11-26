@@ -1,6 +1,7 @@
 //! Применение настроек к открытому окну.
 
 use dimaster_config::{Config, Decorations};
+use dimaster_i18n::tr;
 
 use dimaster_grid::SmartOptions;
 
@@ -47,6 +48,7 @@ impl View {
                 &self.config.font_dirs,
                 self.config.font_size,
             );
+        settings::set_language(&config);
         self.config = config;
         if font_changed || styles_changed {
             self.zoom = 0.0;
@@ -65,7 +67,10 @@ impl View {
     pub(crate) fn apply_to_terminal(&mut self) {
         let cell_height = self.fonts.metrics().cell_height;
         let mut look = settings::appearance(&self.config, cell_height);
+        // бар сверху сдвигает сетку вниз вместе с рамкой
+        look.top = self.content_top();
         look.wallpaper = settings::wallpaper(&self.config);
+        self.animator.look = self.config.cursor_look;
         self.renderer.set_appearance(look);
         self.term
             .set_default_colors(settings::default_colors(&self.config));
@@ -115,10 +120,10 @@ impl View {
 
     pub(crate) fn update_title(&self) {
         let title = match self.term.title() {
-            _ if self.config_error => "DimaSter — ошибка в init.lua",
-            "" => "DimaSter",
-            title => title,
+            _ if self.config_error => tr("DimaSter — ошибка в init.lua"),
+            "" => "DimaSter".to_owned(),
+            title => title.to_owned(),
         };
-        self.window.set_title(title);
+        self.window.set_title(&title);
     }
 }

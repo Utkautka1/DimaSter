@@ -1,8 +1,8 @@
 //! Превращает состояние терминала в список прямоугольников кадра.
 
 use bytemuck::{Pod, Zeroable};
-use dimaster_font::{FontSystem, Metrics};
-use dimaster_grid::{Cell, Color, CursorShape, Flags, Row, Span, Style, Terminal};
+use dimaster_font::FontSystem;
+use dimaster_grid::{Cell, Color, Flags, Row, Span, Style, Terminal};
 
 use crate::appearance::Appearance;
 use crate::atlas::{Atlas, Slot};
@@ -65,6 +65,8 @@ pub struct Viewport<'a> {
     /// `None` — там, где он в терминале.
     pub cursor: Option<(f32, f32)>,
     pub cursor_hidden: bool,
+    /// Окно не в фокусе.
+    pub unfocused: bool,
     /// Прошлые положения курсора для «хвоста».
     pub trail: &'a [(f32, f32)],
     /// Полоса прокрутки, свечение рамки.
@@ -92,10 +94,10 @@ impl Builder<'_> {
         if live && !view.preedit.is_empty() {
             self.preedit(term, view.preedit);
         } else if live && !view.cursor_hidden {
-            self.trail(view.trail);
+            self.trail(term, view.trail);
             let program_hides = !term.modes().cursor_visible && view.cursor.is_none();
             if !program_hides {
-                self.cursor(term, view.cursor);
+                self.cursor(term, view.cursor, view.unfocused);
             }
         }
     }
@@ -136,24 +138,6 @@ impl Builder<'_> {
         }
     }
 
-    fn trail(&mut self, trail: &[(f32, f32)]) {
-        let Metrics {
-            cell_width,
-            cell_height,
-            ..
-        } = self.fonts.metrics();
-        for &(row, col) in trail {
-            let origin = self.origin(0, 0);
-            let at = [
-                origin[0] + col * cell_width as f32,
-                origin[1] + row * cell_height as f32,
-            ];
-            let size = [cell_width as f32, cell_height as f32];
-            let color = self.look.cursor | TRANSLUCENT;
-            self.quads.push(Quad::solid(at, size, color));
-        }
-    }
-
     pub(crate) fn origin(&self, row: usize, col: usize) -> [f32; 2] {
         let m = self.fonts.metrics();
         [
@@ -191,7 +175,7 @@ impl Builder<'_> {
         self.flush(&mut run, index);
     }
 
-    fn visual_order(&self, cells: &[Cell]) -> Option<Vec<usize>> {
+    pub(crate) fn visual_order(&self, cells: &[Cell]) -> Option<Vec<usize>> {
         bidi::visual_columns(cells).filter(|_| self.look.rtl)
     }
 
@@ -220,46 +204,6 @@ impl Builder<'_> {
             Color::Default => text,
             color => resolve(color, text, self.look),
         }
-    }
-
-    fn cursor(&mut self, term: &Terminal, moved: Option<(f32, f32)>) {
-        let cursor = term.cursor();
-        let cell = &term.screen().rows()[cursor.row].cells[cursor.col];
-        let order = self.visual_order(&term.screen().rows()[cursor.row].cells);
-        let column = order.map_or(cursor.col, |o| o[cursor.col]);
-        let resting = (cursor.row as f32, column as f32);
-        let (row, col) = moved.unwrap_or(resting);
-        let metrics = self.fonts.metrics();
-        let zero = self.origin(0, 0);
-        let origin = [
-            zero[0] + col * metrics.cell_width as f32,
-            zero[1] + row * metrics.cell_height as f32,
-        ];
-        let size = [self.cell_width(cell), metrics.cell_height as f32];
-        self.cursor_shape(term.modes().cursor_shape, origin, size);
-        // под неподвижным блоком символ перерисовывается цветом фона
-        if term.modes().cursor_shape == CursorShape::Block && (row, col) == resting {
-            let mut run = Run::default();
-            self.text_cell(
-                &mut run,
-                cell,
-                self.look.background,
-                (cursor.row, column),
-                false,
-            );
-            self.flush(&mut run, cursor.row);
-        }
-    }
-
-    fn cursor_shape(&mut self, shape: CursorShape, origin: [f32; 2], [width, height]: [f32; 2]) {
-        let thin = (self.fonts.metrics().line_thickness * 2) as f32;
-        let (position, size) = match shape {
-            CursorShape::Block => (origin, [width, height]),
-            CursorShape::Underline => ([origin[0], origin[1] + height - thin], [width, thin]),
-            CursorShape::Bar => (origin, [thin, height]),
-        };
-        self.quads
-            .push(Quad::solid(position, size, self.look.cursor));
     }
 }
 

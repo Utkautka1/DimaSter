@@ -3,6 +3,7 @@
 mod actions;
 mod animate;
 mod app;
+mod bar;
 mod chrome;
 mod clipboard;
 mod desktop;
@@ -16,6 +17,7 @@ mod keys;
 mod minimap;
 mod modes;
 mod mouse;
+mod overlay;
 mod panels;
 mod pointer;
 mod presentation;
@@ -36,6 +38,7 @@ mod store;
 mod terminfo;
 mod view;
 
+use dimaster_i18n::tr;
 use std::error::Error;
 use std::process::ExitCode;
 
@@ -69,7 +72,10 @@ fn first_command(config: &Config) -> Vec<String> {
 }
 
 fn run(args: Vec<String>) -> Result<(), Box<dyn Error>> {
+    // ошибки самого конфига показываются на языке системы
+    dimaster_i18n::set_language("auto", Vec::new());
     let config = settings::read_or_default();
+    settings::set_language(&config);
     match args.split_first() {
         None => app::run(first_command(&config), config, true),
         Some((flag, command)) if flag == "-e" && !command.is_empty() => {
@@ -86,6 +92,6 @@ fn run(args: Vec<String>) -> Result<(), Box<dyn Error>> {
         }
         Some((word, request)) if word == "ctl" => Ok(remote::client(request)?),
         Some((word, options)) if word == "fetch" => Ok(fetch::run(options)?),
-        _ => Err(USAGE.into()),
+        _ => Err(tr(USAGE).into()),
     }
 }

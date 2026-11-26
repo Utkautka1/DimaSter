@@ -33,6 +33,7 @@ impl View {
             .unwrap_or_default();
         let state = palette::Palette {
             plugins,
+            custom: self.config.ui.palette.items.clone(),
             ..Default::default()
         };
         self.mode = Mode::Palette(state);

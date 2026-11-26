@@ -1,0 +1,104 @@
+Копировать	Copy
+Вставить	Paste
+Миникарта	Minimap
+Монитор ресурсов	Resource monitor
+Строка статуса	Status bar
+Метки на ссылках	Link hints
+История команд	Command history
+Добавить sudo	Add sudo
+Режим презентации	Presentation mode
+Новое окно	New window
+Полный экран	Fullscreen
+Предыдущее приглашение	Previous prompt
+Следующее приглашение	Next prompt
+Поиск по истории	Search scrollback
+Vi-режим	Vi mode
+Увеличить шрифт	Increase font size
+Уменьшить шрифт	Decrease font size
+Сбросить шрифт	Reset font size
+В начало истории	Scroll to top
+В конец истории	Scroll to bottom
+Перечитать конфиг	Reload config
+Вставить выделенное (primary)	Paste selection (primary)
+ VI: hjkl w b 0 $ g G · v V · y копировать · / поиск · q выход 	 VI: hjkl w b 0 $ g G · v V · y copy · / search · q quit 
+ Метка — открыть, ЗАГЛАВНАЯ — копировать, Esc 	 Label to open, SHIFT+label to copy, Esc 
+ Карта: j/k прокрутка · g/G края · Enter здесь · Esc назад 	 Map: j/k scroll · g/G ends · Enter stay · Esc back 
+ Поиск: {query}_  {position}/{count}  [{kind}, Ctrl+R] 	 Search: {query}_  {position}/{count}  [{kind}, Ctrl+R] 
+текст	text
+ j/k выбор · Enter вставить · y вывод · q	 j/k select · Enter insert · y output · q
+вывод	output
+код {code}: {reason}	code {code}: {reason}
+ ожидание 	 waiting 
+∅ Ничего не найдено	∅ Nothing found
+ПОИСК	SEARCH
+КОМАНДЫ	COMMANDS
+МЕТКИ	HINTS
+ИСТОРИЯ	HISTORY
+КАРТА	MAP
+общая ошибка	general error
+ошибка (часто — неверные аргументы)	error (often wrong arguments)
+нет прав на запуск	permission denied
+команда не найдена	command not found
+SIGINT — прервано	SIGINT — interrupted
+SIGILL — недопустимая инструкция	SIGILL — illegal instruction
+SIGABRT — аварийное завершение	SIGABRT — aborted
+SIGBUS — ошибка шины	SIGBUS — bus error
+SIGFPE — ошибка вычисления	SIGFPE — arithmetic error
+SIGKILL — убит (возможно, нехватка памяти)	SIGKILL — killed (possibly out of memory)
+SIGSEGV — ошибка сегментации	SIGSEGV — segmentation fault
+SIGPIPE — разорван конвейер	SIGPIPE — broken pipe
+SIGTERM — завершён	SIGTERM — terminated
+ошибка	error
+с	s
+неверное значение {key}: {value}	invalid value of {key}: {value}
+не удалось прочитать {path}: {error}	cannot read {path}: {error}
+плагин выполняется слишком долго	plugin is running too long
+{n} мин	{n} min
+{h} ч {n} мин	{h} h {n} min
+{d} дн {h} ч	{d} d {h} h
+ГиБ	GiB
+МБ	MB
+ОС	OS
+Ядро	Kernel
+Аптайм	Uptime
+Пакеты	Packages
+Окружение	Desktop
+Терминал	Terminal
+Процессор	CPU
+Видеокарта	GPU
+Память	Memory
+Диск /	Disk /
+логотип {path}: {error}	logo {path}: {error}
+использование: dimaster fetch [--logo картинка]	usage: dimaster fetch [--logo image]
+в файле не найдено видео	no video found in the file
+нет вывода ffmpeg	no output from ffmpeg
+icat работает внутри DimaSter	icat only works inside DimaSter
+использование: dimaster [-e команда...] [--headless команда...] [--setup] [icat файл...] [fetch [--logo картинка]] [ctl команда] [ssh-terminfo хост]	usage: dimaster [-e command...] [--headless command...] [--setup] [icat file...] [fetch [--logo image]] [ctl command] [ssh-terminfo host]
+нет действия {name}	no such action: {name}
+неизвестная команда: {command}	unknown command: {command}
+dimaster ctl [list | info | get-text | send-text <текст> | action <имя> | set-title <текст> | reload | new-window]	dimaster ctl [list | info | get-text | send-text <text> | action <name> | set-title <text> | reload | new-window]
+не задан XDG_RUNTIME_DIR	XDG_RUNTIME_DIR is not set
+окно не ответило	the window did not answer
+пустой ответ	empty answer
+нет запущенных окон DimaSter	no running DimaSter windows
+окон несколько: задайте DIMASTER_SOCKET (см. ctl list)	several windows: set DIMASTER_SOCKET (see ctl list)
+── сессия восстановлена ──	── session restored ──
+не заданы XDG_DATA_HOME и HOME	XDG_DATA_HOME and HOME are not set
+Запись {name} установлена на сервере.	The {name} entry is installed on the server.
+команда завершилась с {status}	command exited with {status}
+не найден пригодный моноширинный шрифт (задайте DIMASTER_FONT)	no usable monospace font found (set DIMASTER_FONT)
+не удалось инициализировать графику: {error}	cannot initialize graphics: {error}
+поверхность не поддерживается адаптером	the adapter does not support the surface
+Команда завершена	Command finished
+Команда завершилась с ошибкой	Command failed
+DimaSter — ошибка в init.lua	DimaSter — error in init.lua
+Добро пожаловать в DimaSter!	Welcome to DimaSter!
+Откуда взять настройки (шрифт, цвета, отступы, курсор)?	Where to take settings from (font, colors, padding, cursor)?
+  0) начать с базовых	  0) start with defaults
+Номер или несколько через пробел [0]: 	Number, or several separated by spaces [0]: 
+Не понял ответ, попробуйте ещё раз.	Did not understand, try again.
+Перенесены настройки из {name}	Imported settings from {name}
+Не удалось прочитать настройки {name}: {error}	Cannot read {name} settings: {error}
+Настройки записаны в {path}	Settings written to {path}
+не задан HOME	HOME is not set
+Мастер настройки прерван: {error}	Setup wizard aborted: {error}

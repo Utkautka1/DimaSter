@@ -236,11 +236,7 @@ impl State {
         if id == 0 || quiet >= 2 || (ok && quiet == 1) {
             return;
         }
-        let status = if ok {
-            "OK"
-        } else {
-            "EINVAL:не удалось обработать"
-        };
+        let status = if ok { "OK" } else { "EINVAL:cannot process" };
         let placement = match command.number(b'p') {
             0 => String::new(),
             p => format!(",p={p}"),

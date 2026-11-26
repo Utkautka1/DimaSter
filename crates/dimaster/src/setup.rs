@@ -1,5 +1,6 @@
 //! Мастер первого запуска: выполняется текстом внутри самого терминала.
 
+use dimaster_i18n::{tr, trf};
 use std::io::{self, BufRead, Write};
 use std::os::unix::process::CommandExt;
 use std::path::Path;
@@ -28,16 +29,17 @@ fn choose(answer: &str, found: &[Source]) -> Option<Vec<Source>> {
 }
 
 fn menu(found: &[Source], out: &mut impl Write) -> io::Result<()> {
-    writeln!(out, "\nДобро пожаловать в DimaSter!\n")?;
+    writeln!(out, "\n{}\n", tr("Добро пожаловать в DimaSter!"))?;
     writeln!(
         out,
-        "Откуда взять настройки (шрифт, цвета, отступы, курсор)?"
+        "{}",
+        tr("Откуда взять настройки (шрифт, цвета, отступы, курсор)?")
     )?;
-    writeln!(out, "  0) начать с базовых")?;
+    writeln!(out, "{}", tr("  0) начать с базовых"))?;
     for (index, source) in found.iter().enumerate() {
         writeln!(out, "  {}) {}", index + 1, source.name())?;
     }
-    write!(out, "Номер или несколько через пробел [0]: ")?;
+    write!(out, "{}", tr("Номер или несколько через пробел [0]: "))?;
     out.flush()
 }
 
@@ -52,7 +54,7 @@ fn ask(found: &[Source]) -> io::Result<Option<Vec<Source>>> {
         }
         match choose(&line, found) {
             Some(chosen) => return Ok(Some(chosen)),
-            None => writeln!(out, "Не понял ответ, попробуйте ещё раз.")?,
+            None => writeln!(out, "{}", tr("Не понял ответ, попробуйте ещё раз."))?,
         }
     }
 }
@@ -61,8 +63,17 @@ fn build(chosen: &[Source], config_home: &Path) -> Config {
     let mut config = Config::default();
     for source in chosen {
         match source.apply(config_home, &mut config) {
-            Ok(()) => println!("Перенесены настройки из {}", source.name()),
-            Err(e) => println!("Не удалось прочитать настройки {}: {e}", source.name()),
+            Ok(()) => println!(
+                "{}",
+                trf("Перенесены настройки из {name}", &[("name", source.name())])
+            ),
+            Err(e) => {
+                let values = [("name", source.name()), ("error", &e.to_string())];
+                println!(
+                    "{}",
+                    trf("Не удалось прочитать настройки {name}: {error}", &values)
+                );
+            }
         }
     }
     config
@@ -106,12 +117,16 @@ fn save(directory: &Path, config: &Config) -> io::Result<()> {
     for file in &files {
         write_file(directory, stamp, file)?;
     }
-    println!("Настройки записаны в {}\n", directory.display());
+    let path = directory.display().to_string();
+    println!(
+        "{}\n",
+        trf("Настройки записаны в {path}", &[("path", &path)])
+    );
     Ok(())
 }
 
 fn wizard() -> io::Result<()> {
-    let directory = config_dir().ok_or_else(|| io::Error::other("не задан HOME"))?;
+    let directory = config_dir().ok_or_else(|| io::Error::other(tr("не задан HOME")))?;
     let config_home = directory.parent().unwrap_or(Path::new("."));
     let found = detect(config_home);
     match ask(&found)? {
@@ -123,7 +138,13 @@ fn wizard() -> io::Result<()> {
 /// Запускает мастер, затем заменяет процесс командой `then`, если она задана.
 pub(crate) fn run(then: &[String]) -> io::Result<()> {
     if let Err(e) = wizard() {
-        println!("Мастер настройки прерван: {e}");
+        println!(
+            "{}",
+            trf(
+                "Мастер настройки прерван: {error}",
+                &[("error", &e.to_string())]
+            )
+        );
     }
     let Some((program, args)) = then.split_first() else {
         return Ok(());

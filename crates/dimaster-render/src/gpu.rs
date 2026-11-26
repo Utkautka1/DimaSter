@@ -1,5 +1,6 @@
 //! Поверхность окна, устройство и вывод кадра.
 
+use dimaster_i18n::{tr, trf};
 use std::fmt;
 
 use dimaster_font::FontSystem;
@@ -18,7 +19,11 @@ pub struct RenderError(String);
 
 impl fmt::Display for RenderError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "не удалось инициализировать графику: {}", self.0)
+        let values = [("error", self.0.as_str())];
+        f.write_str(&trf(
+            "не удалось инициализировать графику: {error}",
+            &values,
+        ))
     }
 }
 
@@ -273,7 +278,7 @@ fn configure(
 ) -> Result<wgpu::SurfaceConfiguration, RenderError> {
     let mut config = surface
         .get_default_config(adapter, width.max(1), height.max(1))
-        .ok_or_else(|| fail("поверхность не поддерживается адаптером"))?;
+        .ok_or_else(|| fail(tr("поверхность не поддерживается адаптером")))?;
     // не-sRGB формат: цвета и сглаживание выглядят как в привычных терминалах
     config.format = config.format.remove_srgb_suffix();
     // без этого режима композитор игнорирует прозрачность

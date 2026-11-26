@@ -1,15 +1,16 @@
 //! Строка статуса и монитор ресурсов в окне.
 
+use dimaster_i18n::tr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use dimaster_config::{Segment, StatusLine};
-use dimaster_render::Label;
+use dimaster_config::StatusBar;
 use unicode_width::UnicodeWidthStr;
 
+use crate::bar;
 use crate::modes::Mode;
+use crate::overlay::{Drawn, fill};
 use crate::sensors::{self, Facts, Target};
-use crate::settings::STATUS_MARGIN;
 use crate::view::View;
 
 /// Последние данные и готовая строка.
@@ -17,30 +18,11 @@ use crate::view::View;
 pub(crate) struct Status {
     pub(crate) target: Arc<Mutex<Target>>,
     pub(crate) facts: Facts,
-    pub(crate) line: StatusLine,
+    pub(crate) bar: StatusBar,
 }
 
-// минимальный отступ строки статуса от краёв окна
-const MIN_INSET: u32 = 12;
-// полукруги Powerline из Nerd Font
-const LEFT_CAP: &str = "\u{e0b6}";
-const RIGHT_CAP: &str = "\u{e0b4}";
-
-fn cells(segment: &Segment) -> usize {
-    let caps = if segment.rounded && segment.background.is_some() {
-        2
-    } else {
-        0
-    };
-    segment.text.width() + caps
-}
-
-fn width(segments: &[Segment]) -> usize {
-    segments.iter().map(cells).sum()
-}
-
-fn mode_name(mode: &Mode) -> &'static str {
-    match mode {
+fn mode_name(mode: &Mode) -> String {
+    let name = match mode {
         Mode::Normal => "NORMAL",
         Mode::Search(_) => "ПОИСК",
         Mode::Vi(_) => "VI",
@@ -48,13 +30,27 @@ fn mode_name(mode: &Mode) -> &'static str {
         Mode::Hint(_) => "МЕТКИ",
         Mode::History(_) => "ИСТОРИЯ",
         Mode::Minimap(_) => "КАРТА",
-    }
+    };
+    tr(name)
 }
 
 impl View {
-    /// Высота строки статуса в пикселях, 0 — она выключена.
+    /// Высота бара в пикселях, 0 — он выключен.
     pub(crate) fn status_height(&self) -> u32 {
-        crate::settings::status_height(&self.config, self.fonts.metrics().cell_height)
+        match self.config.widgets.statusbar {
+            true => bar::height(&self.status.bar, self.fonts.metrics().cell_height),
+            false => 0,
+        }
+    }
+
+    /// Где начинается сетка терминала по вертикали.
+    pub(crate) fn content_top(&self) -> u32 {
+        let top_bar = if self.status.bar.style.top {
+            self.status_height()
+        } else {
+            0
+        };
+        self.title_height() + top_bar
     }
 
     /// Запускает опрос данных; результаты приходят через `deliver`.
@@ -91,7 +87,7 @@ impl View {
         }
     }
 
-    /// Строит строку заново: при новых данных и смене режима.
+    /// Строит бар заново: при новых данных и смене режима.
     pub(crate) fn render_status(&mut self) {
         if !self.config.widgets.statusbar {
             return;
@@ -100,101 +96,66 @@ impl View {
         let host = std::fs::read_to_string("/proc/sys/kernel/hostname").unwrap_or_default();
         facts.push(("host".into(), host.trim().to_owned()));
         facts.push(("user".into(), std::env::var("USER").unwrap_or_default()));
-        facts.push(("mode".into(), mode_name(&self.mode).into()));
+        facts.push(("mode".into(), mode_name(&self.mode)));
         let snapshot = self.plugin_snapshot();
-        let line = self
+        let bar = self
             .plugins
             .as_ref()
             .and_then(|p| p.status(&facts, snapshot));
-        self.status.line = line.unwrap_or_default();
+        self.replace_bar(bar.unwrap_or_default());
     }
 
-    fn cell_label(&self, column: usize, y: u32, width: usize, text: &str) -> Label {
-        let cell = self.fonts.metrics().cell_width;
-        self.label(column as u32 * cell, y, width, text.to_owned())
-    }
-
-    // один кусок строки: подложка и, если просили, скруглённые края
-    fn pill(&self, segment: &Segment, column: usize, y: u32) -> Vec<Label> {
-        let color = segment.color.unwrap_or(self.config.theme.foreground);
-        let Some(background) = segment.background else {
-            return vec![Label {
-                color,
-                ..self.cell_label(column, y, 0, &segment.text)
-            }];
-        };
-        let caps = usize::from(segment.rounded);
-        let width = segment.text.width();
-        let body = self.cell_label(column + caps, y, width, &segment.text);
-        let mut labels = vec![Label {
-            color,
-            background,
-            ..body
-        }];
-        if segment.rounded {
-            for (at, text) in [(column, LEFT_CAP), (column + width + 1, RIGHT_CAP)] {
-                labels.push(Label {
-                    color: background,
-                    ..self.cell_label(at, y, 0, text)
-                });
-            }
+    // другая высота или сторона меняют размер сетки терминала
+    fn replace_bar(&mut self, bar: StatusBar) {
+        let before = (self.status_height(), self.content_top());
+        self.status.bar = bar;
+        if before != (self.status_height(), self.content_top()) {
+            self.apply_to_terminal();
+            let size = self.window.inner_size();
+            self.resize(size.width, size.height);
         }
-        labels
     }
 
-    fn place(&self, segments: &[Segment], mut column: usize, y: u32) -> Vec<Label> {
-        let mut labels = Vec::new();
-        for segment in segments {
-            labels.extend(self.pill(segment, column, y));
-            column += cells(segment);
-        }
-        labels
-    }
-
-    // отступ от краёв: скруглённые углы окна не должны резать текст
-    fn status_inset(&self) -> u32 {
-        self.config.padding.0.max(MIN_INSET)
-    }
-
-    pub(crate) fn status_labels(&self) -> Vec<Label> {
-        if self.status_height() == 0 {
-            return Vec::new();
-        }
-        let metrics = self.fonts.metrics();
-        let size = self.window.inner_size();
-        let inset = self.status_inset();
-        let columns = (size.width.saturating_sub(inset * 2) / metrics.cell_width) as usize;
-        let y = size
-            .height
-            .saturating_sub(metrics.cell_height + STATUS_MARGIN);
-        let line = &self.status.line;
-        let right = columns.saturating_sub(width(&line.right));
-        // центр уступает место краям
-        let center = (columns.saturating_sub(width(&line.center)) / 2).max(width(&line.left) + 1);
-        let mut labels = self.place(&line.left, 0, y);
-        if center + width(&line.center) < right {
-            labels.extend(self.place(&line.center, center, y));
-        }
-        labels.extend(self.place(&line.right, right, y));
-        labels.iter_mut().for_each(|label| label.x += inset);
-        labels
-    }
-
-    pub(crate) fn monitor_labels(&self) -> Vec<Label> {
-        if !self.config.widgets.monitor {
-            return Vec::new();
-        }
+    fn monitor_text(&self) -> String {
+        let style = &self.config.ui.monitor;
         let fact = |name: &str| self.status.facts.iter().find(|f| f.0 == name).map(|f| &f.1);
-        let text = match (fact("process"), fact("cpu"), fact("memory")) {
-            (Some(name), Some(cpu), Some(memory)) => format!(" {name}  CPU {cpu}%  {memory} "),
-            _ => " ожидание ".to_owned(),
+        match (fact("process"), fact("cpu"), fact("memory")) {
+            (Some(process), Some(cpu), Some(memory)) => fill(
+                &tr(&style.format),
+                &[("process", process), ("cpu", cpu), ("memory", memory)],
+            ),
+            _ => tr(&style.waiting),
+        }
+    }
+
+    pub(crate) fn monitor_panel(&self) -> Drawn {
+        // история занимает тот же край — подписи наложились бы друг на друга
+        if !self.config.widgets.monitor || matches!(self.mode, Mode::History(_)) {
+            return Drawn::default();
+        }
+        let text = self.monitor_text();
+        let columns = text.width();
+        self.panel(self.monitor_corner(columns), columns, &[(text, false)])
+    }
+
+    fn monitor_corner(&self, columns: usize) -> (u32, u32) {
+        let (style, minimap) = (&self.config.ui.monitor, self.config.ui.minimap);
+        let size = self.window.inner_size();
+        let (width, height) = self.panel_size(columns, 1);
+        let cell = self.fonts.metrics().cell_width;
+        // миникарта у того же края — монитор встаёт рядом с ней
+        let beside = self.config.widgets.minimap && minimap.left == style.left;
+        let inset = cell + if beside { minimap.width + 20 } else { 0 };
+        let x = match style.left {
+            true => inset,
+            false => size.width.saturating_sub(width + inset),
         };
-        let metrics = self.fonts.metrics();
-        let cells = text.width();
-        // миникарта занимает правый край — монитор встаёт левее неё
-        let reserved = if self.config.widgets.minimap { 110 } else { 0 };
-        let room = self.window.inner_size().width.saturating_sub(reserved);
-        let x = room.saturating_sub((cells as u32 + 1) * metrics.cell_width);
-        vec![self.label(x, self.title_height() + 4, cells, text)]
+        let y = match style.bottom {
+            true => size
+                .height
+                .saturating_sub(height + self.content_bottom() + 4),
+            false => self.content_top() + 4,
+        };
+        (x, y)
     }
 }

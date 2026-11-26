@@ -1,5 +1,6 @@
 //! Чтение Lua-конфига в [`Config`].
 
+use dimaster_i18n::trf;
 use std::fmt;
 use std::path::{Path, PathBuf};
 
@@ -8,10 +9,10 @@ use mlua::{Lua, Table, Value};
 use crate::import::ghostty_theme;
 use crate::theme::builtin_source;
 use crate::{
-    Action, Binding, Config, CopyOnSelect, CursorStyle, Decorations, Effects, Mods, Theme,
-    WindowConfig, parse_color,
+    Action, Binding, Config, CopyOnSelect, Decorations, Effects, Mods, Theme, WindowConfig,
+    parse_color,
 };
-use crate::{context, load_smart, widgets};
+use crate::{context, cursor, load_smart, load_ui, widgets};
 
 /// Понятное человеку описание того, что не так в конфиге.
 #[derive(Debug)]
@@ -38,7 +39,9 @@ impl ConfigError {
 }
 
 fn invalid(key: &str, value: impl fmt::Debug) -> ConfigError {
-    ConfigError(format!("неверное значение {key}: {value:?}"))
+    let value = format!("{value:?}");
+    let values = [("key", key), ("value", value.as_str())];
+    ConfigError(trf("неверное значение {key}: {value}", &values))
 }
 
 /// `$XDG_CONFIG_HOME/dimaster` или `~/.config/dimaster`.
@@ -54,10 +57,14 @@ pub fn load(path: &Path) -> Result<Config, ConfigError> {
     match std::fs::read_to_string(path) {
         Ok(source) => parse(&source, path.parent()),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Config::default()),
-        Err(e) => Err(ConfigError(format!(
-            "не удалось прочитать {}: {e}",
-            path.display()
-        ))),
+        Err(e) => {
+            let (path, error) = (path.display().to_string(), e.to_string());
+            let values = [("path", path.as_str()), ("error", error.as_str())];
+            Err(ConfigError(trf(
+                "не удалось прочитать {path}: {error}",
+                &values,
+            )))
+        }
     }
 }
 
@@ -83,6 +90,7 @@ pub fn parse(source: &str, directory: Option<&Path>) -> Result<Config, ConfigErr
     if let Some(colors) = table.get::<Option<Table>>("colors")? {
         apply_colors(&colors, &mut config.theme)?;
     }
+    apply_language(&table, &mut config)?;
     apply_font(&table, &mut config)?;
     apply_general(&table, &mut config)?;
     apply_keys(&table, &mut config)?;
@@ -161,6 +169,19 @@ fn apply_font(table: &Table, config: &mut Config) -> Result<(), ConfigError> {
     Ok(())
 }
 
+fn apply_language(table: &Table, config: &mut Config) -> Result<(), ConfigError> {
+    let Some(code) = table.get::<Option<String>>("language")? else {
+        return Ok(());
+    };
+    // код попадает в имя файла
+    let safe = |c: char| c.is_ascii_alphanumeric() || "_-".contains(c);
+    if code.is_empty() || !code.chars().all(safe) {
+        return Err(invalid("language", &code));
+    }
+    config.language = code;
+    Ok(())
+}
+
 // число — одинаковый отступ, таблица { x, y } — раздельные
 fn padding(value: Value) -> Result<(u32, u32), ConfigError> {
     let side = |v: i64| u32::try_from(v).ok().filter(|&v| v <= 500);
@@ -177,9 +198,7 @@ fn apply_general(table: &Table, config: &mut Config) -> Result<(), ConfigError> 
     if !value.is_nil() {
         config.padding = padding(value)?;
     }
-    if let Some(name) = table.get::<Option<String>>("cursor")? {
-        config.cursor = CursorStyle::parse(&name).ok_or_else(|| invalid("cursor", &name))?;
-    }
+    cursor::apply(&table.get("cursor")?, config)?;
     if let Some(lines) = table.get::<Option<usize>>("scrollback")? {
         // верхняя граница защищает память от опечатки
         config.scrollback = lines.min(1_000_000);
@@ -251,6 +270,17 @@ fn apply_effects(table: &Table, effects: &mut Effects) -> Result<(), ConfigError
     flag(table, "smooth_scroll", &mut effects.smooth_scroll)
 }
 
+// виджеты и вид интерфейса
+fn apply_interface(table: &Table, config: &mut Config) -> Result<(), ConfigError> {
+    if let Some(table) = table.get::<Option<Table>>("widgets")? {
+        widgets::apply(&table, &mut config.widgets)?;
+    }
+    if let Some(table) = table.get::<Option<Table>>("ui")? {
+        load_ui::apply(&table, &mut config.ui)?;
+    }
+    Ok(())
+}
+
 // вложенные таблицы window и effects, управление и сессии
 fn apply_sections(table: &Table, config: &mut Config) -> Result<(), ConfigError> {
     if let Some(window) = table.get::<Option<Table>>("window")? {
@@ -265,9 +295,7 @@ fn apply_sections(table: &Table, config: &mut Config) -> Result<(), ConfigError>
     }
     flag(table, "scrollbar", &mut config.scrollbar)?;
     apply_env(table, config)?;
-    if let Some(table) = table.get::<Option<Table>>("widgets")? {
-        widgets::apply(&table, &mut config.widgets)?;
-    }
+    apply_interface(table, config)?;
     flag(table, "remote_control", &mut config.remote_control)?;
     if let Some(session) = table.get::<Option<Table>>("session")? {
         flag(&session, "restore", &mut config.restore_session)?;

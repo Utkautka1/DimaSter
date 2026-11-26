@@ -1,5 +1,6 @@
 //! Реакция окна на команды: свечение рамки, уведомление, Sudo Fix.
 
+use dimaster_i18n::tr;
 use std::time::{Duration, Instant};
 
 use dimaster_render::Rect;
@@ -51,6 +52,8 @@ fn frame(width: u32, height: u32, thickness: u32, color: u32) -> [Rect; 4] {
         height: h,
         color,
         translucent: true,
+        radius: 0,
+        opacity: 1.0,
     };
     [
         rect(0, 0, width, thickness),
@@ -89,7 +92,8 @@ impl View {
                 0 => "Команда завершена",
                 _ => "Команда завершилась с ошибкой",
             };
-            desktop::notify(title, &format!("{command} — {} с", took.as_secs()));
+            let body = format!("{command} — {} {}", took.as_secs(), tr("с"));
+            desktop::notify(&tr(title), &body);
         }
     }
 

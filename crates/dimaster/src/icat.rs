@@ -4,6 +4,7 @@
 //! терминал, поэтому команда работает и по SSH. Видео разбирает `ffmpeg`, а
 //! кадры передаются протоколом Kitty с заменой предыдущего.
 
+use dimaster_i18n::tr;
 use std::io::{self, Read, Write};
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -45,7 +46,7 @@ fn video_height(path: &Path) -> io::Result<usize> {
         .filter_map(|n| n.parse::<usize>().ok());
     match (numbers.next(), numbers.next()) {
         (Some(width), Some(height)) if width > 0 => Ok((height * VIDEO_WIDTH / width).max(2) & !1),
-        _ => Err(io::Error::other("в файле не найдено видео")),
+        _ => Err(io::Error::other(tr("в файле не найдено видео"))),
     }
 }
 
@@ -94,7 +95,7 @@ fn play(path: &Path) -> io::Result<()> {
     let mut frames = ffmpeg
         .stdout
         .take()
-        .ok_or_else(|| io::Error::other("нет вывода ffmpeg"))?;
+        .ok_or_else(|| io::Error::other(tr("нет вывода ffmpeg")))?;
     let mut out = io::stdout().lock();
     write!(out, "\x1b[?1049h\x1b[?25l")?;
     let result = stream(&mut frames, height, &mut out);
@@ -115,7 +116,7 @@ fn one(path: &Path) -> io::Result<()> {
 
 pub(crate) fn run(files: &[String]) -> io::Result<()> {
     if std::env::var("TERM_PROGRAM").as_deref() != Ok("dimaster") {
-        return Err(io::Error::other("icat работает внутри DimaSter"));
+        return Err(io::Error::other(tr("icat работает внутри DimaSter")));
     }
     files.iter().try_for_each(|file| {
         one(Path::new(file)).map_err(|e| io::Error::other(format!("{file}: {e}")))

@@ -8,6 +8,7 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+dimaster-i18n.workspace = true
 dimaster-vt.workspace = true
 regex.workspace = true
 dimaster-image.workspace = true

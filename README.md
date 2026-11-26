@@ -52,7 +52,7 @@ cargo run --release -p dimaster -- --headless ls -la
 
 Шрифт можно временно сменить переменной `DIMASTER_FONT`.
 
-**Полный справочник по Lua: [docs/LUA.md](docs/LUA.md).**
+**Справочник по Lua, по странице на каждый файл настроек: [docs/lua/](docs/lua/README.md).**
 
 ## Настройки
 

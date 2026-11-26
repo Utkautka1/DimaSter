@@ -4,8 +4,13 @@
 -- info: mode, host, user, cwd, git_branch, git_changes, node, python, go,
 --       process, cpu, memory, docker_running, docker_stopped. Нет данных — nil.
 -- Возврат: { left = {...}, center = {...}, right = {...} }, где элемент —
--- строка или { text = "...", color = "#rrggbb", background = "#rrggbb",
--- rounded = true }. Все тексты, значки и цвета меняются здесь.
+-- строка или таблица: text, color, background, rounded, left_cap, right_cap,
+-- radius, opacity.
+--
+-- Форма всего бара (всё необязательно): position = "top" | "bottom",
+-- margin = { x = 12, y = 10 }, padding = { x = 0, y = 0 }, gap = 4,
+-- background = "#rrggbb", radius = 12, opacity = 0.8,
+-- rows = { { left = ... }, { right = ... } } — несколько строк.
 
 -- палитра: тёмный текст на светлых «таблетках» и наоборот
 local ink = "#11111b"

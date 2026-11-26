@@ -4,6 +4,7 @@
 //! Команды запускаются в чужих каталогах, поэтому у git отключены fsmonitor и
 //! хуки из конфига репозитория, а версии инструментов спрашиваются из `/`.
 
+use dimaster_i18n::tr;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -175,7 +176,10 @@ impl Sampler {
             });
         facts.push(("process".into(), name.clone()));
         facts.push(("cpu".into(), format!("{cpu:.0}")));
-        facts.push(("memory".into(), format!("{} МБ", pages * 4 / 1024)));
+        facts.push((
+            "memory".into(),
+            format!("{} {}", pages * 4 / 1024, tr("МБ")),
+        ));
         self.previous = Some((name, ticks, now));
     }
 

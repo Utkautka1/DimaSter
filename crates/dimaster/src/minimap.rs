@@ -1,22 +1,20 @@
 //! Отрисовка миникарты и щелчки по ней.
 
+use dimaster_config::Strip;
 use dimaster_grid::PromptMark;
 use dimaster_render::Rect;
 
 use crate::modes::Mode;
 use crate::view::View;
 
-const WIDTH: u32 = 90;
-// отступ от полосы прокрутки
+// отступ от края окна и полосы прокрутки
 const MARGIN: u32 = 8;
-const TEXT: u32 = 0x9aa5ce;
-const COMMAND: u32 = 0x7aa2f7;
-const ERROR: u32 = 0xf7768e;
 
 /// Где нарисована карта и сколько строк в одном пикселе.
 #[derive(Debug, Clone, Copy)]
 struct Area {
     x: u32,
+    style: Strip,
     top: u32,
     height: u32,
     total: u64,
@@ -46,13 +44,17 @@ impl View {
         if !shown || self.term.is_alternate() {
             return None;
         }
-        let size = self.window.inner_size();
-        let top = self.title_height();
+        let (size, style) = (self.window.inner_size(), self.config.ui.minimap);
+        let top = self.content_top();
         let range = self.term.line_range();
         Some(Area {
-            x: size.width.saturating_sub(WIDTH + MARGIN),
+            x: match style.left {
+                true => MARGIN,
+                false => size.width.saturating_sub(style.width + MARGIN),
+            },
+            style,
             top,
-            height: size.height.saturating_sub(top + self.status_height()),
+            height: size.height.saturating_sub(top + self.content_bottom()),
             total: range.end - range.start,
         })
     }
@@ -61,19 +63,19 @@ impl View {
     fn minimap_bar(&self, area: Area, first: u64) -> Rect {
         let start = self.term.line_range().start;
         let mut longest = 0;
-        let mut color = TEXT;
+        let (style, mut color) = (area.style, area.style.color);
         for line in first..(first + area.step()).min(area.total) {
             let Some(row) = self.term.line(start + line) else {
                 continue;
             };
             longest = longest.max(row.text().chars().count() as u32);
             match row.mark {
-                Some(PromptMark::Failed) => color = ERROR,
-                Some(PromptMark::Prompt) if color != ERROR => color = COMMAND,
+                Some(PromptMark::Failed) => color = style.error,
+                Some(PromptMark::Prompt) if color != style.error => color = style.command,
                 _ => {}
             }
         }
-        let width = (longest * 2 / 3).min(WIDTH);
+        let width = (longest * 2 / 3).min(style.width);
         Rect {
             x: area.x,
             y: area.y(first),
@@ -81,34 +83,34 @@ impl View {
             height: 1,
             color,
             translucent: false,
+            radius: 0,
+            opacity: 1.0,
         }
+    }
+
+    // фон карты и рамка видимой части
+    fn minimap_frame(&self, area: Area) -> [Rect; 2] {
+        let first = self.term.visible_line(self.scroll) - self.term.line_range().start;
+        let rows = self.term.screen().rows().len() as u64;
+        let size = (area.style.width + 4, area.height);
+        let x = area.x.saturating_sub(4);
+        let backdrop = self.plain_rect(x, area.top, size, self.config.theme.background);
+        let view = Rect {
+            y: area.y(first),
+            height: (area.y(first + rows) - area.y(first)).max(4),
+            color: area.style.color,
+            translucent: true,
+            ..backdrop
+        };
+        [backdrop, view]
     }
 
     pub(crate) fn minimap_rects(&self) -> Vec<Rect> {
         let Some(area) = self.minimap_area() else {
             return Vec::new();
         };
-        let first = self.term.visible_line(self.scroll) - self.term.line_range().start;
-        let rows = self.term.screen().rows().len() as u64;
-        let backdrop = Rect {
-            x: area.x - 4,
-            y: area.top,
-            width: WIDTH + 4,
-            height: area.height,
-            color: self.config.theme.background,
-            translucent: false,
-        };
-        // рамка видимой части
-        let height = (area.y(first + rows) - area.y(first)).max(4);
-        let view = Rect {
-            y: area.y(first),
-            height,
-            color: TEXT,
-            translucent: true,
-            ..backdrop
-        };
         let bars = (0..area.total).step_by(area.step() as usize);
-        let mut rects = vec![backdrop, view];
+        let mut rects = self.minimap_frame(area).to_vec();
         rects.extend(bars.map(|line| self.minimap_bar(area, line)));
         rects
     }
@@ -116,7 +118,10 @@ impl View {
     /// Щелчок по карте переносит к этому месту; `true` — щелчок принят.
     pub(crate) fn minimap_click(&mut self) -> bool {
         let (x, y) = self.pointer.position;
-        let Some(area) = self.minimap_area().filter(|a| x >= f64::from(a.x)) else {
+        let Some(area) = self
+            .minimap_area()
+            .filter(|a| x >= f64::from(a.x) && x < f64::from(a.x + a.style.width))
+        else {
             return false;
         };
         let line = self.term.line_range().start + area.line_at(y);

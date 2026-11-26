@@ -2,6 +2,7 @@
 --
 -- Примеры:
 --   return { font = { size = 14 } }
+--   return { language = "en" } -- auto | ru | en | свой lang/<код>.lua
 --   return { theme = "nord", effects = { cursor_trail = true } }
 --   return { keys = { { key = "k", mods = "ctrl+shift", action = "scroll_top" } } }
 

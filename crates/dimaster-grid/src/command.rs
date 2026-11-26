@@ -1,6 +1,7 @@
 //! Учёт команд по меткам shell (OSC 133 и 633;E): результат, длительность,
 //! снимок вывода и подсказка под строкой команды.
 
+use dimaster_i18n::tr;
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
@@ -53,8 +54,8 @@ pub(crate) struct Commands {
 }
 
 /// Расшифровка кода возврата.
-pub fn describe_exit(code: i32) -> &'static str {
-    match code {
+pub fn describe_exit(code: i32) -> String {
+    let text = match code {
         1 => "общая ошибка",
         2 => "ошибка (часто — неверные аргументы)",
         126 => "нет прав на запуск",
@@ -70,7 +71,8 @@ pub fn describe_exit(code: i32) -> &'static str {
         141 => "SIGPIPE — разорван конвейер",
         143 => "SIGTERM — завершён",
         _ => "ошибка",
-    }
+    };
+    tr(text)
 }
 
 impl SmartOptions {
@@ -80,12 +82,13 @@ impl SmartOptions {
         let search = self.search_tools.iter().any(|t| t == program);
         // grep без совпадений возвращает 1, но это не ошибка
         if silent && search && exit <= 1 {
-            return (!self.empty.is_empty()).then(|| (self.empty.clone(), 3));
+            return (!self.empty.is_empty()).then(|| (tr(&self.empty), 3));
         }
         match exit {
             0 if silent && !self.ok.is_empty() => Some((self.ok.clone(), 2)),
-            0 => None,
-            _ if self.errors => Some((format!("✗ {exit}: {}", describe_exit(exit)), 1)),
+            _ if exit != 0 && self.errors && silent => {
+                Some((format!("✗ {exit}: {}", describe_exit(exit)), 1))
+            }
             _ => None,
         }
     }

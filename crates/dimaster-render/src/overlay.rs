@@ -20,7 +20,7 @@ pub struct Label {
 }
 
 /// Прямоугольник интерфейса в пикселях окна.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Rect {
     pub x: u32,
     pub y: u32,
@@ -28,6 +28,9 @@ pub struct Rect {
     pub height: u32,
     pub color: Rgb,
     pub translucent: bool,
+    // радиус углов в пикселях
+    pub radius: u32,
+    pub opacity: f32,
 }
 
 impl Builder<'_> {
@@ -38,11 +41,11 @@ impl Builder<'_> {
             rect.color
         };
         let position = [rect.x as f32, rect.y as f32];
-        self.quads.push(Quad::solid(
-            position,
-            [rect.width as f32, rect.height as f32],
-            color,
-        ));
+        let size = [rect.width as f32, rect.height as f32];
+        let mut quad = Quad::solid(position, size, color);
+        // у заливки координаты атласа свободны: в них непрозрачность и радиус
+        quad.uv = [-rect.opacity.clamp(0.004, 1.0), rect.radius as f32];
+        self.quads.push(quad);
     }
 
     pub(crate) fn label(&mut self, label: &Label) {

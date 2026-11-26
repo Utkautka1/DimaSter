@@ -1,5 +1,6 @@
 //! Загрузка шрифтов и кэш растров.
 
+use dimaster_i18n::tr;
 use std::collections::HashMap;
 use std::fmt;
 use std::path::PathBuf;
@@ -27,7 +28,9 @@ pub struct FontError;
 
 impl fmt::Display for FontError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("не найден пригодный моноширинный шрифт (задайте DIMASTER_FONT)")
+        f.write_str(&tr(
+            "не найден пригодный моноширинный шрифт (задайте DIMASTER_FONT)",
+        ))
     }
 }
 

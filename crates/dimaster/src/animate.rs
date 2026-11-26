@@ -5,13 +5,9 @@
 
 use std::time::{Duration, Instant};
 
-use dimaster_config::Effects;
+use dimaster_config::{CursorLook, Effects};
 
 const FRAME: Duration = Duration::from_millis(16);
-const BLINK: Duration = Duration::from_millis(530);
-// скорость сближения с целью, 1/с
-const SPEED: f32 = 28.0;
-const TRAIL_STEPS: u16 = 6;
 
 /// Что нарисовать в этом кадре.
 #[derive(Debug, Default)]
@@ -26,6 +22,7 @@ pub(crate) struct Pose {
 
 #[derive(Debug)]
 pub(crate) struct Animator {
+    pub(crate) look: CursorLook,
     cursor: Option<(f32, f32)>,
     offset: f32,
     last: Instant,
@@ -36,6 +33,7 @@ pub(crate) struct Animator {
 impl Animator {
     pub(crate) fn new(now: Instant) -> Self {
         Self {
+            look: CursorLook::default(),
             cursor: None,
             offset: 0.0,
             last: now,
@@ -63,16 +61,16 @@ impl Animator {
     ) -> Pose {
         // после простоя не делаем один огромный шаг
         let elapsed = now.duration_since(self.last).min(Duration::from_millis(50));
-        let step = if self.moving { elapsed } else { FRAME };
-        let factor = 1.0 - (-step.as_secs_f32() * SPEED).exp();
+        let step = if self.moving { elapsed } else { FRAME }.as_secs_f32();
+        let factor = 1.0 - (-step * self.look.speed).exp();
         self.last = now;
-        let (cursor, trail) = self.move_cursor(target, effects, factor);
+        let (cursor, trail) = self.move_cursor(target, effects, (factor, step));
         self.offset *= 1.0 - factor;
         if !effects.smooth_scroll || self.offset.abs() < 0.5 {
             self.offset = 0.0;
         }
         self.moving = cursor != target || self.offset != 0.0;
-        let phase = now.duration_since(self.blink_from).as_millis() / BLINK.as_millis();
+        let phase = now.duration_since(self.blink_from).as_millis() / self.blink().as_millis();
         let blink_hidden = effects.cursor_blink && focused && phase % 2 == 1;
         Pose {
             cursor,
@@ -82,33 +80,49 @@ impl Animator {
         }
     }
 
+    fn blink(&self) -> Duration {
+        Duration::from_millis(u64::from(self.look.blink_interval.max(1)))
+    }
+
+    // `step` — доля пути для плавного движения и секунды для равномерного
+    fn advance(&self, from: (f32, f32), to: (f32, f32), step: (f32, f32)) -> (f32, f32) {
+        let distance = (to.0 - from.0).hypot(to.1 - from.1);
+        let part = match self.look.linear {
+            true => (self.look.speed * step.1 / distance.max(f32::EPSILON)).min(1.0),
+            false => step.0,
+        };
+        let at = (lerp(from.0, to.0, part), lerp(from.1, to.1, part));
+        match (to.0 - at.0).hypot(to.1 - at.1) < 0.05 {
+            true => to,
+            false => at,
+        }
+    }
+
+    fn trail(&self, from: (f32, f32), at: (f32, f32)) -> Vec<(f32, f32)> {
+        let copies = self.look.trail_length;
+        let part = |i: u16| f32::from(i) / f32::from(copies + 1);
+        let points =
+            (1..=copies).map(|i| (lerp(from.0, at.0, part(i)), lerp(from.1, at.1, part(i))));
+        points.collect()
+    }
+
     fn move_cursor(
         &mut self,
         target: (f32, f32),
         effects: Effects,
-        factor: f32,
+        step: (f32, f32),
     ) -> ((f32, f32), Vec<(f32, f32)>) {
         let from = self
             .cursor
             .filter(|_| effects.cursor_animation)
             .unwrap_or(target);
-        let lerp = |a: f32, b: f32, t: f32| a + (b - a) * t;
-        let mut at = (
-            lerp(from.0, target.0, factor),
-            lerp(from.1, target.1, factor),
-        );
-        let distance = (target.0 - at.0).hypot(target.1 - at.1);
-        if distance < 0.05 {
-            at = target;
-        }
+        let at = self.advance(from, target, step);
         self.cursor = Some(at);
-        let mut trail = Vec::new();
-        if effects.cursor_trail && distance > 1.5 {
-            trail.extend((1..TRAIL_STEPS).map(|i| {
-                let t = f32::from(i) / f32::from(TRAIL_STEPS);
-                (lerp(from.0, at.0, t), lerp(from.1, at.1, t))
-            }));
-        }
+        let far = (target.0 - at.0).hypot(target.1 - at.1) > self.look.trail_distance;
+        let trail = match effects.cursor_trail && far {
+            true => self.trail(from, at),
+            false => Vec::new(),
+        };
         (at, trail)
     }
 
@@ -123,10 +137,15 @@ impl Animator {
             return Some(now + FRAME);
         }
         (effects.cursor_blink && focused).then(|| {
-            let passed = now.duration_since(self.blink_from).as_millis() / BLINK.as_millis();
-            self.blink_from + BLINK * (passed as u32 + 1)
+            let blink = self.blink();
+            let passed = now.duration_since(self.blink_from).as_millis() / blink.as_millis();
+            self.blink_from + blink * (passed as u32 + 1)
         })
     }
+}
+
+fn lerp(from: f32, to: f32, part: f32) -> f32 {
+    from + (to - from) * part
 }
 
 #[cfg(test)]
@@ -150,5 +169,16 @@ mod tests {
             .last();
         assert_eq!(end.unwrap().cursor, (0.0, 20.0));
         assert_eq!(animator.next_frame(effects, true, start + FRAME * 60), None);
+    }
+
+    #[test]
+    fn linear_motion_keeps_its_speed() {
+        let start = Instant::now();
+        let mut animator = Animator::new(start);
+        (animator.look.linear, animator.look.speed) = (true, 100.0);
+        let effects = Effects::default();
+        animator.tick((0.0, 0.0), effects, true, start);
+        let first = animator.tick((0.0, 20.0), effects, true, start + FRAME);
+        assert!((first.cursor.1 - 1.6).abs() < 0.01, "{:?}", first.cursor);
     }
 }

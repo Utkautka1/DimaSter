@@ -1,21 +1,18 @@
 //! Полоса прокрутки с метками команд, ошибок и найденного.
 
+use dimaster_config::Strip;
 use dimaster_grid::PromptMark;
 use dimaster_render::Rect;
 
 use crate::modes::Mode;
 use crate::view::View;
 
-const WIDTH: u32 = 5;
-const THUMB: u32 = 0x9aa5ce;
-const COMMAND: u32 = 0x7aa2f7;
-const ERROR: u32 = 0xf7768e;
-const FOUND: u32 = 0xe0af68;
-
 /// Область, по высоте которой раскладываются строки.
 #[derive(Debug, Clone, Copy)]
 struct Track {
     x: u32,
+    width: u32,
+    style: Strip,
     top: u32,
     height: u32,
     // строк всего вместе с историей
@@ -31,10 +28,12 @@ impl Track {
         Rect {
             x: self.x,
             y,
-            width: WIDTH,
+            width: self.width,
             height,
             color,
             translucent,
+            radius: 0,
+            opacity: 1.0,
         }
     }
 
@@ -43,7 +42,12 @@ impl Track {
         let top = self.y(first);
         let height = (self.y(first + rows) - top).max(12);
         let limit = self.top + self.height;
-        self.rect(top.min(limit.saturating_sub(height)), height, THUMB, true)
+        self.rect(
+            top.min(limit.saturating_sub(height)),
+            height,
+            self.style.color,
+            true,
+        )
     }
 }
 
@@ -53,13 +57,18 @@ impl View {
         if !self.config.scrollbar || self.term.is_alternate() || history == 0 {
             return Vec::new();
         }
-        let size = self.window.inner_size();
-        let top = self.title_height();
+        let (size, style) = (self.window.inner_size(), self.config.ui.scrollbar);
+        let top = self.content_top();
         let range = self.term.line_range();
         let track = Track {
-            x: size.width.saturating_sub(WIDTH + 1),
+            x: match style.left {
+                true => 1,
+                false => size.width.saturating_sub(style.width + 1),
+            },
+            width: style.width,
+            style,
             top,
-            height: size.height.saturating_sub(top + self.status_height()),
+            height: size.height.saturating_sub(top + self.content_bottom()),
             total: range.end - range.start,
         };
         let first = self.term.visible_line(self.scroll) - range.start;
@@ -75,15 +84,20 @@ impl View {
             .clone()
             .filter_map(|line| {
                 let color = match self.term.line(line)?.mark? {
-                    PromptMark::Prompt => COMMAND,
-                    PromptMark::Failed => ERROR,
+                    PromptMark::Prompt => track.style.command,
+                    PromptMark::Failed => track.style.error,
                     PromptMark::Output => return None,
                 };
                 Some(tick(line, color))
             })
             .collect();
         if let Mode::Search(search) = &self.mode {
-            ticks.extend(search.matches.iter().map(|m| tick(m.start.line, FOUND)));
+            ticks.extend(
+                search
+                    .matches
+                    .iter()
+                    .map(|m| tick(m.start.line, track.style.found)),
+            );
         }
         ticks
     }

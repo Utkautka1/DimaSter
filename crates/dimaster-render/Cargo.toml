@@ -8,6 +8,7 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+dimaster-i18n.workspace = true
 dimaster-font.workspace = true
 dimaster-grid.workspace = true
 wgpu.workspace = true

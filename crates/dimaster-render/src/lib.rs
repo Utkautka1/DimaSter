@@ -7,6 +7,7 @@
 mod appearance;
 mod atlas;
 mod bidi;
+mod cursor;
 mod frame;
 mod gpu;
 mod images;
@@ -18,7 +19,7 @@ mod text;
 mod textures;
 mod underline;
 
-pub use appearance::Appearance;
+pub use appearance::{Appearance, CursorLook};
 pub use frame::Viewport;
 pub use gpu::{RenderError, Renderer};
 pub use overlay::{Label, Rect};

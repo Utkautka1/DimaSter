@@ -1,5 +1,6 @@
 //! Оформление `fetch` на Lua: Rust передаёт факты, скрипт возвращает макет.
 
+use dimaster_i18n::tr;
 use std::path::{Path, PathBuf};
 
 use mlua::{Lua, Table};
@@ -47,6 +48,8 @@ fn prepare(lua: &Lua, facts: &[(&str, Option<String>)]) -> mlua::Result<()> {
         }
     }
     lua.globals().set("info", info)?;
+    let translate = lua.create_function(|_, text: String| Ok(tr(&text)))?;
+    lua.globals().set("tr", translate)?;
     lua.globals().set("color", lua.create_function(paint)?)
 }
 

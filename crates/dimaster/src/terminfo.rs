@@ -4,6 +4,7 @@
 //! `xterm-dimaster` нет, и по SSH ломались бы программы. Своя запись включается
 //! `term = "xterm-dimaster"` в конфиге.
 
+use dimaster_i18n::{tr, trf};
 use std::io::{self, Write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
@@ -33,7 +34,7 @@ fn data_directory() -> io::Result<PathBuf> {
     let base = std::env::var_os("XDG_DATA_HOME")
         .map(PathBuf::from)
         .or_else(|| Some(PathBuf::from(std::env::var_os("HOME")?).join(".local/share")))
-        .ok_or_else(|| io::Error::other("не заданы XDG_DATA_HOME и HOME"))?;
+        .ok_or_else(|| io::Error::other(tr("не заданы XDG_DATA_HOME и HOME")))?;
     Ok(base.join("dimaster/terminfo"))
 }
 
@@ -46,7 +47,10 @@ pub(crate) fn push_over_ssh(ssh_args: &[String]) -> io::Result<()> {
     let mut command = Command::new("ssh");
     command.args(ssh_args).arg(REMOTE_INSTALL);
     feed(command)?;
-    println!("Запись {NAME} установлена на сервере.");
+    println!(
+        "{}",
+        trf("Запись {name} установлена на сервере.", &[("name", NAME)])
+    );
     Ok(())
 }
 
@@ -58,7 +62,10 @@ fn feed(mut command: Command) -> io::Result<()> {
     }
     let status = child.wait()?;
     if !status.success() {
-        return Err(io::Error::other(format!("команда завершилась с {status}")));
+        return Err(io::Error::other(trf(
+            "команда завершилась с {status}",
+            &[("status", &status.to_string())],
+        )));
     }
     Ok(())
 }

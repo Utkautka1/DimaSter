@@ -7,12 +7,46 @@ use dimaster_grid::{ColorOverrides, Picture};
 
 use crate::palette::Rgb;
 
+/// Как выглядит курсор; доли — от размера ячейки.
+#[derive(Debug, Clone, Copy)]
+pub struct CursorLook {
+    // 0 — толщина по шрифту
+    pub thickness: u32,
+    pub width: f32,
+    pub height: f32,
+    pub radius: u32,
+    pub opacity: f32,
+    pub color: Option<Rgb>,
+    pub text_color: Option<Rgb>,
+    pub hollow_unfocused: bool,
+    pub trail_color: Option<Rgb>,
+    pub trail_opacity: f32,
+}
+
+impl Default for CursorLook {
+    fn default() -> Self {
+        Self {
+            thickness: 0,
+            width: 1.0,
+            height: 1.0,
+            radius: 0,
+            opacity: 1.0,
+            color: None,
+            text_color: None,
+            hollow_unfocused: false,
+            trail_color: None,
+            trail_opacity: 0.35,
+        }
+    }
+}
+
 /// Задаётся приложением из пользовательского конфига.
 #[derive(Debug, Clone)]
 pub struct Appearance {
     pub foreground: Rgb,
     pub background: Rgb,
     pub cursor: Rgb,
+    pub cursor_look: CursorLook,
     pub selection: Rgb,
     pub selection_text: Option<Rgb>,
     pub ansi: [Rgb; 16],
@@ -35,6 +69,7 @@ impl Default for Appearance {
             foreground: 0xd8dee9,
             background: 0x11131a,
             cursor: 0xe5e9f0,
+            cursor_look: CursorLook::default(),
             selection: 0x3b4261,
             selection_text: None,
             ansi: [

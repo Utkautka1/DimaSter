@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use crate::keys::default_bindings;
-use crate::{Binding, Effects, Smart, Theme, Widgets, WindowConfig};
+use crate::{Binding, CursorLook, Effects, Smart, Theme, Ui, Widgets, WindowConfig};
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum CursorStyle {
@@ -63,6 +63,8 @@ impl CopyOnSelect {
 /// Настройки терминала.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Config {
+    /// `auto`, `ru`, `en` или код своего файла `lang/<код>.lua`.
+    pub language: String,
     /// `None` — моноширинный шрифт из fontconfig.
     pub font_family: Option<String>,
     /// Семейства для жирного, курсива и жирного курсива.
@@ -75,6 +77,7 @@ pub struct Config {
     // отступы от краёв окна в пикселях
     pub padding: (u32, u32),
     pub cursor: CursorStyle,
+    pub cursor_look: CursorLook,
     // строк истории
     pub scrollback: usize,
     /// Команда вместо `$SHELL`.
@@ -106,6 +109,8 @@ pub struct Config {
     /// Полоса прокрутки с метками команд.
     pub scrollbar: bool,
     pub widgets: Widgets,
+    /// Вид интерфейса поверх терминала.
+    pub ui: Ui,
     /// Переменные окружения для shell этого терминала.
     pub env: Vec<(String, String)>,
 }
@@ -115,6 +120,7 @@ impl Default for Config {
     #[allow(clippy::too_many_lines)]
     fn default() -> Self {
         Self {
+            language: "auto".to_owned(),
             font_family: None,
             font_styles: Default::default(),
             font_size: 12.0,
@@ -122,6 +128,7 @@ impl Default for Config {
             theme: Theme::default(),
             padding: (6, 6),
             cursor: CursorStyle::Block,
+            cursor_look: CursorLook::default(),
             scrollback: 10_000,
             shell: Vec::new(),
             images_scroll: true,
@@ -141,6 +148,7 @@ impl Default for Config {
             smart: Smart::default(),
             scrollbar: true,
             widgets: Widgets::default(),
+            ui: Ui::default(),
             env: Vec::new(),
         }
     }

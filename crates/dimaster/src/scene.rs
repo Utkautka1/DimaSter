@@ -1,130 +1,128 @@
 //! Сборка кадра: подсветки, панели и положение курсора.
 
+use dimaster_i18n::tr;
 use std::time::Instant;
 
+use dimaster_config::Anchor;
 use dimaster_grid::{Point, Span};
-use dimaster_render::{Label, Rect, Viewport};
+use dimaster_render::Viewport;
+use unicode_width::UnicodeWidthStr;
 
-use crate::chrome::BUTTONS;
 use crate::modes::Mode;
+use crate::overlay::{Drawn, fill};
 use crate::view::View;
-
-const MATCH: u32 = 0x6b5a1e;
-const CURRENT_MATCH: u32 = 0xb0620f;
-const LINK: u32 = 0x2f4a7a;
-// строк палитры на экране
-const PALETTE_ROWS: usize = 11;
-
-// доля `amount` второго цвета в смеси
-fn blend(base: u32, other: u32, amount: f32) -> u32 {
-    let channel = |shift: u32| {
-        let (a, b) = (
-            ((base >> shift) & 0xff) as f32,
-            ((other >> shift) & 0xff) as f32,
-        );
-        ((a + (b - a) * amount).round() as u32) << shift
-    };
-    channel(16) | channel(8) | channel(0)
-}
 
 impl View {
     fn highlights(&self) -> Vec<(Span, u32)> {
-        let mut out = Vec::new();
+        let (marks, mut out) = (self.config.ui.marks, Vec::new());
         if let Mode::Search(search) = &self.mode {
             let first = self.term.visible_line(self.scroll);
             let last = first + self.term.screen().rows().len() as u64;
             for (index, found) in search.matches.iter().enumerate() {
                 if found.end.line >= first && found.start.line < last {
-                    let color = if index == search.current {
-                        CURRENT_MATCH
-                    } else {
-                        MATCH
-                    };
+                    let current = index == search.current;
+                    let color = if current { marks.current } else { marks.found };
                     out.push((self.term.match_span(*found), color));
                 }
             }
         }
-        out.extend(self.hover_link.map(|l| (self.term.match_span(l), LINK)));
+        out.extend(
+            self.hover_link
+                .map(|l| (self.term.match_span(l), marks.link)),
+        );
         out
     }
 
-    // цвета панелей выводятся из фона и текста темы: цвет выделения бывает
-    // светлым, и светлый текст на нём не читается
-    pub(crate) fn label(&self, x: u32, y: u32, width: usize, text: String) -> Label {
-        let theme = self.config.theme;
-        let background = blend(theme.background, theme.foreground, 0.14);
-        Label {
-            x,
-            y,
-            width,
-            text,
-            color: theme.foreground,
-            background,
+    /// Сколько пикселей снизу занято баром.
+    pub(crate) fn content_bottom(&self) -> u32 {
+        match self.status.bar.style.top {
+            true => 0,
+            false => self.status_height(),
         }
     }
 
-    fn title_labels(&self) -> Vec<Label> {
-        if self.title_height() == 0 {
-            return Vec::new();
-        }
-        let cell = self.fonts.metrics().cell_width;
-        let width = (self.window.inner_size().width / cell) as usize;
-        let title = self.window.title();
-        let room = width.saturating_sub(BUTTONS.chars().count() + 2);
-        let mut bar = self.label(cell, 4, 0, title.chars().take(room).collect());
-        bar.background = self.config.theme.background;
-        let buttons_x = self.window.inner_size().width.saturating_sub(cell * 9);
-        let buttons = Label {
-            x: buttons_x,
-            text: BUTTONS.to_owned(),
-            ..bar.clone()
+    fn columns(&self) -> usize {
+        (self.window.inner_size().width / self.fonts.metrics().cell_width) as usize
+    }
+
+    // строка у края: поиск, подсказка режима или адрес ссылки
+    fn edge_line(&self, columns: usize, text: String) -> Drawn {
+        let height = self.panel_size(columns, 1).1;
+        let y = match self.config.ui.prompt_top {
+            true => self.content_top(),
+            false => self
+                .window
+                .inner_size()
+                .height
+                .saturating_sub(height + self.content_bottom()),
         };
-        vec![bar, buttons]
+        self.panel((0, y), columns, &[(text, false)])
     }
 
-    // нижняя строка: поиск или подсказка vi-режима
-    fn status_label(&self) -> Option<Label> {
+    fn search_text(&self, search: &crate::modes::search::Search) -> String {
+        let texts = &self.config.ui.texts;
+        let kind = tr(if search.regex {
+            &texts.search_regex
+        } else {
+            &texts.search_plain
+        });
+        let position = if search.matches.is_empty() {
+            0
+        } else {
+            search.current + 1
+        };
+        let values = [
+            ("query", search.query.as_str()),
+            ("position", &position.to_string()),
+            ("count", &search.matches.len().to_string()),
+            ("kind", &kind),
+        ];
+        fill(&tr(&texts.search), &values)
+    }
+
+    fn prompt(&self) -> Drawn {
+        let texts = &self.config.ui.texts;
         let text = match &self.mode {
-            Mode::Search(search) => search.status(),
-            Mode::Hint(_) => " Метка — открыть, ЗАГЛАВНАЯ — копировать, Esc ".into(),
-            Mode::Minimap(_) => {
-                " Карта: j/k прокрутка · g/G края · Enter здесь · Esc назад ".into()
-            }
-            Mode::Vi(_) => " VI: hjkl w b 0 $ g G · v V · y копировать · / поиск · q выход ".into(),
-            _ => return None,
+            Mode::Search(search) => self.search_text(search),
+            Mode::Hint(_) => tr(&texts.hint),
+            Mode::Minimap(_) => tr(&texts.minimap),
+            Mode::Vi(_) => tr(&texts.vi),
+            _ => return Drawn::default(),
         };
-        let metrics = self.fonts.metrics();
-        let size = self.window.inner_size();
-        let width = (size.width / metrics.cell_width) as usize;
-        Some(self.label(
-            0,
-            size.height.saturating_sub(metrics.cell_height),
-            width,
-            text,
-        ))
+        self.edge_line(self.columns(), text)
     }
 
-    fn palette_labels(&self) -> Vec<Label> {
+    fn palette_panel(&self) -> Drawn {
         let Mode::Palette(palette) = &self.mode else {
-            return Vec::new();
+            return Drawn::default();
         };
-        let metrics = self.fonts.metrics();
-        let columns = (self.window.inner_size().width / metrics.cell_width) as usize;
-        let width = columns.min(50);
-        let x = (columns - width) as u32 / 2 * metrics.cell_width;
-        let top = self.title_height() + metrics.cell_height;
-        let row = |index: usize, text: String| {
-            self.label(x, top + index as u32 * metrics.cell_height, width, text)
+        let style = &self.config.ui.palette;
+        let columns = self.columns().min(style.width);
+        let mut lines = vec![(format!("{}{}_", style.prompt, palette.query), false)];
+        // список листается, чтобы выбранная команда оставалась видна
+        let start = palette.selected.saturating_sub(style.rows - 1);
+        let items = palette
+            .items()
+            .into_iter()
+            .enumerate()
+            .skip(start)
+            .take(style.rows);
+        lines.extend(items.map(|(i, (name, _))| (format!("   {name}"), i == palette.selected)));
+        self.panel(self.palette_corner(columns, lines.len()), columns, &lines)
+    }
+
+    fn palette_corner(&self, columns: usize, rows: usize) -> (u32, u32) {
+        let size = self.window.inner_size();
+        let (width, height) = self.panel_size(columns, rows);
+        let cell = self.fonts.metrics().cell_height;
+        let y = match self.config.ui.palette.position {
+            Anchor::Top => self.title_height() + cell,
+            Anchor::Center => size.height.saturating_sub(height) / 2,
+            Anchor::Bottom => size
+                .height
+                .saturating_sub(height + self.content_bottom() + cell),
         };
-        let mut labels = vec![row(0, format!(" > {}_", palette.query))];
-        for (index, (name, _)) in palette.items().into_iter().take(PALETTE_ROWS).enumerate() {
-            let mut label = row(index + 1, format!("   {name}"));
-            if index == palette.selected {
-                (label.background, label.color) = (label.color, self.config.theme.background);
-            }
-            labels.push(label);
-        }
-        labels
+        (size.width.saturating_sub(width) / 2, y)
     }
 
     // (строка, колонка) на экране; None — курсор за пределами вида
@@ -145,54 +143,48 @@ impl View {
     }
 
     // адрес ссылки под указателем при зажатом Ctrl
-    fn link_label(&self) -> Option<Label> {
-        let uri = self.hover_link.and(self.hover_uri.as_ref())?;
-        let metrics = self.fonts.metrics();
-        let size = self.window.inner_size();
-        let columns = (size.width / metrics.cell_width) as usize;
-        let width = (uri.chars().count() + 2).min(columns);
-        let y = size
-            .height
-            .saturating_sub(metrics.cell_height + self.status_height());
-        Some(self.label(0, y, width, format!(" {uri}")))
+    fn link_panel(&self) -> Drawn {
+        let Some(uri) = self.hover_link.and(self.hover_uri.as_ref()) else {
+            return Drawn::default();
+        };
+        let columns = (uri.width() + 2).min(self.columns());
+        self.edge_line(columns, format!(" {uri}"))
     }
 
-    // выделение и панели зависят от режима
-    fn decorations(&self) -> (Option<Span>, Vec<(Span, u32)>, Vec<Label>) {
+    // интерфейс снизу вверх по слоям
+    fn interface(&self) -> Drawn {
+        let mut out = Drawn {
+            rects: self.minimap_rects(),
+            ..Drawn::default()
+        };
+        out.merge(self.title_bar());
+        out.merge(self.status_bar());
+        out.rects.extend(self.scrollbar_rects());
+        out.merge(self.prompt());
+        out.merge(self.palette_panel());
+        out.merge(self.mode_panels());
+        out.merge(self.link_panel());
+        out.merge(self.monitor_panel());
+        out.rects.extend(self.glow_rects());
+        out
+    }
+
+    fn selection_span(&self) -> Option<Span> {
         let selection = match &self.mode {
             Mode::Vi(vi) => vi.selection(),
             _ => self.selecting.selection,
         };
-        let mut labels = self.title_labels();
-        labels.extend(self.status_labels());
-        labels.extend(self.status_label());
-        labels.extend(self.palette_labels());
-        labels.extend(self.mode_panels());
-        labels.extend(self.link_label());
-        labels.extend(self.monitor_labels());
-        (
-            selection.map(|s| self.term.span(s)),
-            self.highlights(),
-            labels,
-        )
-    }
-
-    // подложки интерфейса снизу вверх по слоям
-    fn rects(&self) -> Vec<Rect> {
-        let mut rects = self.minimap_rects();
-        rects.extend(self.scrollbar_rects());
-        rects.extend(self.glow_rects());
-        rects
+        selection.map(|s| self.term.span(s))
     }
 
     pub(crate) fn draw(&mut self) {
         let target = self.cursor_target();
-        let (effects, now) = (self.config.effects, Instant::now());
+        let (effects, at) = (self.config.effects, target.unwrap_or_default());
         let pose = self
             .animator
-            .tick(target.unwrap_or_default(), effects, self.focused, now);
-        let (selection, highlights, labels) = self.decorations();
-        let rects = self.rects();
+            .tick(at, effects, self.focused, Instant::now());
+        let (selection, highlights) = (self.selection_span(), self.highlights());
+        let Drawn { rects, labels } = self.interface();
         let view = Viewport {
             scroll: self.scroll,
             selection,
@@ -202,26 +194,20 @@ impl View {
             offset: pose.offset,
             cursor: target.map(|_| pose.cursor),
             cursor_hidden: target.is_none() || pose.blink_hidden,
+            unfocused: !self.focused,
             trail: if target.is_some() { &pose.trail } else { &[] },
             rects: &rects,
         };
         self.renderer.prepare(&self.term, &mut self.fonts, view);
+        self.show();
+    }
+
+    fn show(&mut self) {
         // показ кадра может ждать монитор — вывод тем временем разбирается
         self.term.release();
         if !self.renderer.present() {
             (self.wake)();
         }
         self.schedule_animation();
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn blends_towards_second_color() {
-        assert_eq!(blend(0x000000, 0xffffff, 0.5), 0x808080);
-        assert_eq!(blend(0x102030, 0x102030, 0.3), 0x102030);
     }
 }

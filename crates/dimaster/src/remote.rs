@@ -4,6 +4,7 @@
 //! в личном каталоге `$XDG_RUNTIME_DIR` с правами 0700. Запрос — аргументы
 //! через NUL, ответ — строка `ok`/`err` и текст.
 
+use dimaster_i18n::tr;
 use std::io::{self, Read, Write};
 use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
 use std::os::unix::net::{UnixListener, UnixStream};
@@ -14,8 +15,7 @@ use std::time::Duration;
 
 const MAX_REQUEST: u64 = 1 << 20;
 const TIMEOUT: Duration = Duration::from_secs(3);
-const USAGE: &str = "dimaster ctl [list | info | get-text | send-text <текст> | \
-                     action <имя> | set-title <текст> | reload | new-window]";
+const USAGE: &str = "dimaster ctl [list | info | get-text | send-text <текст> | action <имя> | set-title <текст> | reload | new-window]";
 
 /// Запрос, который выполняет окно.
 #[derive(Debug)]
@@ -56,7 +56,7 @@ pub(crate) fn live_sockets() -> Vec<PathBuf> {
 }
 
 fn bind() -> io::Result<(UnixListener, PathBuf)> {
-    let directory = directory().ok_or_else(|| io::Error::other("не задан XDG_RUNTIME_DIR"))?;
+    let directory = directory().ok_or_else(|| io::Error::other(tr("не задан XDG_RUNTIME_DIR")))?;
     std::fs::DirBuilder::new()
         .recursive(true)
         .mode(0o700)
@@ -89,7 +89,7 @@ fn serve(mut stream: UnixStream, deliver: &impl Fn(Request)) -> io::Result<()> {
     });
     let result = answer
         .recv_timeout(TIMEOUT)
-        .unwrap_or_else(|_| Err("окно не ответило".into()));
+        .unwrap_or_else(|_| Err(tr("окно не ответило")));
     match result {
         Ok(text) => write!(stream, "ok\n{text}"),
         Err(text) => write!(stream, "err\n{text}"),
@@ -121,7 +121,7 @@ fn call(socket: &Path, args: &[String]) -> io::Result<String> {
     match answer.split_once('\n') {
         Some(("ok", text)) => Ok(text.to_owned()),
         Some((_, text)) => Err(io::Error::other(text.to_owned())),
-        None => Err(io::Error::other("пустой ответ")),
+        None => Err(io::Error::other(tr("пустой ответ"))),
     }
 }
 
@@ -132,17 +132,17 @@ fn target() -> io::Result<PathBuf> {
     }
     match live_sockets().as_slice() {
         [only] => Ok(only.clone()),
-        [] => Err(io::Error::other("нет запущенных окон DimaSter")),
-        _ => Err(io::Error::other(
+        [] => Err(io::Error::other(tr("нет запущенных окон DimaSter"))),
+        _ => Err(io::Error::other(tr(
             "окон несколько: задайте DIMASTER_SOCKET (см. ctl list)",
-        )),
+        ))),
     }
 }
 
 /// Клиентская часть: `dimaster ctl …`.
 pub(crate) fn client(args: &[String]) -> io::Result<()> {
     let text = match args.first().map(String::as_str) {
-        None => return Err(io::Error::other(USAGE)),
+        None => return Err(io::Error::other(tr(USAGE))),
         Some("list") => live_sockets()
             .iter()
             .map(|p| p.display().to_string())

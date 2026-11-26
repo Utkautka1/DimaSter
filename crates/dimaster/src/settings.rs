@@ -5,15 +5,26 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
-use dimaster_config::{Config, CursorStyle, Decorations, config_dir, load};
+use dimaster_config::{Config, CursorStyle, Decorations, config_dir, load, translations};
 use dimaster_font::{FontError, FontSystem};
 use dimaster_grid::{CursorShape, DefaultColors, Picture};
 use dimaster_image::decode;
-use dimaster_render::Appearance;
+use dimaster_render::{Appearance, CursorLook};
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 
 pub(crate) fn config_path() -> Option<PathBuf> {
     Some(config_dir()?.join("init.lua"))
+}
+
+/// Включает язык из конфига вместе с переводами пользователя.
+pub(crate) fn set_language(config: &Config) {
+    let code = dimaster_i18n::resolve(&config.language, |name| std::env::var(name).ok());
+    let user = config_dir().map_or_else(|| Ok(Vec::new()), |d| translations(&d, &code));
+    let user = user.unwrap_or_else(|e| {
+        log::error!("lang/{code}.lua: {e}");
+        Vec::new()
+    });
+    dimaster_i18n::set_language(&code, user);
 }
 
 /// Конфиг пользователя; `Err` — текст ошибки, который стоит показать.
@@ -75,22 +86,27 @@ pub(crate) fn fonts(config: &Config, scale: f64) -> Result<FontSystem, FontError
     Ok(fonts)
 }
 
-/// Зазор под строкой статуса и над ней, в пикселях.
-pub(crate) const STATUS_MARGIN: u32 = 10;
-
-/// Высота строки статуса вместе с зазорами.
-pub(crate) fn status_height(config: &Config, cell_height: u32) -> u32 {
-    match config.widgets.statusbar {
-        true => cell_height + STATUS_MARGIN * 2,
-        false => 0,
-    }
-}
-
 /// Высота своей полосы заголовка в пикселях.
 pub(crate) fn title_height(config: &Config, cell_height: u32) -> u32 {
     match config.window.decorations {
-        Decorations::Own => cell_height + 8,
+        Decorations::Own => cell_height + config.ui.title.padding,
         Decorations::System | Decorations::None => 0,
+    }
+}
+
+fn cursor_look(config: &Config) -> CursorLook {
+    let look = config.cursor_look;
+    CursorLook {
+        thickness: look.thickness,
+        width: look.width,
+        height: look.height,
+        radius: look.radius,
+        opacity: look.opacity,
+        color: look.color,
+        text_color: look.text_color,
+        hollow_unfocused: look.hollow_unfocused,
+        trail_color: look.trail_color,
+        trail_opacity: look.trail_opacity,
     }
 }
 
@@ -100,6 +116,7 @@ pub(crate) fn appearance(config: &Config, cell_height: u32) -> Appearance {
         foreground: theme.foreground,
         background: theme.background,
         cursor: theme.cursor,
+        cursor_look: cursor_look(config),
         selection: theme.selection,
         selection_text: theme.selection_text,
         ansi: theme.ansi,

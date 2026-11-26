@@ -12,6 +12,8 @@ local SETTINGS = { "appearance", "font", "window", "effects", "behavior", "keys"
 local function names(context)
   local list = {}
   for _, name in ipairs(SETTINGS) do list[#list + 1] = "settings." .. name end
+  -- вид интерфейса: профили, хост и local.lua могут его перекрыть
+  list[#list + 1] = "ui"
   -- окружение: композитор, дисплейный сервер, удалённая сессия
   if context.desktop ~= "" then list[#list + 1] = "profiles.desktop." .. context.desktop end
   if context.session ~= "" then list[#list + 1] = "profiles.session." .. context.session end

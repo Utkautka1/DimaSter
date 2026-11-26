@@ -1,6 +1,7 @@
 //! Плагины и внешние команды внутри открытого окна.
 
 use dimaster_config::{Action, Effect, Plugins, Snapshot, config_dir};
+use dimaster_i18n::trf;
 
 use crate::desktop;
 use crate::remote::Request;
@@ -89,13 +90,19 @@ impl View {
         match words.as_slice() {
             ["send-text", text] => self.type_bytes(text.as_bytes().to_vec()),
             ["action", name] => {
-                let action = Action::parse(name).ok_or_else(|| format!("нет действия {name}"))?;
+                let action = Action::parse(name)
+                    .ok_or_else(|| trf("нет действия {name}", &[("name", name)]))?;
                 self.perform(action);
             }
             ["set-title", title] => self.window.set_title(title),
             ["reload"] => self.reload(),
             ["new-window"] => open_window(self.shell_directory(), None),
-            _ => return Err(format!("неизвестная команда: {}", words.join(" "))),
+            _ => {
+                return Err(trf(
+                    "неизвестная команда: {command}",
+                    &[("command", &words.join(" "))],
+                ));
+            }
         }
         Ok(String::new())
     }

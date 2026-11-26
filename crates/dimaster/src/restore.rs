@@ -1,5 +1,6 @@
 //! Связь открытого окна с хранилищем сессий.
 
+use dimaster_i18n::tr;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
@@ -52,7 +53,8 @@ impl View {
     /// Показывает сохранённую историю и запоминает каталог для shell.
     pub(crate) fn restore(&mut self, saved: Saved) {
         if !saved.lines.is_empty() {
-            let text = format!("{}\r\n\x1b[2m{MARKER}\x1b[0m\r\n", saved.lines.join("\r\n"));
+            let (lines, marker) = (saved.lines.join("\r\n"), tr(MARKER));
+            let text = format!("{lines}\r\n\x1b[2m{marker}\x1b[0m\r\n");
             self.term.advance(text.as_bytes());
         }
         self.start_directory = saved.cwd.filter(|d| d.is_dir());
@@ -70,7 +72,10 @@ impl View {
     fn snapshot_session(&self) -> Saved {
         let screen = self.term.screen();
         let rows = screen.history().chain(screen.rows());
-        let mut lines: Vec<String> = rows.map(|r| r.text()).filter(|l| l != MARKER).collect();
+        let mut lines: Vec<String> = rows
+            .map(|r| r.text())
+            .filter(|l| l != MARKER && *l != tr(MARKER))
+            .collect();
         while lines.last().is_some_and(String::is_empty) {
             lines.pop();
         }

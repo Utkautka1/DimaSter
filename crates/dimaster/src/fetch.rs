@@ -3,6 +3,7 @@
 //! Здесь только факты из `/proc`, `/etc` и `/var/lib`; что из них показать и
 //! как оформить, решает `fetch.lua` (см. `dimaster_config::run_fetch`).
 
+use dimaster_i18n::{tr, trf};
 use std::io::{self, Write};
 use std::path::Path;
 use std::process::Command;
@@ -32,10 +33,12 @@ fn field(text: &str, key: &str) -> Option<String> {
 
 fn uptime(seconds: u64) -> String {
     let (days, hours, minutes) = (seconds / 86400, seconds / 3600 % 24, seconds / 60 % 60);
+    let (d, h, n) = (days.to_string(), hours.to_string(), minutes.to_string());
+    let values = [("d", d.as_str()), ("h", h.as_str()), ("n", n.as_str())];
     match (days, hours) {
-        (0, 0) => format!("{minutes} мин"),
-        (0, _) => format!("{hours} ч {minutes} мин"),
-        _ => format!("{days} дн {hours} ч"),
+        (0, 0) => trf("{n} мин", &values),
+        (0, _) => trf("{h} ч {n} мин", &values),
+        _ => trf("{d} дн {h} ч", &values),
     }
 }
 
@@ -50,9 +53,10 @@ fn memory(meminfo: &str) -> Option<String> {
     let (total, free) = (kilobytes("MemTotal")?, kilobytes("MemAvailable")?);
     let gib = 1024.0 * 1024.0;
     Some(format!(
-        "{:.1} / {:.1} ГиБ",
+        "{:.1} / {:.1} {}",
         (total - free) / gib,
-        total / gib
+        total / gib,
+        tr("ГиБ")
     ))
 }
 
@@ -174,7 +178,13 @@ fn print(out: &mut impl Write, layout: &Layout, image: Option<&[u8]>) -> io::Res
 
 fn load_image(path: &Path) -> Option<Vec<u8>> {
     std::fs::read(path)
-        .inspect_err(|e| eprintln!("логотип {}: {e}", path.display()))
+        .inspect_err(|e| {
+            let values = [
+                ("path", &*path.display().to_string()),
+                ("error", &e.to_string()),
+            ];
+            eprintln!("{}", trf("логотип {path}: {error}", &values));
+        })
         .ok()
 }
 
@@ -185,9 +195,9 @@ pub(crate) fn run(options: &[String]) -> io::Result<()> {
         [] => layout.image.as_deref().and_then(load_image),
         [flag, path] if flag == "--logo" => Some(std::fs::read(path)?),
         _ => {
-            return Err(io::Error::other(
+            return Err(io::Error::other(tr(
                 "использование: dimaster fetch [--logo картинка]",
-            ));
+            )));
         }
     };
     print(&mut io::stdout().lock(), &layout, image.as_deref())

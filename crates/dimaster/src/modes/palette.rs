@@ -1,6 +1,7 @@
 //! Палитра команд: все действия терминала с поиском по названию.
 
 use dimaster_config::Action;
+use dimaster_i18n::tr;
 
 use super::Press;
 
@@ -33,6 +34,8 @@ const COMMANDS: [(&str, Action); 22] = [
 pub(crate) struct Palette {
     // команды плагинов: имя и название
     pub(crate) plugins: Vec<(String, String)>,
+    // список из `ui.palette.items`; пустой — встроенный
+    pub(crate) custom: Vec<(String, Action)>,
     pub(crate) query: String,
     pub(crate) selected: usize,
 }
@@ -47,14 +50,16 @@ pub(crate) enum Outcome {
 impl Palette {
     pub(crate) fn items(&self) -> Vec<(String, Action)> {
         let query = self.query.to_lowercase();
-        let own = COMMANDS
-            .iter()
-            .map(|(name, action)| ((*name).to_owned(), action.clone()));
+        let own = match self.custom.is_empty() {
+            true => COMMANDS.map(|(name, action)| (tr(name), action)).to_vec(),
+            false => self.custom.clone(),
+        };
         let extra = self
             .plugins
             .iter()
             .map(|(name, title)| (title.clone(), Action::Plugin(name.clone())));
-        own.chain(extra)
+        own.into_iter()
+            .chain(extra)
             .filter(|c| c.0.to_lowercase().contains(&query))
             .collect()
     }

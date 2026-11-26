@@ -60,20 +60,6 @@ impl Search {
         }
         Outcome::Show
     }
-
-    pub(crate) fn status(&self) -> String {
-        let position = if self.matches.is_empty() {
-            0
-        } else {
-            self.current + 1
-        };
-        let kind = if self.regex { "regex" } else { "текст" };
-        format!(
-            " Поиск: {}_  {position}/{}  [{kind}, Ctrl+R] ",
-            self.query,
-            self.matches.len()
-        )
-    }
 }
 
 #[cfg(test)]

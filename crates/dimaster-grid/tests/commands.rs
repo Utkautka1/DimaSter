@@ -55,3 +55,13 @@ fn empty_enter_and_full_screen_programs_stay_quiet() {
     command(&mut term, "vim", "\x1b[?1049h\x1b[?1049l", 0);
     assert!(!term.text().contains("OK"));
 }
+
+// программа уже объяснила ошибку сама — вторая строка не нужна
+#[test]
+fn failure_with_output_gets_no_hint() {
+    let mut term = dimaster_grid::Terminal::new(dimaster_grid::Size { rows: 6, cols: 40 });
+    term.advance(b"\x1b]133;A\x07$ lol\r\n\x1b]633;E;lol\x07\x1b]133;C\x07");
+    term.advance(b"zsh: command not found: lol\r\n\x1b]133;D;127\x07");
+    let screen: String = term.screen().rows().iter().map(|r| r.text()).collect();
+    assert!(!screen.contains('✗'), "{screen}");
+}

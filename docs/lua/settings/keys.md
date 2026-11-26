@@ -1,0 +1,57 @@
+# Клавиши и действия
+
+[← к оглавлению](../README.md)
+
+```lua
+return {
+  keys = {
+    { key = "k", mods = "ctrl+shift", action = "scroll_top" },
+    { key = "g", mods = "ctrl+shift", action = "send:git status\r" },
+    { key = "d", mods = "ctrl+shift", action = "plugin:insert_date" },
+    { key = "enter", mods = "ctrl", action = "none" }, -- отдать программе
+  },
+}
+```
+
+- `key`: символ (`"a"`, `"="`, `","`) или имя: `enter`, `space`, `tab`, `escape`, `backspace`, `insert`, `delete`, `home`, `end`, `pageup`, `pagedown`, `arrowup`, `arrowdown`, `arrowleft`, `arrowright`, `f1`…`f12`.
+- `mods`: `ctrl`, `shift`, `alt`, `super` через `+`.
+- С Ctrl и Super буквы распознаются по физической клавише, поэтому работают и на русской раскладке.
+
+| Действие | Что делает | Клавиши по умолчанию |
+|---|---|---|
+| `copy` | копировать | Ctrl+Shift+C |
+| `paste` | вставить | Ctrl+Shift+V |
+| `paste_primary` | вставить primary | Shift+Insert |
+| `scroll_page_up` | страница вверх | Shift+PageUp |
+| `scroll_page_down` | страница вниз | Shift+PageDown |
+| `scroll_top` | начало истории | Shift+Home |
+| `scroll_bottom` | конец истории | Shift+End |
+| `prompt_previous` | предыдущее приглашение | Ctrl+Shift+↑ |
+| `prompt_next` | следующее приглашение | Ctrl+Shift+↓ |
+| `font_increase` | крупнее | Ctrl+= |
+| `font_decrease` | мельче | Ctrl+- |
+| `font_reset` | кегль из настроек | Ctrl+0 |
+| `search` | поиск | Ctrl+Shift+F |
+| `vi_mode` | vi-режим | Ctrl+Shift+Space |
+| `command_palette` | палитра команд | Ctrl+Shift+P |
+| `new_window` | новое окно в том же каталоге | Ctrl+Shift+N |
+| `toggle_fullscreen` | полный экран | Ctrl+Enter |
+| `reload_config` | перечитать настройки | Ctrl+Shift+, |
+| `hint_mode` | буквенные метки на ссылках и путях | Ctrl+Shift+U |
+| `command_history` | история команд с выводом | Ctrl+Shift+H |
+| `sudo_fix` | добавить `sudo` | Ctrl+Shift+S |
+| `presentation` | режим презентации | Ctrl+Shift+Z |
+| `minimap` | режим миникарты: j/k, g/G, Enter, Esc; щелчок мышью | Ctrl+Shift+M |
+| `toggle_monitor` | монитор ресурсов в углу | Ctrl+Shift+O |
+| `toggle_statusbar` | строка статуса | Ctrl+Shift+B |
+| `none` | отключить сочетание | |
+| `send:<текст>` | отправить текст программе; работают `\r`, `\27` | |
+| `plugin:<имя>` | команда плагина | |
+
+`prompt_previous` и `prompt_next` работают, только если shell помечает приглашения (OSC 133). Для zsh:
+
+```bash
+autoload -Uz add-zsh-hook
+dimaster_mark() { print -n "\e]133;A\a" }
+add-zsh-hook precmd dimaster_mark
+```
