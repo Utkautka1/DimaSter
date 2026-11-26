@@ -2,6 +2,7 @@
 
 use dimaster_grid::Point;
 use winit::keyboard::Key;
+use winit::window::Fullscreen;
 
 use crate::clipboard::Target;
 use crate::modes::{Mode, Press, palette, press, search, vi};
@@ -98,5 +99,24 @@ impl View {
         let bottom = self.term.visible_line(0);
         let wanted = line.saturating_sub(rows / 2);
         self.scroll = bottom.saturating_sub(wanted) as usize;
+    }
+
+    pub(crate) fn toggle_fullscreen(&self) {
+        let full = self.window.fullscreen().is_none();
+        self.window
+            .set_fullscreen(full.then_some(Fullscreen::Borderless(None)));
+    }
+
+    /// Ставит предыдущее или следующее приглашение в верх экрана.
+    pub(crate) fn jump_prompt(&mut self, forward: bool) {
+        let top = self.term.visible_line(self.scroll);
+        match self.term.prompt_line(top, forward) {
+            Some(line) => {
+                self.scroll = self.term.visible_line(0).saturating_sub(line) as usize;
+                self.window.request_redraw();
+            }
+            None if forward => self.scroll_by(isize::MIN),
+            None => log::debug!("выше нет меток приглашения (OSC 133)"),
+        }
     }
 }

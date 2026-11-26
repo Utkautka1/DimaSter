@@ -8,8 +8,8 @@ use mlua::{Lua, Table, Value};
 use crate::context;
 use crate::theme::builtin_source;
 use crate::{
-    Action, Binding, Config, CursorStyle, Decorations, Effects, Mods, Theme, WindowConfig,
-    parse_color,
+    Action, Binding, Config, CopyOnSelect, CursorStyle, Decorations, Effects, Mods, Theme,
+    WindowConfig, parse_color,
 };
 
 /// Понятное человеку описание того, что не так в конфиге.
@@ -55,7 +55,7 @@ pub fn load(path: &Path) -> Result<Config, ConfigError> {
 }
 
 // `~/x` в путях из конфига
-fn expand(path: String) -> PathBuf {
+pub(crate) fn expand(path: String) -> PathBuf {
     match (path.strip_prefix("~/"), std::env::var_os("HOME")) {
         (Some(rest), Some(home)) => PathBuf::from(home).join(rest),
         _ => PathBuf::from(path),
@@ -137,6 +137,8 @@ fn apply_font(table: &Table, config: &mut Config) -> Result<(), ConfigError> {
         }
         config.font_size = size;
     }
+    ranged(&font, "line_height", 0.8..=2.0, &mut config.line_height)?;
+    flag(&font, "ligatures", &mut config.ligatures)?;
     let dirs: Option<Vec<String>> = font.get("dirs")?;
     config.font_dirs = dirs.unwrap_or_default().into_iter().map(expand).collect();
     Ok(())
@@ -217,6 +219,9 @@ fn apply_window(table: &Table, window: &mut WindowConfig) -> Result<(), ConfigEr
     fraction(table, "opacity", &mut window.opacity)?;
     fraction(table, "background_opacity", &mut window.background_opacity)?;
     flag(table, "blur", &mut window.blur)?;
+    let side = |value: Option<u32>| value.map(|v| v.clamp(10, 1000));
+    window.columns = side(table.get("columns")?);
+    window.rows = side(table.get("rows")?);
     window.background_image = table.get::<Option<String>>("background_image")?.map(expand);
     Ok(())
 }
@@ -236,6 +241,7 @@ fn apply_sections(table: &Table, config: &mut Config) -> Result<(), ConfigError>
     if let Some(effects) = table.get::<Option<Table>>("effects")? {
         apply_effects(&effects, &mut config.effects)?;
     }
+    apply_interaction(table, config)?;
     flag(table, "remote_control", &mut config.remote_control)?;
     if let Some(session) = table.get::<Option<Table>>("session")? {
         flag(&session, "restore", &mut config.restore_session)?;
@@ -244,4 +250,34 @@ fn apply_sections(table: &Table, config: &mut Config) -> Result<(), ConfigError>
         }
     }
     Ok(())
+}
+
+fn ranged(
+    table: &Table,
+    key: &str,
+    range: std::ops::RangeInclusive<f32>,
+    target: &mut f32,
+) -> Result<(), ConfigError> {
+    if let Some(value) = table.get::<Option<f32>>(key)? {
+        if !range.contains(&value) {
+            return Err(invalid(key, value));
+        }
+        *target = value;
+    }
+    Ok(())
+}
+
+// мышь и буфер обмена
+fn apply_interaction(table: &Table, config: &mut Config) -> Result<(), ConfigError> {
+    if let Some(name) = table.get::<Option<String>>("copy_on_select")? {
+        config.copy_on_select =
+            CopyOnSelect::parse(&name).ok_or_else(|| invalid("copy_on_select", &name))?;
+    }
+    ranged(
+        table,
+        "scroll_multiplier",
+        0.1..=50.0,
+        &mut config.scroll_multiplier,
+    )?;
+    flag(table, "clipboard_write", &mut config.clipboard_write)
 }

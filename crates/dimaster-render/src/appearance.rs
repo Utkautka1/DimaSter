@@ -1,8 +1,9 @@
 //! Внешний вид кадра: цвета, отступы и обработка RTL.
 
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use dimaster_grid::Picture;
+use dimaster_grid::{ColorOverrides, Picture};
 
 use crate::palette::Rgb;
 
@@ -24,6 +25,8 @@ pub struct Appearance {
     pub top: u32,
     // фоновая картинка и насколько она заметна
     pub wallpaper: Option<(Arc<Picture>, f32)>,
+    // цвета палитры, изменённые программой
+    pub palette: BTreeMap<u8, Rgb>,
 }
 
 impl Default for Appearance {
@@ -43,6 +46,20 @@ impl Default for Appearance {
             opacity: 1.0,
             top: 0,
             wallpaper: None,
+            palette: BTreeMap::new(),
+        }
+    }
+}
+
+impl Appearance {
+    /// Тема с наложенными поверх изменениями от программы.
+    pub(crate) fn with_overrides(&self, overrides: &ColorOverrides) -> Self {
+        Self {
+            foreground: overrides.foreground.unwrap_or(self.foreground),
+            background: overrides.background.unwrap_or(self.background),
+            cursor: overrides.cursor.unwrap_or(self.cursor),
+            palette: overrides.palette.clone(),
+            ..self.clone()
         }
     }
 }

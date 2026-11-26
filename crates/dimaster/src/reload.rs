@@ -35,6 +35,7 @@ impl View {
     }
 
     fn apply(&mut self, config: Config) {
+        let style_before = (self.config.line_height, self.config.ligatures);
         let font_changed = (&config.font_family, &config.font_dirs, config.font_size)
             != (
                 &self.config.font_family,
@@ -45,6 +46,11 @@ impl View {
         if font_changed {
             self.zoom = 0.0;
             self.rebuild_fonts();
+        }
+        if style_before != (self.config.line_height, self.config.ligatures) {
+            self.fonts
+                .set_style(self.config.line_height, self.config.ligatures);
+            self.renderer.reset_glyphs();
         }
         self.apply_to_terminal();
         let size = self.window.inner_size();

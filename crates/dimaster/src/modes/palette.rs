@@ -4,7 +4,11 @@ use dimaster_config::Action;
 
 use super::Press;
 
-const COMMANDS: [(&str, Action); 11] = [
+const COMMANDS: [(&str, Action); 15] = [
+    ("Новое окно", Action::NewWindow),
+    ("Полный экран", Action::ToggleFullscreen),
+    ("Предыдущее приглашение", Action::PromptPrevious),
+    ("Следующее приглашение", Action::PromptNext),
     ("Копировать", Action::Copy),
     ("Вставить", Action::Paste),
     ("Поиск по истории", Action::Search),

@@ -71,10 +71,21 @@ pub(super) fn font(config: &Config) -> String {
     };
     format!(
         "-- Шрифт. size — в пунктах, dirs — свои каталоги со шрифтами.\nreturn {{\n  font = {{\n    \
-         {family}\n    size = {},\n    dirs = {},\n  }},\n}}\n",
+         {family}\n    size = {},\n    line_height = {},\n    ligatures = {},\n    \
+         dirs = {},\n  }},\n}}\n",
         config.font_size,
+        config.line_height,
+        config.ligatures,
         list(&config.font_dirs, |d| path(d)),
     )
+}
+
+// необязательное число или закомментированный пример
+fn optional(key: &str, value: Option<u32>, example: u32) -> String {
+    match value {
+        Some(value) => format!("{key} = {value},"),
+        None => format!("-- {key} = {example},"),
+    }
 }
 
 pub(super) fn window(config: &Config) -> String {
@@ -86,11 +97,13 @@ pub(super) fn window(config: &Config) -> String {
     format!(
         "-- Окно. decorations: own (своя рамка), system, none.\nreturn {{\n  window = {{\n    \
          decorations = {},\n    opacity = {},\n    blur = {},\n    {image}\n    \
-         background_opacity = {},\n  }},\n}}\n",
+         background_opacity = {},\n    {}\n    {}\n  }},\n}}\n",
         quote(window.decorations.name()),
         window.opacity,
         window.blur,
         window.background_opacity,
+        optional("columns", window.columns, 100),
+        optional("rows", window.rows, 30),
     )
 }
 
@@ -103,6 +116,18 @@ pub(super) fn effects(config: &Config) -> String {
     )
 }
 
+// мышь и буфер обмена
+fn interaction(config: &Config) -> String {
+    format!(
+        "  -- выделенное мышью: primary, clipboard или off\n  copy_on_select = {},\n  \
+         scroll_multiplier = {},\n  -- программы могут писать в буфер обмена (OSC 52)\n  \
+         clipboard_write = {},\n",
+        quote(config.copy_on_select.name()),
+        config.scroll_multiplier,
+        config.clipboard_write,
+    )
+}
+
 pub(super) fn behavior(config: &Config) -> String {
     let shell = match config.shell.is_empty() {
         true => "-- shell = { \"/usr/bin/fish\" }, -- по умолчанию $SHELL".to_owned(),
@@ -110,13 +135,14 @@ pub(super) fn behavior(config: &Config) -> String {
     };
     format!(
         "-- Поведение терминала.\nreturn {{\n  scrollback = {},\n  {shell}\n  images_scroll = {},\n  \
-         rtl = {},\n  term = {},\n  -- dimaster ctl: управление окнами из командной строки\n  \
+         rtl = {},\n  term = {},\n{}  -- dimaster ctl: управление окнами из командной строки\n  \
          remote_control = {},\n  -- восстановление пишет вывод терминала на диск, поэтому включается явно\n  \
          session = {{ restore = {}, history_lines = {} }},\n}}\n",
         config.scrollback,
         config.images_scroll,
         config.rtl,
         quote(&config.term),
+        interaction(config),
         config.remote_control,
         config.restore_session,
         config.session_history,

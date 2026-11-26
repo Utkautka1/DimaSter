@@ -15,7 +15,7 @@ use winit::keyboard::ModifiersState;
 use winit::window::Window;
 
 use crate::animate::Animator;
-use crate::clipboard::Clipboard;
+use crate::clipboard::{Clipboard, Target};
 use crate::desktop;
 use crate::modes::Mode;
 use crate::pointer::Pointer;
@@ -224,6 +224,16 @@ impl View {
         }
         let reply = self.term.take_reply();
         self.send(reply);
+        for (primary, text) in self.term.take_clipboard_writes() {
+            if self.config.clipboard_write {
+                let target = if primary {
+                    Target::Primary
+                } else {
+                    Target::Clipboard
+                };
+                self.clipboard.set(target, text);
+            }
+        }
         for (title, body) in self.term.take_notifications() {
             desktop::notify(&title, &body);
             self.emit("notification", &body);

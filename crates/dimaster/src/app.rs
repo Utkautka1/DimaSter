@@ -4,9 +4,11 @@ use std::error::Error;
 use std::sync::Arc;
 
 use dimaster_config::{Config, Decorations};
+use dimaster_font::FontSystem;
 use dimaster_render::{Renderer, wgpu};
 use notify::RecommendedWatcher;
 use winit::application::ApplicationHandler;
+use winit::dpi::PhysicalSize;
 use winit::event::{Ime, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy};
 use winit::platform::wayland::WindowAttributesExtWayland;
@@ -122,6 +124,7 @@ impl App {
         let fonts = settings::fonts(&config, window.scale_factor())?;
         let proxy = self.proxy.clone();
         let wake = move || drop(proxy.send_event(Wake::Output));
+        request_size(&window, &config, &fonts);
         Ok(View::new(window, renderer, fonts, config, &self.args, wake))
     }
 }
@@ -222,11 +225,24 @@ impl ApplicationHandler<Wake> for App {
     }
 }
 
+// начальный размер из настроек; тайловый композитор вправе его не принять
+fn request_size(window: &Window, config: &Config, fonts: &FontSystem) {
+    let (Some(columns), Some(rows)) = (config.window.columns, config.window.rows) else {
+        return;
+    };
+    let metrics = fonts.metrics();
+    let width = columns * metrics.cell_width + config.padding.0 * 2;
+    let height = rows * metrics.cell_height
+        + config.padding.1 * 2
+        + settings::title_height(config, metrics.cell_height);
+    let _ = window.request_inner_size(PhysicalSize::new(width, height));
+}
+
 // положительное значение — прокрутка к истории
 fn lines(delta: MouseScrollDelta) -> f64 {
     match delta {
-        MouseScrollDelta::LineDelta(_, y) => f64::from(y) * 3.0,
+        MouseScrollDelta::LineDelta(_, y) => f64::from(y),
         // тачпад отдаёт пиксели; 20 px ≈ одна строка
-        MouseScrollDelta::PixelDelta(position) => position.y / 20.0,
+        MouseScrollDelta::PixelDelta(position) => position.y / 60.0,
     }
 }

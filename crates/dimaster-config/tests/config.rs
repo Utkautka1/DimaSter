@@ -89,6 +89,13 @@ fn custom() -> Config {
     config.restore_session = true;
     config.session_history = 10;
     config.remote_control = false;
+    config.line_height = 1.25;
+    config.ligatures = false;
+    config.copy_on_select = dimaster_config::CopyOnSelect::Clipboard;
+    config.scroll_multiplier = 5.0;
+    config.clipboard_write = false;
+    config.window.columns = Some(120);
+    config.window.rows = Some(40);
     config
 }
 

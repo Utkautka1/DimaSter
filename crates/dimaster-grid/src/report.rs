@@ -7,22 +7,6 @@ use dimaster_vt::Sequence;
 
 use crate::terminal::State;
 
-/// Цвета по умолчанию как 0xRRGGBB — их сообщают в ответ на OSC 10/11.
-#[derive(Debug, Clone, Copy)]
-pub struct DefaultColors {
-    pub foreground: u32,
-    pub background: u32,
-}
-
-impl Default for DefaultColors {
-    fn default() -> Self {
-        Self {
-            foreground: 0x00d8_dee9,
-            background: 0x0011_131a,
-        }
-    }
-}
-
 impl State {
     pub(crate) fn answer(&mut self, text: String) {
         self.reply.extend_from_slice(text.as_bytes());
@@ -64,15 +48,5 @@ impl State {
             18 => self.answer(format!("\x1b[8;{rows};{cols}t")),
             _ => log::debug!("неподдерживаемый XTWINOPS {kind}"),
         }
-    }
-
-    pub(crate) fn report_color(&mut self, code: &str) {
-        let color = if code == "11" {
-            self.colors.background
-        } else {
-            self.colors.foreground
-        };
-        let [_, r, g, b] = color.to_be_bytes().map(|c| u16::from(c) * 0x101);
-        self.answer(format!("\x1b]{code};rgb:{r:04x}/{g:04x}/{b:04x}\x1b\\"));
     }
 }

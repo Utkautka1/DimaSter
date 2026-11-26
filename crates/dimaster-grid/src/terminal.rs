@@ -3,10 +3,11 @@
 use dimaster_vt::Parser;
 use unicode_width::UnicodeWidthChar;
 
+use crate::colors::ColorOverrides;
 use crate::graphics::Store;
 use crate::keyboard::KeyboardStack;
 use crate::reflow::Position;
-use crate::{Cell, Cursor, CursorShape, DefaultColors, Flags, Modes, Screen};
+use crate::{Cell, Cursor, CursorShape, DefaultColors, Flags, Modes, PromptMark, Screen};
 
 /// Размер сетки в ячейках.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -56,6 +57,11 @@ pub(crate) struct State {
     // ширина и высота ячейки в пикселях, задаёт окно
     pub(crate) cell_pixels: (usize, usize),
     pub(crate) colors: DefaultColors,
+    pub(crate) overrides: ColorOverrides,
+    // стек заголовков окна (CSI 22/23 t)
+    pub(crate) titles: Vec<String>,
+    // запросы записи в буфер обмена: (primary, текст)
+    pub(crate) clipboard: Vec<(bool, String)>,
     // форма, к которой возвращает DECSCUSR 0
     pub(crate) default_cursor: CursorShape,
     pub(crate) graphics: Store,
@@ -140,6 +146,28 @@ impl Terminal {
         std::mem::take(&mut self.state.notifications)
     }
 
+    pub fn color_overrides(&self) -> &ColorOverrides {
+        &self.state.overrides
+    }
+
+    /// Тексты, которые программы просят положить в буфер обмена (OSC 52).
+    pub fn take_clipboard_writes(&mut self) -> Vec<(bool, String)> {
+        std::mem::take(&mut self.state.clipboard)
+    }
+
+    /// Ближайшая строка приглашения (OSC 133) до или после `line`.
+    pub fn prompt_line(&self, line: u64, forward: bool) -> Option<u64> {
+        let range = self.line_range();
+        let is_prompt = |at: &u64| {
+            self.line(*at)
+                .is_some_and(|r| r.mark == Some(PromptMark::Prompt))
+        };
+        match forward {
+            true => (line + 1..range.end).find(is_prompt),
+            false => (range.start..line).rev().find(is_prompt),
+        }
+    }
+
     pub fn title(&self) -> &str {
         &self.state.title
     }
@@ -195,6 +223,9 @@ impl State {
             keyboard: KeyboardStack::default(),
             cell_pixels: (0, 0),
             colors: DefaultColors::default(),
+            overrides: ColorOverrides::default(),
+            titles: Vec::new(),
+            clipboard: Vec::new(),
             default_cursor: CursorShape::Block,
             graphics: Store::default(),
             notifications: Vec::new(),

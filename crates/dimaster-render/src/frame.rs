@@ -2,7 +2,7 @@
 
 use bytemuck::{Pod, Zeroable};
 use dimaster_font::{FontSystem, Metrics};
-use dimaster_grid::{Cell, CursorShape, Flags, Row, Span, Terminal};
+use dimaster_grid::{Cell, Color, CursorShape, Flags, Row, Span, Terminal};
 
 use crate::appearance::Appearance;
 use crate::atlas::{Atlas, Slot};
@@ -261,11 +261,19 @@ impl Builder<'_> {
     }
 }
 
+fn resolve(color: Color, default: Rgb, look: &Appearance) -> Rgb {
+    let changed = match color {
+        Color::Indexed(index) => look.palette.get(&index).copied(),
+        _ => None,
+    };
+    changed.unwrap_or_else(|| palette::resolve(color, default, &look.ansi))
+}
+
 /// Итоговые цвета текста и фона с учётом INVERSE и DIM.
 fn colors(cell: &Cell, look: &Appearance) -> (Rgb, Rgb) {
     let style = cell.style;
-    let mut fg = palette::resolve(style.fg, look.foreground, &look.ansi);
-    let mut bg = palette::resolve(style.bg, look.background, &look.ansi);
+    let mut fg = resolve(style.fg, look.foreground, look);
+    let mut bg = resolve(style.bg, look.background, look);
     if style.flags.contains(Flags::INVERSE) {
         std::mem::swap(&mut fg, &mut bg);
     }

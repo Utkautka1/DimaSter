@@ -7,6 +7,7 @@ use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
 
 use crate::clipboard::Target;
 use crate::keys;
+use crate::restore::open_window;
 use crate::view::View;
 
 // порядок совпадает с алфавитом в latin_letter
@@ -98,6 +99,11 @@ impl View {
             Action::ViMode => self.open_vi(),
             Action::CommandPalette => self.open_palette(),
             Action::Plugin(name) => self.run_plugin(&name),
+            Action::Send(text) => self.type_bytes(text.into_bytes()),
+            Action::ToggleFullscreen => self.toggle_fullscreen(),
+            Action::NewWindow => open_window(self.shell_directory(), None),
+            Action::PromptPrevious => self.jump_prompt(false),
+            Action::PromptNext => self.jump_prompt(true),
             Action::None => {}
         }
     }

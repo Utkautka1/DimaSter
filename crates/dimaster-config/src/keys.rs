@@ -43,13 +43,24 @@ pub enum Action {
     Search,
     ViMode,
     CommandPalette,
+    ToggleFullscreen,
+    NewWindow,
+    /// Прокрутить к предыдущему приглашению shell (нужны метки OSC 133).
+    PromptPrevious,
+    PromptNext,
+    /// Отправить программе заданный текст.
+    Send(String),
     /// Команда плагина по имени.
     Plugin(String),
     /// Отключить сочетание, чтобы оно уходило программе.
     None,
 }
 
-const ACTIONS: [(&str, Action); 15] = [
+const ACTIONS: [(&str, Action); 19] = [
+    ("toggle_fullscreen", Action::ToggleFullscreen),
+    ("new_window", Action::NewWindow),
+    ("prompt_previous", Action::PromptPrevious),
+    ("prompt_next", Action::PromptNext),
     ("search", Action::Search),
     ("vi_mode", Action::ViMode),
     ("command_palette", Action::CommandPalette),
@@ -68,7 +79,15 @@ const ACTIONS: [(&str, Action); 15] = [
 ];
 
 impl Action {
+    /// Имена действий без параметров — для документации и подсказок.
+    pub fn names() -> impl Iterator<Item = &'static str> {
+        ACTIONS.iter().map(|(name, _)| *name)
+    }
+
     pub fn parse(name: &str) -> Option<Self> {
+        if let Some(text) = name.strip_prefix("send:") {
+            return Some(Self::Send(text.to_owned()));
+        }
         if let Some(command) = name.strip_prefix("plugin:") {
             return Some(Self::Plugin(command.to_owned()));
         }
@@ -88,7 +107,11 @@ pub struct Binding {
 }
 
 // сочетания по умолчанию совпадают с привычными по Ghostty и kitty
-const DEFAULTS: [(&str, &str, Action); 15] = [
+const DEFAULTS: [(&str, &str, Action); 19] = [
+    ("enter", "ctrl", Action::ToggleFullscreen),
+    ("n", "ctrl+shift", Action::NewWindow),
+    ("arrowup", "ctrl+shift", Action::PromptPrevious),
+    ("arrowdown", "ctrl+shift", Action::PromptNext),
     ("f", "ctrl+shift", Action::Search),
     ("space", "ctrl+shift", Action::ViMode),
     ("p", "ctrl+shift", Action::CommandPalette),

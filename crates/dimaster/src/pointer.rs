@@ -118,7 +118,8 @@ impl View {
 
     /// `lines` > 0 — вверх, к истории.
     pub(crate) fn wheel(&mut self, lines: f64) {
-        self.pointer.wheel_rest += lines;
+        // `lines` — щелчки колеса; множитель из настроек
+        self.pointer.wheel_rest += lines * f64::from(self.config.scroll_multiplier);
         let whole = self.pointer.wheel_rest.trunc();
         self.pointer.wheel_rest -= whole;
         let steps = whole as isize;

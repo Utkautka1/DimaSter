@@ -32,6 +32,34 @@ impl CursorStyle {
     }
 }
 
+/// Куда попадает выделенное мышью.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum CopyOnSelect {
+    #[default]
+    Primary,
+    Clipboard,
+    Off,
+}
+
+impl CopyOnSelect {
+    pub fn parse(name: &str) -> Option<Self> {
+        match name {
+            "primary" => Some(Self::Primary),
+            "clipboard" => Some(Self::Clipboard),
+            "off" => Some(Self::Off),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn name(self) -> &'static str {
+        match self {
+            Self::Primary => "primary",
+            Self::Clipboard => "clipboard",
+            Self::Off => "off",
+        }
+    }
+}
+
 /// Настройки терминала.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Config {
@@ -64,6 +92,14 @@ pub struct Config {
     pub session_history: usize,
     /// Разрешить `dimaster ctl` управлять окнами.
     pub remote_control: bool,
+    // множитель высоты строки, 1.0 — как задано шрифтом
+    pub line_height: f32,
+    pub ligatures: bool,
+    pub copy_on_select: CopyOnSelect,
+    // строк на один щелчок колеса
+    pub scroll_multiplier: f32,
+    /// Разрешить программам писать в буфер обмена (OSC 52).
+    pub clipboard_write: bool,
 }
 
 impl Default for Config {
@@ -86,6 +122,11 @@ impl Default for Config {
             restore_session: false,
             session_history: 2000,
             remote_control: true,
+            line_height: 1.0,
+            ligatures: true,
+            copy_on_select: CopyOnSelect::Primary,
+            scroll_multiplier: 3.0,
+            clipboard_write: true,
         }
     }
 }

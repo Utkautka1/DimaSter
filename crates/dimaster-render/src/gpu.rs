@@ -37,6 +37,8 @@ pub struct Renderer {
     pipeline: Pipeline,
     atlas: Atlas,
     look: Appearance,
+    // фон текущего кадра с учётом изменений программы
+    background: u32,
     quads: Vec<Quad>,
     images: Images,
     overlay: Vec<Quad>,
@@ -89,6 +91,7 @@ impl Renderer {
             pipeline,
             atlas,
             look: Appearance::default(),
+            background: Appearance::default().background,
             quads,
             images: Images::default(),
             overlay: Vec::new(),
@@ -203,11 +206,13 @@ impl Renderer {
 
     fn build(&mut self, term: &Terminal, fonts: &mut FontSystem, view: Viewport<'_>) {
         let window = [self.config.width as f32, self.config.height as f32];
+        let look = self.look.with_overrides(term.color_overrides());
+        self.background = look.background;
         let mut builder = Builder {
             fonts,
             atlas: &mut self.atlas,
             quads: &mut self.quads,
-            look: &self.look,
+            look: &look,
             pictures: &mut self.images,
         };
         builder.build(term, view);
@@ -223,7 +228,7 @@ impl Renderer {
     fn submit(&self, view: &wgpu::TextureView) {
         let mut encoder = self.device.create_command_encoder(&Default::default());
         {
-            let (color, opacity) = (self.look.background, self.look.opacity);
+            let (color, opacity) = (self.background, self.look.opacity);
             let mut pass = begin_pass(&mut encoder, view, color, opacity);
             self.draw_layers(&mut pass);
         }

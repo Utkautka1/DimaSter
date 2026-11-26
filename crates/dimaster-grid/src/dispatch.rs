@@ -48,6 +48,7 @@ impl Perform for State {
             ([b'>'], b'q') => self.report_version(),
             ([b' '], b'q') => self.cursor_style(seq.params.get_or(0, 0)),
             ([b'?', b'$'], b'p') => self.report_mode(&seq),
+            ([b'!'], b'p') => self.soft_reset(),
             _ => log::debug!("неизвестный CSI: {seq:?}"),
         }
     }
@@ -59,6 +60,8 @@ impl Perform for State {
     fn dcs(&mut self, seq: Sequence<'_>, data: &[u8]) {
         match (seq.intermediates, seq.action) {
             ([], b'q') => self.sixel(data),
+            ([b'$'], b'q') => self.setting_report(data),
+            ([b'+'], b'q') => self.capability_report(data),
             _ => log::debug!("неподдерживаемый DCS: {seq:?}"),
         }
     }
@@ -195,8 +198,21 @@ impl State {
             b'u' => self.restore_cursor(),
             b'c' => self.reply.extend_from_slice(b"\x1b[?62;4;22c"),
             b'n' => self.status_report(seq.params.get_or(0, 0)),
-            b't' => self.report_size(seq.params.get_or(0, 0)),
+            b't' => self.window_op(seq.params.get_or(0, 0)),
             _ => log::debug!("неизвестный CSI: {seq:?}"),
+        }
+    }
+
+    // XTWINOPS: стек заголовка и запросы размеров
+    fn window_op(&mut self, kind: u16) {
+        match kind {
+            22 if self.titles.len() < 10 => self.titles.push(self.title.clone()),
+            23 => {
+                if let Some(title) = self.titles.pop() {
+                    self.title = title;
+                }
+            }
+            _ => self.report_size(kind),
         }
     }
 

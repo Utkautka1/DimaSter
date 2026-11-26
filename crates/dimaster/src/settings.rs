@@ -68,7 +68,10 @@ pub(crate) fn font_pixels(points: f32, scale: f64) -> f32 {
 
 pub(crate) fn fonts(config: &Config, scale: f64) -> Result<FontSystem, FontError> {
     let size = font_pixels(config.font_size, scale);
-    FontSystem::with_settings(config.font_family.as_deref(), size, &config.font_dirs)
+    let mut fonts =
+        FontSystem::with_settings(config.font_family.as_deref(), size, &config.font_dirs)?;
+    fonts.set_style(config.line_height, config.ligatures);
+    Ok(fonts)
 }
 
 /// Высота своей полосы заголовка в пикселях.
@@ -93,6 +96,7 @@ pub(crate) fn appearance(config: &Config, cell_height: u32) -> Appearance {
         opacity: config.window.opacity,
         top: title_height(config, cell_height),
         wallpaper: None,
+        palette: Default::default(),
     }
 }
 
@@ -118,6 +122,8 @@ pub(crate) fn default_colors(config: &Config) -> DefaultColors {
     DefaultColors {
         foreground: config.theme.foreground,
         background: config.theme.background,
+        cursor: config.theme.cursor,
+        ansi: config.theme.ansi,
     }
 }
 

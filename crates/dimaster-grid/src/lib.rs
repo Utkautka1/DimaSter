@@ -6,6 +6,7 @@
 
 mod cell;
 mod charset;
+mod colors;
 mod cursor;
 mod dispatch;
 mod edit;
@@ -13,6 +14,7 @@ mod graphics;
 mod keyboard;
 mod modes;
 mod osc;
+mod query;
 mod reflow;
 mod report;
 mod row;
@@ -23,11 +25,11 @@ mod sgr;
 mod terminal;
 
 pub use cell::{Cell, Color, Flags, Style};
+pub use colors::{ColorOverrides, DefaultColors};
 pub use cursor::Cursor;
 pub use graphics::{MAX_IMAGE_ROWS, Picture, Placement};
 pub use modes::{CursorShape, Modes};
 pub use regex::Regex;
-pub use report::DefaultColors;
 pub use row::{PromptMark, Row};
 pub use screen::Screen;
 pub use search::{Match, search_pattern};

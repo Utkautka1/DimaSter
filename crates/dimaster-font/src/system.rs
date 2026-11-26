@@ -39,6 +39,9 @@ pub struct FontSystem {
     pub(crate) family: String,
     // кегль в физических пикселях
     pub(crate) size: f32,
+    // множитель высоты строки
+    line_height: f32,
+    pub(crate) ligatures: bool,
     metrics: Metrics,
     // None — для символа нет шрифта; кэшируем, чтобы не сканировать повторно
     pub(crate) fallbacks: HashMap<(char, bool), Option<ID>>,
@@ -72,10 +75,13 @@ impl FontSystem {
             .ok_or(FontError)?;
         log::info!("Шрифт: {family}, {size} px, ячейка {metrics:?}");
         let (fallbacks, shaped, glyphs) = Default::default();
+        let (line_height, ligatures) = (1.0, true);
         Ok(Self {
             db,
             family,
             size,
+            line_height,
+            ligatures,
             metrics,
             fallbacks,
             shaped,
@@ -97,10 +103,17 @@ impl FontSystem {
         });
         if let Some(Some(metrics)) = metrics {
             self.size = size;
-            self.metrics = metrics;
+            self.metrics = spaced(metrics, self.line_height);
             self.glyphs.clear();
             self.shaped.clear();
         }
+    }
+
+    /// Межстрочный интервал и лигатуры из настроек.
+    pub fn set_style(&mut self, line_height: f32, ligatures: bool) {
+        self.line_height = line_height;
+        self.ligatures = ligatures;
+        self.set_size(self.size);
     }
 
     /// Растр глифа; `cells` нужен цветным эмодзи, чтобы вписаться в ячейки.
@@ -138,6 +151,17 @@ fn choose_family(db: &Database, wanted: Option<&str>) -> Option<String> {
         log::warn!("Шрифт «{name}» не найден, используется системный моноширинный");
     }
     discover::default_family(db)
+}
+
+// добавленная высота делится поровну над и под строкой
+fn spaced(metrics: Metrics, factor: f32) -> Metrics {
+    let cell_height = (metrics.cell_height as f32 * factor).round().max(1.0) as u32;
+    let extra = (cell_height as i32 - metrics.cell_height as i32) / 2;
+    Metrics {
+        cell_height,
+        baseline: metrics.baseline + extra,
+        ..metrics
+    }
 }
 
 fn measure(face: &Face<'_>, size: f32) -> Metrics {

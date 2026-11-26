@@ -2,6 +2,7 @@
 
 use std::time::{Duration, Instant};
 
+use dimaster_config::CopyOnSelect;
 use dimaster_grid::{Point, Selection, SelectionKind};
 
 use crate::clipboard::Target;
@@ -92,7 +93,11 @@ impl View {
     /// Отпускание кнопки кладёт выделенное в primary selection.
     pub(crate) fn select_release(&mut self) {
         if std::mem::take(&mut self.selecting.dragging) {
-            self.copy(Target::Primary);
+            match self.config.copy_on_select {
+                CopyOnSelect::Primary => self.copy(Target::Primary),
+                CopyOnSelect::Clipboard => self.copy(Target::Clipboard),
+                CopyOnSelect::Off => {}
+            }
         }
     }
 

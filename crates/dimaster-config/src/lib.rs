@@ -7,6 +7,7 @@
 mod color;
 mod config;
 mod context;
+mod fetch;
 pub mod import;
 mod keys;
 mod load;
@@ -16,7 +17,8 @@ mod theme;
 mod window;
 
 pub use color::parse_color;
-pub use config::{Config, CursorStyle};
+pub use config::{Config, CopyOnSelect, CursorStyle};
+pub use fetch::{DEFAULT_FETCH, Layout, run_fetch};
 pub use keys::{Action, Binding, Mods};
 pub use load::{ConfigError, config_dir, load, parse};
 pub use plugins::{Effect, Plugins, Snapshot};

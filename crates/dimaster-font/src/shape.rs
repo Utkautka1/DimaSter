@@ -3,7 +3,8 @@
 use std::rc::Rc;
 
 use fontdb::ID;
-use rustybuzz::{Face, GlyphBuffer, UnicodeBuffer};
+use rustybuzz::ttf_parser::Tag;
+use rustybuzz::{Face, Feature, GlyphBuffer, UnicodeBuffer};
 
 use crate::{FontSystem, discover};
 
@@ -28,6 +29,18 @@ pub struct ShapedGlyph {
 
 // кэш сбрасывается целиком: строки на экране повторяются, мусор — нет
 const CACHE_LIMIT: usize = 8192;
+
+const fn off(tag: &[u8; 4]) -> Feature {
+    Feature {
+        tag: Tag::from_bytes(tag),
+        value: 0,
+        start: 0,
+        end: u32::MAX,
+    }
+}
+
+// «->» и «=>» в программистских шрифтах делаются через calt
+const NO_LIGATURES: [Feature; 3] = [off(b"liga"), off(b"calt"), off(b"dlig")];
 
 // знаки, которые должны шейпиться тем же шрифтом, что и предыдущий символ
 fn joins_previous(ch: char) -> bool {
@@ -96,7 +109,12 @@ impl FontSystem {
             let mut buffer = UnicodeBuffer::new();
             buffer.push_str(text);
             buffer.guess_segment_properties();
-            let shaped = rustybuzz::shape(&face, &[], buffer);
+            let features = if self.ligatures {
+                &[][..]
+            } else {
+                &NO_LIGATURES
+            };
+            let shaped = rustybuzz::shape(&face, features, buffer);
             let scale = self.size / face.units_per_em() as f32;
             collect(id, &shaped, scale, offset, out);
         });

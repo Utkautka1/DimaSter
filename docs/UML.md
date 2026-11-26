@@ -112,6 +112,9 @@ classDiagram
     class Saved { cwd; lines }
     class Launch { args; term_name; directory; socket }
     View *-- Plugins
+    class Layout { lines; logo; image; logo_width }
+    class ColorOverrides { palette; foreground; background; cursor }
+    State *-- ColorOverrides
     App *-- Server
     Server ..> Request
     Request ..> View

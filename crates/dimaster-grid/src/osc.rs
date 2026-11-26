@@ -1,7 +1,12 @@
 //! OSC: заголовок окна, рабочий каталог и shell-интеграция.
 
+use dimaster_image::decode_base64;
+
 use crate::PromptMark;
 use crate::terminal::State;
+
+// больше мегабайта в буфер обмена из программы не принимаем
+const CLIPBOARD_LIMIT: usize = 1 << 20;
 
 impl State {
     pub(crate) fn handle_osc(&mut self, data: &[u8]) {
@@ -11,12 +16,19 @@ impl State {
         }
         let text = String::from_utf8_lossy(data);
         let Some((code, value)) = text.split_once(';') else {
-            return log::debug!("OSC без аргументов: {text}");
+            // сбросы цветов приходят без аргументов
+            return match text.as_ref() {
+                code @ ("104" | "110" | "111" | "112") => self.reset_colors(code, ""),
+                _ => log::debug!("OSC без аргументов: {text}"),
+            };
         };
         match code {
             "0" | "2" => self.title = value.to_owned(),
             "7" => self.cwd = parse_file_url(value),
-            "10" | "11" if value == "?" => self.report_color(code),
+            "4" => self.palette_osc(value),
+            "10" | "11" | "12" => self.dynamic_color(code, value),
+            "104" | "110" | "111" | "112" => self.reset_colors(code, value),
+            "52" => self.clipboard_osc(value),
             "9" => self.notify("DimaSter", value),
             "777" => self.notify_titled(value),
             "133" => self.mark_prompt(value),
@@ -39,6 +51,23 @@ impl State {
             .and_then(|v| v.split_once(';'))
         {
             self.notify(title, body);
+        }
+    }
+
+    // OSC 52;<куда>;<base64>. Чтение буфера (`?`) не выполняется: иначе любая
+    // программа на сервере могла бы забрать пароль из буфера обмена
+    fn clipboard_osc(&mut self, value: &str) {
+        let Some((target, data)) = value.split_once(';') else {
+            return;
+        };
+        let decoded = (data != "?" && data.len() <= CLIPBOARD_LIMIT)
+            .then(|| decode_base64(data.as_bytes()))
+            .flatten()
+            .and_then(|bytes| String::from_utf8(bytes).ok());
+        if let Some(text) = decoded
+            && self.clipboard.len() < 8
+        {
+            self.clipboard.push((target.contains('p'), text));
         }
     }
 

@@ -1,27 +1,24 @@
-//! `dimaster fetch`: сведения о системе, встроенный аналог fastfetch.
+//! `dimaster fetch`: сбор сведений о системе и печать макета.
 //!
-//! Читает только файлы из `/proc`, `/etc` и `/var/lib`; без них строка
-//! просто пропускается.
+//! Здесь только факты из `/proc`, `/etc` и `/var/lib`; что из них показать и
+//! как оформить, решает `fetch.lua` (см. `dimaster_config::run_fetch`).
 
 use std::io::{self, Write};
+use std::path::Path;
 use std::process::Command;
+
+use dimaster_config::{DEFAULT_FETCH, Layout, config_dir, run_fetch};
 
 use crate::icat;
 
-const LOGO: [&str; 7] = [
-    " ██████╗  ███████╗",
-    " ██╔══██╗ ██╔════╝",
-    " ██║  ██║ ███████╗",
-    " ██║  ██║ ╚════██║",
-    " ██████╔╝ ███████║",
-    " ╚═════╝  ╚══════╝",
-    "     DimaSter",
-];
-// ширина колонки логотипа в ячейках
-const LOGO_WIDTH: usize = 22;
+type Facts = Vec<(&'static str, Option<String>)>;
 
 fn read(path: &str) -> Option<String> {
     std::fs::read_to_string(path).ok()
+}
+
+fn env(name: &str) -> Option<String> {
+    std::env::var(name).ok().filter(|v| !v.is_empty())
 }
 
 // значение строки вида `ключ: значение` или `ключ=значение`
@@ -80,84 +77,112 @@ fn packages() -> Option<String> {
     (!parts.is_empty()).then(|| parts.join(", "))
 }
 
+fn output(program: &str, args: &[&str]) -> Option<String> {
+    let result = Command::new(program).args(args).output().ok()?;
+    String::from_utf8(result.stdout).ok()
+}
+
 fn disk() -> Option<String> {
-    let output = Command::new("df")
-        .args(["-h", "--output=used,size", "/"])
-        .output()
-        .ok()?;
-    let text = String::from_utf8(output.stdout).ok()?;
+    let text = output("df", &["-h", "--output=used,size", "/"])?;
     let mut words = text.lines().nth(1)?.split_whitespace();
     Some(format!("{} / {}", words.next()?, words.next()?))
 }
 
-fn system() -> Vec<(&'static str, Option<String>)> {
-    let os = read("/etc/os-release").and_then(|s| field(&s, "PRETTY_NAME"));
-    let kernel = read("/proc/sys/kernel/osrelease").map(|s| s.trim().to_owned());
+// без lspci строка просто не показывается
+fn gpu() -> Option<String> {
+    let text = output("lspci", &[])?;
+    let line = text
+        .lines()
+        .find(|l| l.contains("VGA") || l.contains("3D controller"))?;
+    Some(line.split_once(": ")?.1.to_owned())
+}
+
+fn system() -> Facts {
+    let host = read("/proc/sys/kernel/hostname").map(|s| s.trim().to_owned());
     let seconds = read("/proc/uptime").and_then(|s| s.split('.').next()?.parse().ok());
     vec![
-        ("ОС", os),
-        ("Ядро", kernel),
-        ("Аптайм", seconds.map(uptime)),
-        ("Пакеты", packages()),
+        ("user", Some(env("USER").unwrap_or_default())),
+        ("host", Some(host.unwrap_or_default())),
+        (
+            "os",
+            read("/etc/os-release").and_then(|s| field(&s, "PRETTY_NAME")),
+        ),
+        (
+            "kernel",
+            read("/proc/sys/kernel/osrelease").map(|s| s.trim().to_owned()),
+        ),
+        ("uptime", seconds.map(uptime)),
+        ("packages", packages()),
     ]
 }
 
-fn hardware() -> Vec<(&'static str, Option<String>)> {
-    let env = |name| std::env::var(name).ok();
-    let cpu = read("/proc/cpuinfo").and_then(|s| field(&s, "model name"));
-    let ram = read("/proc/meminfo").and_then(|s| memory(&s));
+fn hardware() -> Facts {
     vec![
-        ("Shell", env("SHELL")),
-        ("Окружение", env("XDG_CURRENT_DESKTOP")),
+        ("shell", env("SHELL")),
+        ("desktop", env("XDG_CURRENT_DESKTOP")),
+        ("session", env("XDG_SESSION_TYPE")),
         (
-            "Терминал",
+            "terminal",
             Some(format!("DimaSter {}", env!("CARGO_PKG_VERSION"))),
         ),
-        ("Процессор", cpu),
-        ("Память", ram),
-        ("Диск /", disk()),
+        (
+            "cpu",
+            read("/proc/cpuinfo").and_then(|s| field(&s, "model name")),
+        ),
+        ("gpu", gpu()),
+        ("memory", read("/proc/meminfo").and_then(|s| memory(&s))),
+        ("disk", disk()),
     ]
 }
 
-fn info_lines() -> Vec<String> {
-    let user = std::env::var("USER").unwrap_or_default();
-    let host = read("/proc/sys/kernel/hostname").unwrap_or_default();
-    let mut lines = vec![
-        format!("\x1b[1;35m{user}@{}\x1b[0m", host.trim()),
-        String::new(),
-    ];
-    let entries = system().into_iter().chain(hardware());
-    lines.extend(
-        entries.filter_map(|(name, value)| Some(format!("\x1b[1;34m{name}\x1b[0m: {}", value?))),
-    );
-    let colors: String = (0..8).map(|c| format!("\x1b[4{c}m   ")).collect();
-    lines.extend([String::new(), colors + "\x1b[0m"]);
-    lines
+// сломанный пользовательский сценарий не оставляет без вывода
+fn layout() -> io::Result<Layout> {
+    let facts: Facts = system().into_iter().chain(hardware()).collect();
+    let directory = config_dir();
+    let custom = directory
+        .as_deref()
+        .and_then(|d| std::fs::read_to_string(d.join("fetch.lua")).ok());
+    if let Some(source) = custom {
+        match run_fetch(&source, directory.as_deref(), &facts) {
+            Ok(layout) => return Ok(layout),
+            Err(e) => eprintln!("fetch.lua: {e}"),
+        }
+    }
+    run_fetch(DEFAULT_FETCH, directory.as_deref(), &facts).map_err(io::Error::other)
 }
 
 // картинка не двигает курсор, текст печатается правее неё
-fn print(out: &mut impl Write, logo: Option<&[u8]>) -> io::Result<()> {
-    let lines = info_lines();
-    if let Some(data) = logo {
-        let options = format!("c={},r={},C=1", LOGO_WIDTH - 2, lines.len());
+fn print(out: &mut impl Write, layout: &Layout, image: Option<&[u8]>) -> io::Result<()> {
+    if let Some(data) = image {
+        let width = layout.logo_width.saturating_sub(2).max(1);
+        let options = format!("c={width},r={},C=1", layout.lines.len().max(1));
         icat::show(out, data, &options)?;
     }
-    for index in 0..lines.len().max(LOGO.len()) {
-        if logo.is_none() {
-            let art = LOGO.get(index).copied().unwrap_or_default();
-            write!(out, "\x1b[36m{art}\x1b[0m")?;
-        }
-        let text = lines.get(index).map(String::as_str).unwrap_or_default();
+    let art: &[String] = if image.is_some() { &[] } else { &layout.logo };
+    for index in 0..layout.lines.len().max(art.len()) {
+        let logo = art.get(index).map(String::as_str).unwrap_or_default();
+        let text = layout
+            .lines
+            .get(index)
+            .map(String::as_str)
+            .unwrap_or_default();
         // абсолютная колонка не зависит от ширины символов логотипа
-        writeln!(out, "\x1b[{}G{text}", LOGO_WIDTH + 1)?;
+        writeln!(out, "{logo}\x1b[{}G{text}", layout.logo_width + 1)?;
     }
     Ok(())
 }
 
-/// `--logo <файл>` заменяет текстовый логотип картинкой.
+fn load_image(path: &Path) -> Option<Vec<u8>> {
+    std::fs::read(path)
+        .inspect_err(|e| eprintln!("логотип {}: {e}", path.display()))
+        .ok()
+}
+
+/// `--logo <файл>` важнее картинки из сценария.
 pub(crate) fn run(options: &[String]) -> io::Result<()> {
-    let logo = match options {
-        [] => None,
+    let layout = layout()?;
+    let image = match options {
+        [] => layout.image.as_deref().and_then(load_image),
         [flag, path] if flag == "--logo" => Some(std::fs::read(path)?),
         _ => {
             return Err(io::Error::other(
@@ -165,7 +190,7 @@ pub(crate) fn run(options: &[String]) -> io::Result<()> {
             ));
         }
     };
-    print(&mut io::stdout().lock(), logo.as_deref())
+    print(&mut io::stdout().lock(), &layout, image.as_deref())
 }
 
 #[cfg(test)]
