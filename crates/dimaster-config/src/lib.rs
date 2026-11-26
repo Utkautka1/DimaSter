@@ -6,15 +6,18 @@
 
 mod color;
 mod config;
-mod emit;
+mod context;
 pub mod import;
 mod keys;
 mod load;
+mod scaffold;
 mod theme;
+mod window;
 
 pub use color::parse_color;
 pub use config::{Config, CursorStyle};
-pub use emit::to_lua;
 pub use keys::{Action, Binding, Mods};
 pub use load::{ConfigError, config_dir, load, parse};
+pub use scaffold::{File, scaffold};
 pub use theme::{Theme, builtin_names};
+pub use window::{Decorations, Effects, WindowConfig};

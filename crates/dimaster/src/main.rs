@@ -1,15 +1,21 @@
 //! DimaSter: без аргументов открывает окно с shell пользователя.
 
+mod actions;
+mod animate;
 mod app;
+mod chrome;
 mod clipboard;
+mod desktop;
 mod fetch;
 mod headless;
 mod icat;
 mod input;
 mod keys;
+mod modes;
 mod mouse;
 mod pointer;
 mod reload;
+mod scene;
 mod select;
 mod session;
 mod settings;

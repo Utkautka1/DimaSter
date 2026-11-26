@@ -1,7 +1,9 @@
 //! Разбор конфига, тем, обратная запись и импорт.
 
 use dimaster_config::import::{Source, detect};
-use dimaster_config::{Action, Config, CursorStyle, Mods, builtin_names, parse, to_lua};
+use dimaster_config::{
+    Action, Config, CursorStyle, Decorations, Mods, builtin_names, load, parse, scaffold,
+};
 
 #[test]
 fn empty_table_gives_defaults() {
@@ -58,8 +60,21 @@ fn builtin_themes_are_valid() {
     }
 }
 
-#[test]
-fn generated_config_reads_back() {
+fn temporary(name: &str) -> std::path::PathBuf {
+    let path = std::env::temp_dir().join(format!("dimaster-{name}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&path);
+    path
+}
+
+fn write_tree(directory: &std::path::Path, config: &Config) {
+    for file in scaffold(config) {
+        let path = directory.join(file.path);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, file.content).unwrap();
+    }
+}
+
+fn custom() -> Config {
     let mut config = Config {
         font_family: Some("A \"B\" \\C".into()),
         ..Config::default()
@@ -68,7 +83,42 @@ fn generated_config_reads_back() {
     config.theme.selection_text = Some(0x010101);
     config.shell = vec!["/bin/zsh".into(), "-l".into()];
     config.padding = (25, 20);
-    assert_eq!(parse(&to_lua(&config), None).unwrap(), config);
+    config.window.decorations = Decorations::None;
+    config.window.opacity = 0.5;
+    config.effects.cursor_trail = true;
+    config
+}
+
+#[test]
+fn generated_tree_reads_back() {
+    let directory = temporary("tree");
+    write_tree(&directory, &custom());
+    // переменные окружения теста не должны подключать лишние профили
+    let loaded = load(&directory.join("init.lua")).unwrap();
+    assert_eq!(loaded, custom());
+    std::fs::remove_dir_all(directory).unwrap();
+}
+
+#[test]
+fn later_layers_win_and_keys_accumulate() {
+    let directory = temporary("layers");
+    write_tree(&directory, &Config::default());
+    let write = |name: &str, text: &str| std::fs::write(directory.join(name), text).unwrap();
+    write(
+        "settings/keys.lua",
+        "return { keys = { { key = 'a', mods = 'ctrl', action = 'copy' } } }",
+    );
+    write(
+        "local.lua",
+        "return { font = { size = 20 }, keys = { { key = 'b', mods = 'ctrl', action = 'paste' } } }",
+    );
+    let config = load(&directory.join("init.lua")).unwrap();
+    assert_eq!((config.font_size, config.font_dirs.len()), (20.0, 0));
+    let has = |key: &str| config.keys.iter().any(|b| b.key == key);
+    assert!(has("a") && has("b"));
+    write("local.lua", "return 5");
+    assert!(load(&directory.join("init.lua")).is_err());
+    std::fs::remove_dir_all(directory).unwrap();
 }
 
 // временный «~/.config» с настройками двух терминалов

@@ -5,8 +5,12 @@ use std::path::{Path, PathBuf};
 
 use mlua::{Lua, Table, Value};
 
+use crate::context;
 use crate::theme::builtin_source;
-use crate::{Action, Binding, Config, CursorStyle, Mods, Theme, parse_color};
+use crate::{
+    Action, Binding, Config, CursorStyle, Decorations, Effects, Mods, Theme, WindowConfig,
+    parse_color,
+};
 
 /// Понятное человеку описание того, что не так в конфиге.
 #[derive(Debug)]
@@ -50,9 +54,20 @@ pub fn load(path: &Path) -> Result<Config, ConfigError> {
     }
 }
 
-/// `directory` нужен для поиска пользовательских тем.
+// `~/x` в путях из конфига
+fn expand(path: String) -> PathBuf {
+    match (path.strip_prefix("~/"), std::env::var_os("HOME")) {
+        (Some(rest), Some(home)) => PathBuf::from(home).join(rest),
+        _ => PathBuf::from(path),
+    }
+}
+
+/// `directory` — каталог настроек: оттуда берутся модули и темы.
 pub fn parse(source: &str, directory: Option<&Path>) -> Result<Config, ConfigError> {
     let lua = Lua::new();
+    if let Some(directory) = directory {
+        context::install(&lua, directory)?;
+    }
     let table: Table = lua.load(source).set_name("init.lua").eval()?;
     let mut config = Config::default();
     if let Some(name) = table.get::<Option<String>>("theme")? {
@@ -64,6 +79,12 @@ pub fn parse(source: &str, directory: Option<&Path>) -> Result<Config, ConfigErr
     apply_font(&table, &mut config)?;
     apply_general(&table, &mut config)?;
     apply_keys(&table, &mut config)?;
+    if let Some(window) = table.get::<Option<Table>>("window")? {
+        apply_window(&window, &mut config.window)?;
+    }
+    if let Some(effects) = table.get::<Option<Table>>("effects")? {
+        apply_effects(&effects, &mut config.effects)?;
+    }
     Ok(config)
 }
 
@@ -122,11 +143,7 @@ fn apply_font(table: &Table, config: &mut Config) -> Result<(), ConfigError> {
         config.font_size = size;
     }
     let dirs: Option<Vec<String>> = font.get("dirs")?;
-    config.font_dirs = dirs
-        .unwrap_or_default()
-        .into_iter()
-        .map(PathBuf::from)
-        .collect();
+    config.font_dirs = dirs.unwrap_or_default().into_iter().map(expand).collect();
     Ok(())
 }
 
@@ -180,4 +197,38 @@ fn apply_keys(table: &Table, config: &mut Config) -> Result<(), ConfigError> {
         });
     }
     Ok(())
+}
+
+fn fraction(table: &Table, key: &str, target: &mut f32) -> Result<(), ConfigError> {
+    if let Some(value) = table.get::<Option<f32>>(key)? {
+        if !(0.0..=1.0).contains(&value) {
+            return Err(invalid(key, value));
+        }
+        *target = value;
+    }
+    Ok(())
+}
+
+fn flag(table: &Table, key: &str, target: &mut bool) -> Result<(), ConfigError> {
+    *target = table.get::<Option<bool>>(key)?.unwrap_or(*target);
+    Ok(())
+}
+
+fn apply_window(table: &Table, window: &mut WindowConfig) -> Result<(), ConfigError> {
+    if let Some(name) = table.get::<Option<String>>("decorations")? {
+        window.decorations =
+            Decorations::parse(&name).ok_or_else(|| invalid("decorations", &name))?;
+    }
+    fraction(table, "opacity", &mut window.opacity)?;
+    fraction(table, "background_opacity", &mut window.background_opacity)?;
+    flag(table, "blur", &mut window.blur)?;
+    window.background_image = table.get::<Option<String>>("background_image")?.map(expand);
+    Ok(())
+}
+
+fn apply_effects(table: &Table, effects: &mut Effects) -> Result<(), ConfigError> {
+    flag(table, "cursor_blink", &mut effects.cursor_blink)?;
+    flag(table, "cursor_animation", &mut effects.cursor_animation)?;
+    flag(table, "cursor_trail", &mut effects.cursor_trail)?;
+    flag(table, "smooth_scroll", &mut effects.smooth_scroll)
 }

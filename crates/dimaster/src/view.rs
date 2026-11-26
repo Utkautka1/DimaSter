@@ -6,17 +6,21 @@ use std::time::{Duration, Instant};
 
 use dimaster_config::Config;
 use dimaster_font::FontSystem;
-use dimaster_grid::{Size, Terminal};
+use dimaster_grid::{Match, Size, Terminal};
 use dimaster_pty::WindowSize;
-use dimaster_render::{Renderer, Viewport};
+use dimaster_render::Renderer;
 use winit::dpi::{PhysicalPosition, PhysicalSize};
 use winit::keyboard::ModifiersState;
 use winit::window::Window;
 
+use crate::animate::Animator;
 use crate::clipboard::Clipboard;
+use crate::desktop;
+use crate::modes::Mode;
 use crate::pointer::Pointer;
 use crate::select::Selecting;
 use crate::session::Session;
+use crate::settings;
 
 // столько порций разбираем за раз, чтобы поток вывода не блокировал ввод
 const BATCH: usize = 32;
@@ -51,16 +55,27 @@ pub(crate) struct View {
     pub(crate) clipboard: Clipboard,
     pub(crate) selecting: Selecting,
     // текст, который пользователь набирает в IME
-    preedit: String,
-    wake: Arc<dyn Fn() + Send + Sync>,
+    pub(crate) preedit: String,
+    pub(crate) mode: Mode,
+    pub(crate) animator: Animator,
+    pub(crate) focused: bool,
+    // ссылка под указателем при зажатом Ctrl
+    pub(crate) hover_link: Option<Match>,
+    /// Нажата кнопка закрытия своей рамки.
+    pub(crate) closing: bool,
+    pub(crate) wake: Arc<dyn Fn() + Send + Sync>,
 }
 
-fn grid_size(window: &Window, fonts: &FontSystem, padding: (u32, u32)) -> Size {
+fn grid_size(window: &Window, fonts: &FontSystem, config: &Config) -> Size {
     let size = window.inner_size();
     let metrics = fonts.metrics();
+    let padding = config.padding;
+    let height = size
+        .height
+        .saturating_sub(settings::title_height(config, metrics.cell_height));
     let cells = |pixels: u32, pad: u32, cell: u32| (pixels.saturating_sub(pad * 2) / cell) as usize;
     Size {
-        rows: cells(size.height, padding.1, metrics.cell_height).max(1),
+        rows: cells(height, padding.1, metrics.cell_height).max(1),
         cols: cells(size.width, padding.0, metrics.cell_width).max(2),
     }
 }
@@ -82,9 +97,25 @@ impl View {
         args: &[String],
         wake: impl Fn() + Send + Sync + 'static,
     ) -> Self {
-        let term = Terminal::new(grid_size(&window, &fonts, config.padding));
+        let term = Terminal::new(grid_size(&window, &fonts, &config));
         window.request_redraw();
-        let mut view = Self {
+        let mut view = Self::initial(window, renderer, fonts, config, term, args, Arc::new(wake));
+        view.apply_to_terminal();
+        view
+    }
+
+    // все поля в начальном состоянии: плоское перечисление без логики
+    #[allow(clippy::too_many_lines)]
+    fn initial(
+        window: Arc<Window>,
+        renderer: Renderer,
+        fonts: FontSystem,
+        config: Config,
+        term: Terminal,
+        args: &[String],
+        wake: Arc<dyn Fn() + Send + Sync>,
+    ) -> Self {
+        Self {
             window,
             renderer,
             fonts,
@@ -103,14 +134,21 @@ impl View {
             clipboard: Clipboard::new(),
             selecting: Selecting::default(),
             preedit: String::new(),
-            wake: Arc::new(wake),
-        };
-        view.apply_to_terminal();
-        view
+            mode: Mode::Normal,
+            animator: Animator::new(Instant::now()),
+            focused: true,
+            hover_link: None,
+            closing: false,
+            wake,
+        }
+    }
+
+    pub(crate) fn title_height(&self) -> u32 {
+        settings::title_height(&self.config, self.fonts.metrics().cell_height)
     }
 
     fn grid_size(&self) -> Size {
-        grid_size(&self.window, &self.fonts, self.config.padding)
+        grid_size(&self.window, &self.fonts, &self.config)
     }
 
     /// Запускает shell, когда размер устоялся: иначе программы из автозапуска
@@ -147,19 +185,37 @@ impl View {
             if bytes.is_empty() {
                 return false;
             }
-            let alternate = self.term.is_alternate();
-            self.term.advance(&bytes);
-            if alternate != self.term.is_alternate() {
-                self.selecting.clear();
-            }
-            let reply = self.term.take_reply();
-            self.send(reply);
+            self.consume(&bytes);
         }
         if self.term.title() != title {
             self.update_title();
         }
+        self.after_output();
         self.refresh();
         true
+    }
+
+    fn consume(&mut self, bytes: &[u8]) {
+        let alternate = self.term.is_alternate();
+        self.term.advance(bytes);
+        if alternate != self.term.is_alternate() {
+            self.selecting.clear();
+        }
+        let reply = self.term.take_reply();
+        self.send(reply);
+        for (title, body) in self.term.take_notifications() {
+            desktop::notify(&title, &body);
+        }
+    }
+
+    // новые строки меняют найденное и положение ссылок
+    fn after_output(&mut self) {
+        if let Mode::Search(search) = &mut self.mode {
+            let current = search.current;
+            search.update(&self.term);
+            search.current = current.min(search.matches.len().saturating_sub(1));
+        }
+        self.hover_link = None;
     }
 
     /// Запрашивает кадр, если программа не просила подождать (режим 2026).
@@ -188,22 +244,28 @@ impl View {
         [sync, self.animate_at].into_iter().flatten().min()
     }
 
-    pub(crate) fn draw(&mut self) {
-        let selection = self.selecting.selection.map(|s| self.term.span(s));
-        let view = Viewport {
-            scroll: self.scroll,
-            selection,
-            preedit: &self.preedit,
-        };
-        if !self.renderer.draw(&self.term, &mut self.fonts, view) {
-            (self.wake)();
-        }
+    // ближайшее из: кадр картинки, шаг анимации, мигание
+    pub(crate) fn schedule_animation(&mut self) {
+        let now = Instant::now();
         // не чаще 60 кадров в секунду, даже если задержки в файле нулевые
-        let wait = self
+        let picture = self
             .renderer
             .next_frame()
-            .map(|w| w.max(Duration::from_millis(16)));
-        self.animate_at = wait.map(|w| Instant::now() + w);
+            .map(|w| now + w.max(Duration::from_millis(16)));
+        let motion = self
+            .animator
+            .next_frame(self.config.effects, self.focused, now);
+        self.animate_at = [picture, motion].into_iter().flatten().min();
+    }
+
+    // номера строк изменились: поиск повторяется, vi-курсор теряет смысл
+    fn mode_after_resize(&mut self) {
+        self.hover_link = None;
+        match &mut self.mode {
+            Mode::Search(search) => search.update(&self.term),
+            Mode::Vi(_) => self.mode = Mode::Normal,
+            Mode::Normal | Mode::Palette(_) => {}
+        }
     }
 
     pub(crate) fn set_preedit(&mut self, text: String) {
@@ -217,7 +279,7 @@ impl View {
         let (metrics, cursor) = (self.fonts.metrics(), self.term.cursor());
         let at = |cells: usize, size: u32, pad: u32| pad + cells as u32 * size;
         let x = at(cursor.col, metrics.cell_width, self.config.padding.0);
-        let y = at(cursor.row, metrics.cell_height, self.config.padding.1);
+        let y = at(cursor.row, metrics.cell_height, self.config.padding.1) + self.title_height();
         let size = PhysicalSize::new(metrics.cell_width, metrics.cell_height);
         self.window
             .set_ime_cursor_area(PhysicalPosition::new(x, y), size);
@@ -228,6 +290,7 @@ impl View {
         let size = self.grid_size();
         self.term.resize(size);
         // после переразбиения номера строк другие
+        self.mode_after_resize();
         self.selecting.clear();
         self.scroll = 0;
         let metrics = self.fonts.metrics();
@@ -242,6 +305,7 @@ impl View {
 
     /// Ввод пользователя всегда возвращает вид к последней строке.
     pub(crate) fn type_bytes(&mut self, bytes: Vec<u8>) {
+        self.animator.restart_blink(Instant::now());
         self.scroll = 0;
         self.selecting.clear();
         self.send(bytes);
@@ -250,7 +314,13 @@ impl View {
 
     pub(crate) fn scroll_by(&mut self, lines: isize) {
         let max = self.term.screen().history().count();
+        let old = self.scroll;
         self.scroll = self.scroll.saturating_add_signed(lines).min(max);
+        let height = self.fonts.metrics().cell_height as f32;
+        let moved = self.scroll as f32 - old as f32;
+        if self.config.effects.smooth_scroll {
+            self.animator.scroll(-moved * height, height * 3.0);
+        }
         self.window.request_redraw();
     }
 
@@ -263,11 +333,19 @@ impl View {
         };
         (
             index(x, self.config.padding.0, metrics.cell_width, size.cols),
-            index(y, self.config.padding.1, metrics.cell_height, size.rows),
+            index(
+                y - f64::from(self.title_height()),
+                self.config.padding.1,
+                metrics.cell_height,
+                size.rows,
+            ),
         )
     }
 
-    pub(crate) fn focus(&self, focused: bool) {
+    pub(crate) fn focus(&mut self, focused: bool) {
+        self.focused = focused;
+        self.animator.restart_blink(Instant::now());
+        self.window.request_redraw();
         if self.term.modes().focus_events {
             let report: &[u8] = if focused { b"\x1b[I" } else { b"\x1b[O" };
             self.send(report.to_vec());

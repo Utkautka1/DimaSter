@@ -4,9 +4,11 @@ use std::io::{self, BufRead, Write};
 use std::os::unix::process::CommandExt;
 use std::path::Path;
 use std::process::Command;
+use std::time::{SystemTime, UNIX_EPOCH};
 
+use dimaster_config::config_dir;
 use dimaster_config::import::{Source, detect};
-use dimaster_config::{Config, to_lua};
+use dimaster_config::{Config, File, scaffold};
 
 use crate::settings;
 
@@ -66,27 +68,54 @@ fn build(chosen: &[Source], config_home: &Path) -> Config {
     config
 }
 
-// прежний конфиг не теряется, а сохраняется рядом
-fn save(path: &Path, config: &Config) -> io::Result<()> {
-    if let Some(directory) = path.parent() {
-        std::fs::create_dir_all(directory)?;
+// изменённый файл не теряется: копия уходит в backups/<время>/
+fn back_up(directory: &Path, stamp: u64, file: &File) -> io::Result<()> {
+    let current = directory.join(file.path);
+    if std::fs::read_to_string(&current).is_ok_and(|old| old == file.content) {
+        return Ok(());
     }
+    let backup = directory.join(format!("backups/{stamp}")).join(file.path);
+    if let Some(parent) = backup.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::copy(current, backup).map(drop)
+}
+
+fn write_file(directory: &Path, stamp: u64, file: &File) -> io::Result<()> {
+    let path = directory.join(file.path);
     if path.exists() {
-        let backup = path.with_extension("lua.bak");
-        std::fs::copy(path, &backup)?;
-        println!("Старый конфиг сохранён в {}", backup.display());
+        // пользовательские файлы мастер не трогает
+        if file.owned_by_user {
+            return Ok(());
+        }
+        back_up(directory, stamp, file)?;
     }
-    std::fs::write(path, to_lua(config))?;
-    println!("Конфиг записан: {}\n", path.display());
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(path, &file.content)
+}
+
+// init.lua пишется последним: окно перечитает конфиг, когда всё уже на месте
+fn save(directory: &Path, config: &Config) -> io::Result<()> {
+    let stamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs());
+    let mut files = scaffold(config);
+    files.sort_by_key(|f| f.path == "init.lua");
+    for file in &files {
+        write_file(directory, stamp, file)?;
+    }
+    println!("Настройки записаны в {}\n", directory.display());
     Ok(())
 }
 
 fn wizard() -> io::Result<()> {
-    let path = settings::config_path().ok_or_else(|| io::Error::other("не задан HOME"))?;
-    let config_home = path.ancestors().nth(2).unwrap_or(Path::new("."));
+    let directory = config_dir().ok_or_else(|| io::Error::other("не задан HOME"))?;
+    let config_home = directory.parent().unwrap_or(Path::new("."));
     let found = detect(config_home);
     match ask(&found)? {
-        Some(chosen) => save(&path, &build(&chosen, config_home)),
+        Some(chosen) => save(&directory, &build(&chosen, config_home)),
         None => Ok(()),
     }
 }

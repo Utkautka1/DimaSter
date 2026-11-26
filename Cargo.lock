@@ -693,6 +693,7 @@ dependencies = [
  "dimaster-vt",
  "log",
  "proptest",
+ "regex",
  "unicode-width",
 ]
 

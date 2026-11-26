@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use crate::{Config, CursorStyle, parse_color};
+use crate::{Config, CursorStyle, Decorations, parse_color};
 
 const THEME_DIR: &str = "/usr/share/ghostty/themes";
 
@@ -92,6 +92,15 @@ fn layout(key: &str, value: &str, config: &mut Config) {
         "font-size" => config.font_size = value.parse().unwrap_or(config.font_size),
         "window-padding-x" => config.padding.0 = value.parse().unwrap_or(config.padding.0),
         "window-padding-y" => config.padding.1 = value.parse().unwrap_or(config.padding.1),
+        "background-opacity" => {
+            config.window.opacity = value.parse::<f32>().unwrap_or(1.0).clamp(0.0, 1.0);
+        }
+        "background-blur-radius" | "background-blur" => {
+            config.window.blur = !matches!(value, "0" | "false");
+        }
+        "window-decoration" if matches!(value, "false" | "none") => {
+            config.window.decorations = Decorations::None;
+        }
         "cursor-style" => config.cursor = CursorStyle::parse(value).unwrap_or(config.cursor),
         "command" => config.shell = value.split_whitespace().map(str::to_owned).collect(),
         _ => {}

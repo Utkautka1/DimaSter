@@ -50,6 +50,10 @@ impl View {
     pub(crate) fn key(&mut self, event: &KeyEvent) {
         // без модификаторов: Ctrl+C должен работать и на русской раскладке
         let key = self.layout_independent(event);
+        let text = event.text.as_deref();
+        if self.mode_key(&key, text) {
+            return;
+        }
         if let Some(action) = find_action(&self.config.keys, &key, self.modifiers) {
             return self.perform(action);
         }
@@ -76,7 +80,7 @@ impl View {
         }
     }
 
-    fn perform(&mut self, action: Action) {
+    pub(crate) fn perform(&mut self, action: Action) {
         let page = self.term.screen().rows().len() as isize;
         match action {
             Action::Copy => self.copy(Target::Clipboard),
@@ -90,6 +94,9 @@ impl View {
             Action::FontDecrease => self.zoom_font(Some(-1.0)),
             Action::FontReset => self.zoom_font(None),
             Action::ReloadConfig => self.reload(),
+            Action::Search => self.open_search(),
+            Action::ViMode => self.open_vi(),
+            Action::CommandPalette => self.open_palette(),
             Action::None => {}
         }
     }

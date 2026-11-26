@@ -40,10 +40,13 @@ fn vertex(@builtin(vertex_index) index: u32, quad: Quad) -> Pixel {
 fn fragment(pixel: Pixel) -> @location(0) vec4<f32> {
     let rgb = vec3<f32>(vec3<u32>(pixel.color >> 16u, pixel.color >> 8u, pixel.color) & vec3<u32>(255u)) / 255.0;
     if pixel.solid == 1u {
-        return vec4<f32>(rgb, 1.0);
+        let alpha = select(1.0, 0.35, (pixel.color & 0x4000000u) != 0u);
+        return vec4<f32>(rgb, alpha);
     }
     if (pixel.color & IMAGE) != 0u {
-        return textureSampleLevel(atlas, smooth_sampler, pixel.uv, 0.0);
+        // младший байт цвета — непрозрачность картинки
+        let texel = textureSampleLevel(atlas, smooth_sampler, pixel.uv, 0.0);
+        return vec4<f32>(texel.rgb, texel.a * f32(pixel.color & 255u) / 255.0);
     }
     let texel = textureLoad(atlas, vec2<i32>(pixel.uv), 0);
     if (pixel.color & COLOR_GLYPH) != 0u {

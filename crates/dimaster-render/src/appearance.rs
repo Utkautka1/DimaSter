@@ -1,9 +1,13 @@
 //! Внешний вид кадра: цвета, отступы и обработка RTL.
 
+use std::sync::Arc;
+
+use dimaster_grid::Picture;
+
 use crate::palette::Rgb;
 
 /// Задаётся приложением из пользовательского конфига.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Appearance {
     pub foreground: Rgb,
     pub background: Rgb,
@@ -14,6 +18,12 @@ pub struct Appearance {
     // отступы от краёв окна в пикселях: по горизонтали и вертикали
     pub padding: (u32, u32),
     pub rtl: bool,
+    // непрозрачность фона окна
+    pub opacity: f32,
+    // высота своей полосы заголовка в пикселях, 0 — её нет
+    pub top: u32,
+    // фоновая картинка и насколько она заметна
+    pub wallpaper: Option<(Arc<Picture>, f32)>,
 }
 
 impl Default for Appearance {
@@ -30,6 +40,9 @@ impl Default for Appearance {
             ],
             padding: (6, 6),
             rtl: true,
+            opacity: 1.0,
+            top: 0,
+            wallpaper: None,
         }
     }
 }

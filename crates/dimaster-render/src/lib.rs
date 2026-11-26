@@ -10,6 +10,7 @@ mod bidi;
 mod frame;
 mod gpu;
 mod images;
+mod overlay;
 mod palette;
 mod pipeline;
 mod preedit;
@@ -19,5 +20,6 @@ mod textures;
 pub use appearance::Appearance;
 pub use frame::Viewport;
 pub use gpu::{RenderError, Renderer};
+pub use overlay::Label;
 // приложению нужно создать поверхность окна той же версией wgpu
 pub use wgpu;

@@ -59,6 +59,7 @@ pub(crate) struct State {
     // форма, к которой возвращает DECSCUSR 0
     pub(crate) default_cursor: CursorShape,
     pub(crate) graphics: Store,
+    pub(crate) notifications: Vec<(String, String)>,
 }
 
 impl Terminal {
@@ -134,6 +135,11 @@ impl Terminal {
         main.keep_images = keep;
     }
 
+    /// Уведомления, запрошенные программами (OSC 9 и 777): заголовок и текст.
+    pub fn take_notifications(&mut self) -> Vec<(String, String)> {
+        std::mem::take(&mut self.state.notifications)
+    }
+
     pub fn title(&self) -> &str {
         &self.state.title
     }
@@ -191,6 +197,7 @@ impl State {
             colors: DefaultColors::default(),
             default_cursor: CursorShape::Block,
             graphics: Store::default(),
+            notifications: Vec::new(),
         }
     }
 

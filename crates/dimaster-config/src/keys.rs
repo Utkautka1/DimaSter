@@ -40,11 +40,17 @@ pub enum Action {
     FontDecrease,
     FontReset,
     ReloadConfig,
+    Search,
+    ViMode,
+    CommandPalette,
     /// Отключить сочетание, чтобы оно уходило программе.
     None,
 }
 
-const ACTIONS: [(&str, Action); 12] = [
+const ACTIONS: [(&str, Action); 15] = [
+    ("search", Action::Search),
+    ("vi_mode", Action::ViMode),
+    ("command_palette", Action::CommandPalette),
     ("copy", Action::Copy),
     ("paste", Action::Paste),
     ("paste_primary", Action::PastePrimary),
@@ -77,7 +83,10 @@ pub struct Binding {
 }
 
 // сочетания по умолчанию совпадают с привычными по Ghostty и kitty
-const DEFAULTS: [(&str, &str, Action); 12] = [
+const DEFAULTS: [(&str, &str, Action); 15] = [
+    ("f", "ctrl+shift", Action::Search),
+    ("space", "ctrl+shift", Action::ViMode),
+    ("p", "ctrl+shift", Action::CommandPalette),
     ("c", "ctrl+shift", Action::Copy),
     ("v", "ctrl+shift", Action::Paste),
     ("insert", "shift", Action::PastePrimary),

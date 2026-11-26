@@ -1,6 +1,6 @@
 # DimaSter
 
-Терминал для Linux на Rust. Готовы этапы 1 (ядро), 2 (окно, GPU, ввод) 3 (совместимость) и 4 (лигатуры, цветные эмодзи, CJK, RTL, IME) 5 (настройки на Lua) и 6 (графика).
+Терминал для Linux на Rust. Готовы этапы 1 (ядро), 2 (окно, GPU, ввод) 3 (совместимость) и 4 (лигатуры, цветные эмодзи, CJK, RTL, IME) 5 (настройки на Lua), 6 (графика) и 7 (интерфейс).
 
 ## Запуск
 
@@ -38,30 +38,39 @@ cargo run --release -p dimaster -- --headless ls -la
 
 ## Настройки
 
-Файл `~/.config/dimaster/init.lua`; изменения применяются на лету. При первом запуске мастер предложит перенести настройки из Ghostty, kitty или Alacritty. Запустить его снова:
+Все настройки — Lua в `~/.config/dimaster/`; изменения применяются на лету. При первом запуске мастер создаёт дерево и предлагает перенести настройки из Ghostty, kitty или Alacritty. Повторный запуск сохраняет изменённые файлы в `backups/`:
 
 ```bash
 cargo run --release -p dimaster -- --setup
 ```
 
-```lua
-return {
-  theme = "catppuccin-mocha",          -- или gruvbox-dark, nord, свой themes/<имя>.lua
-  colors = { background = "#101010" }, -- поверх темы: foreground, cursor, selection, selection_text, ansi
-  font = { family = "JetBrainsMono Nerd Font", size = 12, dirs = {} },
-  padding = { x = 10, y = 8 },
-  cursor = "bar",                      -- block, underline, bar
-  scrollback = 10000,
-  shell = { "/usr/bin/zsh" },
-  rtl = true,
-  term = "xterm-256color",             -- или xterm-dimaster
-  keys = { { key = "k", mods = "ctrl+shift", action = "scroll_top" } },
-}
+```
+~/.config/dimaster/
+├── init.lua              загрузчик
+├── lib/                  layers.lua (порядок слоёв), merge.lua (объединение)
+├── settings/             appearance, font, window, effects, behavior, keys
+├── themes/               свои и перенесённые темы
+├── profiles/
+│   ├── desktop/<de>.lua  по окружению (hyprland, gnome, …)
+│   ├── session/<s>.lua   wayland или x11
+│   ├── ssh.lua           внутри SSH-сессии
+│   └── presentation.lua  DIMASTER_PROFILE=presentation
+├── hosts/<имя>.lua       для конкретной машины
+└── local.lua             личные правки, применяются последними
 ```
 
-Действия: `copy`, `paste`, `paste_primary`, `scroll_page_up`, `scroll_page_down`, `scroll_top`, `scroll_bottom`, `font_increase`, `font_decrease`, `font_reset`, `reload_config`, `none`.
+Слои накладываются сверху вниз в этом порядке: `settings` → `profiles` → `hosts` → `local`. Словари объединяются, списки заменяются, сочетания `keys` складываются. Файлы `local.lua` и `profiles/` мастер не перезаписывает.
 
-По умолчанию кегль меняется через Ctrl `=` / `-` / `0`, конфиг перечитывается через Ctrl+Shift+`,`.
+Действия для `keys`: `copy`, `paste`, `paste_primary`, `scroll_page_up`, `scroll_page_down`, `scroll_top`, `scroll_bottom`, `font_increase`, `font_decrease`, `font_reset`, `reload_config`, `search`, `vi_mode`, `command_palette`, `none`.
+
+## Режимы
+
+| Сочетание | Что делает |
+|---|---|
+| Ctrl+Shift+F | поиск; Enter / Shift+Enter, Ctrl+R — regex, Esc |
+| Ctrl+Shift+Space | vi-режим: hjkl, w b, 0 $, g G, v V Ctrl+V, y, /, q |
+| Ctrl+Shift+P | палитра команд |
+| Ctrl+клик | открыть ссылку или файл |
 
 ## Картинки
 

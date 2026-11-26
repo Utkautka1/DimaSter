@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use crate::keys::default_bindings;
-use crate::{Binding, Theme};
+use crate::{Binding, Effects, Theme, WindowConfig};
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum CursorStyle {
@@ -56,6 +56,8 @@ pub struct Config {
     /// Значение `TERM`.
     pub term: String,
     pub keys: Vec<Binding>,
+    pub window: WindowConfig,
+    pub effects: Effects,
 }
 
 impl Default for Config {
@@ -73,6 +75,8 @@ impl Default for Config {
             rtl: true,
             term: "xterm-256color".to_owned(),
             keys: default_bindings(),
+            window: WindowConfig::default(),
+            effects: Effects::default(),
         }
     }
 }

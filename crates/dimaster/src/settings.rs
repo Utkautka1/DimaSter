@@ -1,10 +1,14 @@
 //! Загрузка конфига, слежение за файлом и перевод в типы крейтов.
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Instant;
 
-use dimaster_config::{Config, CursorStyle, config_dir, load};
+use dimaster_config::{Config, CursorStyle, Decorations, config_dir, load};
 use dimaster_font::{FontError, FontSystem};
-use dimaster_grid::{CursorShape, DefaultColors};
+use dimaster_grid::{CursorShape, DefaultColors, Picture};
+use dimaster_image::decode;
 use dimaster_render::Appearance;
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 
@@ -67,7 +71,15 @@ pub(crate) fn fonts(config: &Config, scale: f64) -> Result<FontSystem, FontError
     FontSystem::with_settings(config.font_family.as_deref(), size, &config.font_dirs)
 }
 
-pub(crate) fn appearance(config: &Config) -> Appearance {
+/// Высота своей полосы заголовка в пикселях.
+pub(crate) fn title_height(config: &Config, cell_height: u32) -> u32 {
+    match config.window.decorations {
+        Decorations::Own => cell_height + 8,
+        Decorations::System | Decorations::None => 0,
+    }
+}
+
+pub(crate) fn appearance(config: &Config, cell_height: u32) -> Appearance {
     let theme = config.theme;
     Appearance {
         foreground: theme.foreground,
@@ -78,7 +90,28 @@ pub(crate) fn appearance(config: &Config) -> Appearance {
         ansi: theme.ansi,
         padding: config.padding,
         rtl: config.rtl,
+        opacity: config.window.opacity,
+        top: title_height(config, cell_height),
+        wallpaper: None,
     }
+}
+
+/// Декодирует фоновую картинку; ошибка не мешает работе терминала.
+pub(crate) fn wallpaper(config: &Config) -> Option<(Arc<Picture>, f32)> {
+    // номера с конца диапазона не пересекаются с картинками программ
+    static NEXT: AtomicU64 = AtomicU64::new(u64::MAX);
+    let path = config.window.background_image.as_ref()?;
+    let data = std::fs::read(path)
+        .inspect_err(|e| log::warn!("Фон {}: {e}", path.display()))
+        .ok()?;
+    let animation = decode(&data)?;
+    let serial = NEXT.fetch_sub(1, Ordering::Relaxed);
+    let picture = Picture {
+        serial,
+        animation,
+        started: Instant::now(),
+    };
+    Some((Arc::new(picture), config.window.background_opacity))
 }
 
 pub(crate) fn default_colors(config: &Config) -> DefaultColors {

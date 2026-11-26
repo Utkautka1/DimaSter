@@ -1,0 +1,119 @@
+//! Генерация файлов со значениями.
+
+use std::fmt::Write;
+use std::path::Path;
+
+use crate::color::format_color;
+use crate::{Config, Theme};
+
+// строка Lua: экранируются только символы, ломающие литерал
+fn quote(text: &str) -> String {
+    let mut out = String::from("\"");
+    for ch in text.chars() {
+        match ch {
+            '"' | '\\' => out.extend(['\\', ch]),
+            '\n' => out.push_str("\\n"),
+            _ => out.push(ch),
+        }
+    }
+    out + "\""
+}
+
+fn path(value: &Path) -> String {
+    quote(&value.to_string_lossy())
+}
+
+fn list<T>(items: &[T], render: impl Fn(&T) -> String) -> String {
+    let parts: Vec<_> = items.iter().map(render).collect();
+    format!("{{ {} }}", parts.join(", "))
+}
+
+pub(super) fn theme(theme: &Theme) -> String {
+    let hex = |c: u32| quote(&format_color(c));
+    let mut out = format!(
+        "-- Цвета, перенесённые из другого терминала.\nreturn {{\n  foreground = {},\n  \
+         background = {},\n  cursor = {},\n  selection = {},\n",
+        hex(theme.foreground),
+        hex(theme.background),
+        hex(theme.cursor),
+        hex(theme.selection),
+    );
+    if let Some(color) = theme.selection_text {
+        let _ = writeln!(out, "  selection_text = {},", hex(color));
+    }
+    let ansi = |range: &[u32]| range.iter().map(|&c| hex(c)).collect::<Vec<_>>().join(", ");
+    let _ = write!(
+        out,
+        "  ansi = {{\n    {},\n    {},\n  }},\n}}\n",
+        ansi(&theme.ansi[..8]),
+        ansi(&theme.ansi[8..])
+    );
+    out
+}
+
+pub(super) fn appearance(config: &Config) -> String {
+    let theme = match config.theme == Theme::default() {
+        true => "  -- theme = \"nord\", -- или catppuccin-mocha, gruvbox-dark, themes/<имя>.lua\n",
+        false => "  theme = \"imported\",\n",
+    };
+    let (x, y) = config.padding;
+    format!(
+        "-- Цвета, отступы и курсор.\nreturn {{\n{theme}  -- colors = {{ background = \"#101010\" }},\n  \
+         padding = {{ x = {x}, y = {y} }},\n  cursor = {},\n}}\n",
+        quote(config.cursor.name()),
+    )
+}
+
+pub(super) fn font(config: &Config) -> String {
+    let family = match &config.font_family {
+        Some(name) => format!("family = {},", quote(name)),
+        None => "-- family = \"JetBrainsMono Nerd Font\",".to_owned(),
+    };
+    format!(
+        "-- Шрифт. size — в пунктах, dirs — свои каталоги со шрифтами.\nreturn {{\n  font = {{\n    \
+         {family}\n    size = {},\n    dirs = {},\n  }},\n}}\n",
+        config.font_size,
+        list(&config.font_dirs, |d| path(d)),
+    )
+}
+
+pub(super) fn window(config: &Config) -> String {
+    let window = &config.window;
+    let image = match &window.background_image {
+        Some(file) => format!("background_image = {},", path(file)),
+        None => "-- background_image = \"~/Pictures/wall.png\",".to_owned(),
+    };
+    format!(
+        "-- Окно. decorations: own (своя рамка), system, none.\nreturn {{\n  window = {{\n    \
+         decorations = {},\n    opacity = {},\n    blur = {},\n    {image}\n    \
+         background_opacity = {},\n  }},\n}}\n",
+        quote(window.decorations.name()),
+        window.opacity,
+        window.blur,
+        window.background_opacity,
+    )
+}
+
+pub(super) fn effects(config: &Config) -> String {
+    let effects = config.effects;
+    format!(
+        "-- Анимации.\nreturn {{\n  effects = {{\n    cursor_blink = {},\n    \
+         cursor_animation = {},\n    cursor_trail = {},\n    smooth_scroll = {},\n  }},\n}}\n",
+        effects.cursor_blink, effects.cursor_animation, effects.cursor_trail, effects.smooth_scroll,
+    )
+}
+
+pub(super) fn behavior(config: &Config) -> String {
+    let shell = match config.shell.is_empty() {
+        true => "-- shell = { \"/usr/bin/fish\" }, -- по умолчанию $SHELL".to_owned(),
+        false => format!("shell = {},", list(&config.shell, |w| quote(w))),
+    };
+    format!(
+        "-- Поведение терминала.\nreturn {{\n  scrollback = {},\n  {shell}\n  images_scroll = {},\n  \
+         rtl = {},\n  term = {},\n}}\n",
+        config.scrollback,
+        config.images_scroll,
+        config.rtl,
+        quote(&config.term),
+    )
+}

@@ -61,6 +61,9 @@ fn layout(key: &str, value: &str, config: &mut Config) {
                 config.padding = (pixels, pixels);
             }
         }
+        "background_opacity" => {
+            config.window.opacity = value.parse::<f32>().unwrap_or(1.0).clamp(0.0, 1.0);
+        }
         "scrollback_lines" => config.scrollback = value.parse().unwrap_or(config.scrollback),
         "cursor_shape" => config.cursor = CursorStyle::parse(value).unwrap_or(config.cursor),
         "shell" if value != "." => {

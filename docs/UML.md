@@ -96,6 +96,17 @@ classDiagram
     Config *-- Binding
     Source ..> Config
     View *-- Config
+    class Mode { Normal; Search; Vi; Palette }
+    class Animator { +tick(target, effects) +next_frame() }
+    class WindowConfig { decorations; opacity; blur; background_image }
+    class Effects { cursor_blink; cursor_animation; cursor_trail; smooth_scroll }
+    class Label { x; y; text; color }
+    View *-- Mode
+    View *-- Animator
+    Config *-- WindowConfig
+    Config *-- Effects
+    View ..> Label
+    Terminal ..> Match : search / link_at
     Renderer *-- Appearance
     FontSystem ..> ShapedGlyph
     FontSystem ..> Image : decode_png
@@ -144,4 +155,12 @@ sequenceDiagram
     V->>T: advance(bytes)
     T-->>S: take_reply()
     V->>R: draw(term)
+```
+
+## Слои настроек
+
+```mermaid
+graph LR
+    init[init.lua] --> layers[lib/layers.lua] --> merge[lib/merge.lua]
+    layers --> s[settings/*] --> p[profiles/*] --> h[hosts/*] --> l[local.lua]
 ```

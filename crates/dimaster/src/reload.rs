@@ -1,6 +1,6 @@
 //! Применение настроек к открытому окну.
 
-use dimaster_config::Config;
+use dimaster_config::{Config, Decorations};
 
 use crate::settings;
 use crate::view::View;
@@ -52,14 +52,20 @@ impl View {
     }
 
     pub(crate) fn apply_to_terminal(&mut self) {
-        self.renderer
-            .set_appearance(settings::appearance(&self.config));
+        let cell_height = self.fonts.metrics().cell_height;
+        let mut look = settings::appearance(&self.config, cell_height);
+        look.wallpaper = settings::wallpaper(&self.config);
+        self.renderer.set_appearance(look);
         self.term
             .set_default_colors(settings::default_colors(&self.config));
         self.term
             .set_default_cursor(settings::cursor_shape(self.config.cursor));
         self.term.set_history_limit(self.config.scrollback);
         self.term.set_images_scroll(self.config.images_scroll);
+        let window = &self.config.window;
+        self.window
+            .set_decorations(window.decorations == Decorations::System);
+        self.window.set_blur(window.blur);
     }
 
     fn rebuild_fonts(&mut self) {
@@ -82,6 +88,8 @@ impl View {
     pub(crate) fn rescale(&mut self, scale: f64) {
         let points = self.config.font_size + self.zoom;
         self.fonts.set_size(settings::font_pixels(points, scale));
+        // высота своей рамки зависит от размера ячейки
+        self.apply_to_terminal();
         self.renderer.reset_glyphs();
         let size = self.window.inner_size();
         self.resize(size.width, size.height);

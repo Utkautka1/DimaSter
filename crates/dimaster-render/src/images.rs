@@ -9,6 +9,8 @@ use crate::frame::{Builder, Quad};
 
 /// Бит цвета, по которому шейдер берёт всю текстуру с фильтрацией.
 const IMAGE_FLAG: u32 = 1 << 25;
+// младший байт — непрозрачность
+const OPAQUE: u32 = IMAGE_FLAG | 255;
 
 /// Прямоугольник с картинкой; рисуется отдельным вызовом со своей текстурой.
 pub(crate) struct ImageQuad {
@@ -42,6 +44,31 @@ fn fit(picture: &Picture, width: f32, height: f32) -> [f32; 2] {
 }
 
 impl Builder<'_> {
+    /// Фоновая картинка заполняет окно целиком с сохранением пропорций.
+    pub(crate) fn wallpaper(&mut self, window: [f32; 2]) -> Option<ImageQuad> {
+        let (picture, strength) = self.look.wallpaper.clone()?;
+        let natural = [
+            picture.animation.width as f32,
+            picture.animation.height as f32,
+        ];
+        let scale = (window[0] / natural[0]).max(window[1] / natural[1]);
+        let size = [natural[0] * scale, natural[1] * scale];
+        let position = [(window[0] - size[0]) / 2.0, (window[1] - size[1]) / 2.0];
+        let color = IMAGE_FLAG | (strength.clamp(0.0, 1.0) * 255.0) as u32;
+        let quad = Quad {
+            position,
+            size,
+            uv: [0.0, 0.0],
+            color,
+        };
+        let frame = self.animation_frame(&picture);
+        Some(ImageQuad {
+            picture,
+            frame,
+            quad,
+        })
+    }
+
     /// Картинки, начавшиеся выше экрана, тоже могут в него свисать.
     pub(crate) fn images(&mut self, term: &Terminal, first: u64) {
         let rows = term.screen().rows().len() as u64;
@@ -74,7 +101,7 @@ impl Builder<'_> {
             position,
             size,
             uv: [0.0, 0.0],
-            color: IMAGE_FLAG,
+            color: OPAQUE,
         };
         self.pictures.quads.push(ImageQuad {
             picture,

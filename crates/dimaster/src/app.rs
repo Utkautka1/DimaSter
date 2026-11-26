@@ -3,7 +3,7 @@
 use std::error::Error;
 use std::sync::Arc;
 
-use dimaster_config::Config;
+use dimaster_config::{Config, Decorations};
 use dimaster_render::{Renderer, wgpu};
 use notify::RecommendedWatcher;
 use winit::application::ApplicationHandler;
@@ -56,6 +56,9 @@ impl App {
     fn open(&self, event_loop: &ActiveEventLoop) -> Result<View, Box<dyn Error>> {
         let attributes = Window::default_attributes()
             .with_title("DimaSter")
+            .with_decorations(self.config.window.decorations == Decorations::System)
+            .with_transparent(true)
+            .with_blur(self.config.window.blur)
             // app_id нужен правилам окон композитора
             .with_name("dimaster", "dimaster");
         let window = Arc::new(event_loop.create_window(attributes)?);
@@ -131,7 +134,12 @@ impl ApplicationHandler<Wake> for App {
             WindowEvent::CursorMoved { position, .. } => {
                 view.pointer_moved(position.x, position.y);
             }
-            WindowEvent::MouseInput { state, button, .. } => view.pointer_button(state, button),
+            WindowEvent::MouseInput { state, button, .. } => {
+                view.pointer_button(state, button);
+                if view.closing {
+                    event_loop.exit();
+                }
+            }
             WindowEvent::MouseWheel { delta, .. } => view.wheel(lines(delta)),
             WindowEvent::Focused(focused) => view.focus(focused),
             _ => {}

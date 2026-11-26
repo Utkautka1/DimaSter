@@ -17,8 +17,28 @@ impl State {
             "0" | "2" => self.title = value.to_owned(),
             "7" => self.cwd = parse_file_url(value),
             "10" | "11" if value == "?" => self.report_color(code),
+            "9" => self.notify("DimaSter", value),
+            "777" => self.notify_titled(value),
             "133" => self.mark_prompt(value),
             _ => log::debug!("неподдерживаемый OSC {code}"),
+        }
+    }
+
+    // OSC 9;4;… — это индикатор прогресса ConEmu, а не уведомление
+    fn notify(&mut self, title: &str, body: &str) {
+        let progress = body.starts_with("4;");
+        if !progress && self.notifications.len() < 8 {
+            self.notifications.push((title.to_owned(), body.to_owned()));
+        }
+    }
+
+    // OSC 777;notify;заголовок;текст
+    fn notify_titled(&mut self, value: &str) {
+        if let Some((title, body)) = value
+            .strip_prefix("notify;")
+            .and_then(|v| v.split_once(';'))
+        {
+            self.notify(title, body);
         }
     }
 

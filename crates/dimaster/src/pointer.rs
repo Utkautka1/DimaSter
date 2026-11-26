@@ -2,7 +2,10 @@
 
 use winit::event::{ElementState, MouseButton};
 
+use dimaster_grid::Point;
+
 use crate::clipboard::Target;
+use crate::desktop;
 use crate::mouse::{self, Action, Button, MouseEvent};
 use crate::view::View;
 
@@ -10,6 +13,8 @@ use crate::view::View;
 #[derive(Debug, Default)]
 pub(crate) struct Pointer {
     pub(crate) cell: (usize, usize),
+    // в пикселях окна
+    pub(crate) position: (f64, f64),
     held: Option<Button>,
     // накопленная дробная часть прокрутки тачпада
     wheel_rest: f64,
@@ -17,7 +22,10 @@ pub(crate) struct Pointer {
 
 impl View {
     pub(crate) fn pointer_moved(&mut self, x: f64, y: f64) {
+        self.pointer.position = (x, y);
         let cell = self.cell_at(x, y);
+        self.update_hover(cell);
+        self.update_pointer_icon();
         if cell == self.pointer.cell {
             return;
         }
@@ -36,6 +44,9 @@ impl View {
             _ => return,
         };
         let pressed = state.is_pressed();
+        if pressed && button == Button::Left && (self.chrome_press() || self.follow_link()) {
+            return;
+        }
         self.pointer.held = pressed.then_some(button);
         let action = if pressed {
             Action::Press
@@ -45,6 +56,35 @@ impl View {
         if !self.report(button, action) {
             self.local_button(button, action);
         }
+    }
+
+    fn update_hover(&mut self, (col, row): (usize, usize)) {
+        let line = self.term.visible_line(self.scroll) + row as u64;
+        let link = self
+            .modifiers
+            .control_key()
+            .then(|| self.term.link_at(Point { line, col }))
+            .flatten()
+            .map(|(range, _)| range);
+        if link != self.hover_link {
+            self.hover_link = link;
+            self.window.request_redraw();
+        }
+    }
+
+    // Ctrl+клик открывает ссылку или файл
+    fn follow_link(&mut self) -> bool {
+        let (col, row) = self.pointer.cell;
+        let line = self.term.visible_line(self.scroll) + row as u64;
+        let found = self
+            .modifiers
+            .control_key()
+            .then(|| self.term.link_at(Point { line, col }));
+        let Some((_, link)) = found.flatten() else {
+            return false;
+        };
+        desktop::open(&link, self.term.cwd());
+        true
     }
 
     // мышь не нужна программе — значит, это выделение или вставка
