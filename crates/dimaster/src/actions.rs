@@ -24,7 +24,16 @@ impl View {
     }
 
     pub(crate) fn open_palette(&mut self) {
-        self.mode = Mode::Palette(Default::default());
+        let plugins = self
+            .plugins
+            .as_ref()
+            .map(|p| p.commands())
+            .unwrap_or_default();
+        let state = palette::Palette {
+            plugins,
+            ..Default::default()
+        };
+        self.mode = Mode::Palette(state);
         self.window.request_redraw();
     }
 

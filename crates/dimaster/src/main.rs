@@ -8,6 +8,7 @@ mod clipboard;
 mod desktop;
 mod fetch;
 mod headless;
+mod host;
 mod icat;
 mod input;
 mod keys;
@@ -15,11 +16,14 @@ mod modes;
 mod mouse;
 mod pointer;
 mod reload;
+mod remote;
+mod restore;
 mod scene;
 mod select;
 mod session;
 mod settings;
 mod setup;
+mod store;
 mod terminfo;
 mod view;
 
@@ -28,7 +32,7 @@ use std::process::ExitCode;
 
 use dimaster_config::Config;
 
-const USAGE: &str = "использование: dimaster [-e команда...] [--headless команда...] [--setup] [icat файл...] [fetch [--logo картинка]]";
+const USAGE: &str = "использование: dimaster [-e команда...] [--headless команда...] [--setup] [icat файл...] [fetch [--logo картинка]] [ctl команда]";
 
 fn main() -> ExitCode {
     // wgpu слишком подробен на info, поэтому по умолчанию только предупреждения
@@ -58,9 +62,9 @@ fn first_command(config: &Config) -> Vec<String> {
 fn run(args: Vec<String>) -> Result<(), Box<dyn Error>> {
     let config = settings::read_or_default();
     match args.split_first() {
-        None => app::run(first_command(&config), config),
+        None => app::run(first_command(&config), config, true),
         Some((flag, command)) if flag == "-e" && !command.is_empty() => {
-            app::run(command.to_vec(), config)
+            app::run(command.to_vec(), config, false)
         }
         Some((flag, command)) if flag == "--headless" && !command.is_empty() => {
             println!("{}", headless::run(command, &config.term)?);
@@ -68,6 +72,7 @@ fn run(args: Vec<String>) -> Result<(), Box<dyn Error>> {
         }
         Some((flag, then)) if flag == "--setup" => Ok(setup::run(then)?),
         Some((word, files)) if word == "icat" && !files.is_empty() => Ok(icat::run(files)?),
+        Some((word, request)) if word == "ctl" => Ok(remote::client(request)?),
         Some((word, options)) if word == "fetch" => Ok(fetch::run(options)?),
         _ => Err(USAGE.into()),
     }

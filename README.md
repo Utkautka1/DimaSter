@@ -1,6 +1,6 @@
 # DimaSter
 
-Терминал для Linux на Rust. Готовы этапы 1 (ядро), 2 (окно, GPU, ввод) 3 (совместимость) и 4 (лигатуры, цветные эмодзи, CJK, RTL, IME) 5 (настройки на Lua), 6 (графика) и 7 (интерфейс).
+Терминал для Linux на Rust. Готовы этапы 1 (ядро), 2 (окно, GPU, ввод) 3 (совместимость) и 4 (лигатуры, цветные эмодзи, CJK, RTL, IME) 5 (настройки на Lua), 6 (графика), 7 (интерфейс) и 8 (плагины, сессии, управление).
 
 ## Запуск
 
@@ -50,6 +50,7 @@ cargo run --release -p dimaster -- --setup
 ├── lib/                  layers.lua (порядок слоёв), merge.lua (объединение)
 ├── settings/             appearance, font, window, effects, behavior, keys
 ├── themes/               свои и перенесённые темы
+├── plugins/*.lua         плагины терминала
 ├── profiles/
 │   ├── desktop/<de>.lua  по окружению (hyprland, gnome, …)
 │   ├── session/<s>.lua   wayland или x11
@@ -61,7 +62,7 @@ cargo run --release -p dimaster -- --setup
 
 Слои накладываются сверху вниз в этом порядке: `settings` → `profiles` → `hosts` → `local`. Словари объединяются, списки заменяются, сочетания `keys` складываются. Файлы `local.lua` и `profiles/` мастер не перезаписывает.
 
-Действия для `keys`: `copy`, `paste`, `paste_primary`, `scroll_page_up`, `scroll_page_down`, `scroll_top`, `scroll_bottom`, `font_increase`, `font_decrease`, `font_reset`, `reload_config`, `search`, `vi_mode`, `command_palette`, `none`.
+Действия для `keys`: `copy`, `paste`, `paste_primary`, `scroll_page_up`, `scroll_page_down`, `scroll_top`, `scroll_bottom`, `font_increase`, `font_decrease`, `font_reset`, `reload_config`, `search`, `vi_mode`, `command_palette`, `plugin:<имя>`, `none`.
 
 ## Режимы
 
@@ -71,6 +72,38 @@ cargo run --release -p dimaster -- --setup
 | Ctrl+Shift+Space | vi-режим: hjkl, w b, 0 $, g G, v V Ctrl+V, y, /, q |
 | Ctrl+Shift+P | палитра команд |
 | Ctrl+клик | открыть ссылку или файл |
+
+## Плагины
+
+Каждый файл `~/.config/dimaster/plugins/*.lua` загружается при старте и после изменения настроек. Команды плагинов появляются в палитре.
+
+```lua
+dimaster.command("insert_date", "Вставить дату", function()
+  dimaster.send(os.date("%Y-%m-%d"))
+end)
+
+dimaster.on("cwd", function(path) dimaster.log(path) end)
+```
+
+События: `startup`, `title`, `cwd`, `focus`, `notification`. Действия: `send`, `action`, `notify`, `log`. Чтение: `title`, `cwd`, `selection`, `screen_text`. Один вызов ограничен 100 мс. Плагин выполняется с вашими правами — ставьте только те, чей код вы прочли.
+
+## Управление из командной строки
+
+```bash
+dimaster ctl info
+```
+
+Команды: `list`, `info`, `get-text`, `send-text <текст>`, `action <имя>`, `set-title <текст>`, `reload`, `new-window`. Внутри окна используется его сокет, снаружи — единственного запущенного. Отключается `remote_control = false`.
+
+## Сессии
+
+Выключены по умолчанию: вывод терминала записывается на диск. Включить в `local.lua`:
+
+```lua
+return { session = { restore = true, history_lines = 2000 } }
+```
+
+Восстанавливаются окна, каталоги и текст истории без цветов. Запущенные программы не восстанавливаются.
 
 ## Картинки
 

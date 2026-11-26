@@ -36,7 +36,7 @@ fn reads_settings_and_overrides_theme_colors() {
         .iter()
         .filter(|b| b.key == "c" && b.mods == mods)
         .collect();
-    assert_eq!((copy.len(), copy[0].action), (1, Action::None));
+    assert_eq!((copy.len(), copy[0].action.clone()), (1, Action::None));
 }
 
 #[test]
@@ -86,6 +86,9 @@ fn custom() -> Config {
     config.window.decorations = Decorations::None;
     config.window.opacity = 0.5;
     config.effects.cursor_trail = true;
+    config.restore_session = true;
+    config.session_history = 10;
+    config.remote_control = false;
     config
 }
 

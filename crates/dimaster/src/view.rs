@@ -1,10 +1,11 @@
 //! Состояние открытого окна терминала.
 
 use std::io;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use dimaster_config::Config;
+use dimaster_config::{Config, Plugins};
 use dimaster_font::FontSystem;
 use dimaster_grid::{Match, Size, Terminal};
 use dimaster_pty::WindowSize;
@@ -19,7 +20,7 @@ use crate::desktop;
 use crate::modes::Mode;
 use crate::pointer::Pointer;
 use crate::select::Selecting;
-use crate::session::Session;
+use crate::session::{Launch, Session};
 use crate::settings;
 
 // столько порций разбираем за раз, чтобы поток вывода не блокировал ввод
@@ -41,7 +42,7 @@ pub(crate) struct View {
     pub(crate) config_error: bool,
     pub(crate) term: Terminal,
     // None, пока размер окна не устоялся
-    session: Option<Session>,
+    pub(crate) session: Option<Session>,
     args: Vec<String>,
     start_at: Instant,
     pub(crate) modifiers: ModifiersState,
@@ -63,6 +64,12 @@ pub(crate) struct View {
     pub(crate) hover_link: Option<Match>,
     /// Нажата кнопка закрытия своей рамки.
     pub(crate) closing: bool,
+    pub(crate) plugins: Option<Plugins>,
+    pub(crate) plugin_depth: u8,
+    pub(crate) socket: Option<PathBuf>,
+    // каталог восстановленной сессии
+    pub(crate) start_directory: Option<PathBuf>,
+    pub(crate) saved_at: Instant,
     pub(crate) wake: Arc<dyn Fn() + Send + Sync>,
 }
 
@@ -139,6 +146,11 @@ impl View {
             focused: true,
             hover_link: None,
             closing: false,
+            plugins: None,
+            plugin_depth: 0,
+            socket: None,
+            start_directory: None,
+            saved_at: Instant::now(),
             wake,
         }
     }
@@ -164,8 +176,13 @@ impl View {
         }
         let size = self.grid_size();
         let wake = self.wake.clone();
-        let (term, size) = (&self.config.term, window_size(size));
-        self.session = Some(Session::spawn(&self.args, term, size, move || wake())?);
+        let launch = Launch {
+            args: &self.args,
+            term_name: &self.config.term,
+            directory: self.start_directory.as_deref(),
+            socket: self.socket.as_deref(),
+        };
+        self.session = Some(Session::spawn(&launch, window_size(size), move || wake())?);
         Ok(None)
     }
 
@@ -178,6 +195,7 @@ impl View {
     /// Разбирает накопившийся вывод. `false` — shell завершился.
     pub(crate) fn read_output(&mut self) -> bool {
         let title = self.term.title().to_owned();
+        let directory = self.term.cwd().map(str::to_owned);
         for _ in 0..BATCH {
             let Some(Ok(bytes)) = self.session.as_ref().map(|s| s.output.try_recv()) else {
                 break;
@@ -189,7 +207,10 @@ impl View {
         }
         if self.term.title() != title {
             self.update_title();
+            let title = self.term.title().to_owned();
+            self.emit("title", &title);
         }
+        self.report_directory(directory);
         self.after_output();
         self.refresh();
         true
@@ -205,6 +226,14 @@ impl View {
         self.send(reply);
         for (title, body) in self.term.take_notifications() {
             desktop::notify(&title, &body);
+            self.emit("notification", &body);
+        }
+    }
+
+    fn report_directory(&mut self, before: Option<String>) {
+        let now = self.term.cwd().map(str::to_owned);
+        if now != before {
+            self.emit("cwd", &now.unwrap_or_default());
         }
     }
 
@@ -343,6 +372,7 @@ impl View {
     }
 
     pub(crate) fn focus(&mut self, focused: bool) {
+        self.emit("focus", if focused { "true" } else { "false" });
         self.focused = focused;
         self.animator.restart_blink(Instant::now());
         self.window.request_redraw();

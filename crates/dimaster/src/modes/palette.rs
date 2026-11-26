@@ -20,6 +20,8 @@ const COMMANDS: [(&str, Action); 11] = [
 
 #[derive(Debug, Default)]
 pub(crate) struct Palette {
+    // команды плагинов: имя и название
+    pub(crate) plugins: Vec<(String, String)>,
     pub(crate) query: String,
     pub(crate) selected: usize,
 }
@@ -32,10 +34,18 @@ pub(crate) enum Outcome {
 }
 
 impl Palette {
-    pub(crate) fn items(&self) -> Vec<(&'static str, Action)> {
+    pub(crate) fn items(&self) -> Vec<(String, Action)> {
         let query = self.query.to_lowercase();
-        let matches = |name: &str| name.to_lowercase().contains(&query);
-        COMMANDS.iter().copied().filter(|c| matches(c.0)).collect()
+        let own = COMMANDS
+            .iter()
+            .map(|(name, action)| ((*name).to_owned(), action.clone()));
+        let extra = self
+            .plugins
+            .iter()
+            .map(|(name, title)| (title.clone(), Action::Plugin(name.clone())));
+        own.chain(extra)
+            .filter(|c| c.0.to_lowercase().contains(&query))
+            .collect()
     }
 
     pub(crate) fn press(&mut self, press: Press) -> Outcome {
@@ -43,7 +53,7 @@ impl Palette {
         match press {
             Press::Escape => return Outcome::Close,
             Press::Enter { .. } => {
-                let chosen = self.items().get(self.selected).map(|c| c.1);
+                let chosen = self.items().get(self.selected).map(|c| c.1.clone());
                 return chosen.map_or(Outcome::Close, Outcome::Run);
             }
             Press::Up => self.selected = (self.selected + count.max(1) - 1) % count.max(1),

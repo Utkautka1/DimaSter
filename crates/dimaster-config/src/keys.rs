@@ -27,7 +27,7 @@ impl Mods {
 }
 
 /// Действие, которое выполняет сам терминал.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
     Copy,
     Paste,
@@ -43,6 +43,8 @@ pub enum Action {
     Search,
     ViMode,
     CommandPalette,
+    /// Команда плагина по имени.
+    Plugin(String),
     /// Отключить сочетание, чтобы оно уходило программе.
     None,
 }
@@ -67,10 +69,13 @@ const ACTIONS: [(&str, Action); 15] = [
 
 impl Action {
     pub fn parse(name: &str) -> Option<Self> {
+        if let Some(command) = name.strip_prefix("plugin:") {
+            return Some(Self::Plugin(command.to_owned()));
+        }
         ACTIONS
             .iter()
             .find(|(n, _)| *n == name)
-            .map(|(_, action)| *action)
+            .map(|(_, action)| action.clone())
     }
 }
 
@@ -104,11 +109,11 @@ const DEFAULTS: [(&str, &str, Action); 15] = [
 pub(crate) fn default_bindings() -> Vec<Binding> {
     DEFAULTS
         .iter()
-        .filter_map(|&(key, mods, action)| {
+        .filter_map(|(key, mods, action)| {
             Some(Binding {
-                key: key.to_owned(),
+                key: (*key).to_owned(),
                 mods: Mods::parse(mods)?,
-                action,
+                action: action.clone(),
             })
         })
         .collect()

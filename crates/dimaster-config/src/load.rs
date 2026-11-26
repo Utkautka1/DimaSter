@@ -79,12 +79,7 @@ pub fn parse(source: &str, directory: Option<&Path>) -> Result<Config, ConfigErr
     apply_font(&table, &mut config)?;
     apply_general(&table, &mut config)?;
     apply_keys(&table, &mut config)?;
-    if let Some(window) = table.get::<Option<Table>>("window")? {
-        apply_window(&window, &mut config.window)?;
-    }
-    if let Some(effects) = table.get::<Option<Table>>("effects")? {
-        apply_effects(&effects, &mut config.effects)?;
-    }
+    apply_sections(&table, &mut config)?;
     Ok(config)
 }
 
@@ -231,4 +226,22 @@ fn apply_effects(table: &Table, effects: &mut Effects) -> Result<(), ConfigError
     flag(table, "cursor_animation", &mut effects.cursor_animation)?;
     flag(table, "cursor_trail", &mut effects.cursor_trail)?;
     flag(table, "smooth_scroll", &mut effects.smooth_scroll)
+}
+
+// вложенные таблицы window и effects, управление и сессии
+fn apply_sections(table: &Table, config: &mut Config) -> Result<(), ConfigError> {
+    if let Some(window) = table.get::<Option<Table>>("window")? {
+        apply_window(&window, &mut config.window)?;
+    }
+    if let Some(effects) = table.get::<Option<Table>>("effects")? {
+        apply_effects(&effects, &mut config.effects)?;
+    }
+    flag(table, "remote_control", &mut config.remote_control)?;
+    if let Some(session) = table.get::<Option<Table>>("session")? {
+        flag(&session, "restore", &mut config.restore_session)?;
+        if let Some(lines) = session.get::<Option<usize>>("history_lines")? {
+            config.session_history = lines.min(100_000);
+        }
+    }
+    Ok(())
 }

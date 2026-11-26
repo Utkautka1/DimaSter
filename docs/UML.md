@@ -106,6 +106,17 @@ classDiagram
     Config *-- WindowConfig
     Config *-- Effects
     View ..> Label
+    class Plugins { +load(directory) +emit(event) +run(command) +commands() }
+    class Server { path }
+    class Request { args; reply }
+    class Saved { cwd; lines }
+    class Launch { args; term_name; directory; socket }
+    View *-- Plugins
+    App *-- Server
+    Server ..> Request
+    Request ..> View
+    View ..> Saved
+    Session ..> Launch
     Terminal ..> Match : search / link_at
     Renderer *-- Appearance
     FontSystem ..> ShapedGlyph
@@ -163,4 +174,17 @@ sequenceDiagram
 graph LR
     init[init.lua] --> layers[lib/layers.lua] --> merge[lib/merge.lua]
     layers --> s[settings/*] --> p[profiles/*] --> h[hosts/*] --> l[local.lua]
+```
+
+## Управление из CLI
+
+```mermaid
+sequenceDiagram
+    participant C as dimaster ctl
+    participant S as поток сокета
+    participant V as View
+    C->>S: аргументы через NUL
+    S->>V: Wake::Remote(Request)
+    V-->>S: результат
+    S-->>C: ok / err и текст
 ```

@@ -110,10 +110,15 @@ pub(super) fn behavior(config: &Config) -> String {
     };
     format!(
         "-- Поведение терминала.\nreturn {{\n  scrollback = {},\n  {shell}\n  images_scroll = {},\n  \
-         rtl = {},\n  term = {},\n}}\n",
+         rtl = {},\n  term = {},\n  -- dimaster ctl: управление окнами из командной строки\n  \
+         remote_control = {},\n  -- восстановление пишет вывод терминала на диск, поэтому включается явно\n  \
+         session = {{ restore = {}, history_lines = {} }},\n}}\n",
         config.scrollback,
         config.images_scroll,
         config.rtl,
         quote(&config.term),
+        config.remote_control,
+        config.restore_session,
+        config.session_history,
     )
 }

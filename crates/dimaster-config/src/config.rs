@@ -58,6 +58,12 @@ pub struct Config {
     pub keys: Vec<Binding>,
     pub window: WindowConfig,
     pub effects: Effects,
+    /// Восстанавливать окна, папки и историю после перезапуска.
+    pub restore_session: bool,
+    // сколько строк истории сохранять в сессии
+    pub session_history: usize,
+    /// Разрешить `dimaster ctl` управлять окнами.
+    pub remote_control: bool,
 }
 
 impl Default for Config {
@@ -77,6 +83,9 @@ impl Default for Config {
             keys: default_bindings(),
             window: WindowConfig::default(),
             effects: Effects::default(),
+            restore_session: false,
+            session_history: 2000,
+            remote_control: true,
         }
     }
 }

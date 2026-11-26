@@ -5,7 +5,7 @@ use std::io::{self, Read, Write};
 use dimaster_grid::{Size, Terminal};
 use dimaster_pty::{Pty, WindowSize};
 
-use crate::session::command;
+use crate::session::{Launch, command};
 
 const SIZE: WindowSize = WindowSize {
     rows: 40,
@@ -14,7 +14,15 @@ const SIZE: WindowSize = WindowSize {
 
 /// Возвращает историю и видимый экран после завершения команды.
 pub(crate) fn run(args: &[String], term_name: &str) -> io::Result<String> {
-    let mut pty = Pty::spawn(command(args, term_name), SIZE)?;
+    let mut pty = Pty::spawn(
+        command(&Launch {
+            args,
+            term_name,
+            directory: None,
+            socket: None,
+        }),
+        SIZE,
+    )?;
     let mut term = Terminal::new(Size {
         rows: SIZE.rows.into(),
         cols: SIZE.cols.into(),

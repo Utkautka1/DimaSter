@@ -64,6 +64,11 @@ impl Pty {
         self.master.try_clone()
     }
 
+    /// Номер процесса, запущенного в PTY.
+    pub fn id(&self) -> u32 {
+        self.child.id()
+    }
+
     pub fn wait(&mut self) -> io::Result<ExitStatus> {
         self.child.wait()
     }

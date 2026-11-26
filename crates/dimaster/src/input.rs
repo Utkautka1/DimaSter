@@ -43,7 +43,7 @@ fn find_action(bindings: &[Binding], key: &Key, state: ModifiersState) -> Option
         logo: state.super_key(),
     };
     let binding = bindings.iter().find(|b| b.mods == mods && b.key == name)?;
-    Some(binding.action).filter(|&a| a != Action::None)
+    Some(binding.action.clone()).filter(|a| *a != Action::None)
 }
 
 impl View {
@@ -97,6 +97,7 @@ impl View {
             Action::Search => self.open_search(),
             Action::ViMode => self.open_vi(),
             Action::CommandPalette => self.open_palette(),
+            Action::Plugin(name) => self.run_plugin(&name),
             Action::None => {}
         }
     }
