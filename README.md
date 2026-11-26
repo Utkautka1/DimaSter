@@ -1,6 +1,6 @@
 # DimaSter
 
-Терминал для Linux на Rust. Готовы этапы 1 (ядро), 2 (окно, GPU, ввод) и 3 (совместимость).
+Терминал для Linux на Rust. Готовы этапы 1 (ядро), 2 (окно, GPU, ввод) 3 (совместимость) и 4 (лигатуры, цветные эмодзи, CJK, RTL, IME).
 
 ## Запуск
 
@@ -59,6 +59,7 @@ cargo bench -p dimaster-grid
 | `dimaster-pty` | запуск shell |
 | `dimaster-font` | поиск шрифтов, свой растеризатор |
 | `dimaster-render` | отрисовка на wgpu |
+| `dimaster-image` | свои декодеры картинок (пока PNG) |
 | `dimaster` | приложение |
 
 Диаграммы: [docs/UML.md](docs/UML.md). Требования: [docs/NOTES.md](docs/NOTES.md).

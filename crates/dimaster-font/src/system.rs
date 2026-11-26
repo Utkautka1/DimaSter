@@ -2,12 +2,13 @@
 
 use std::collections::HashMap;
 use std::fmt;
+use std::rc::Rc;
 
 use fontdb::{Database, ID};
-use ttf_parser::Face;
+use rustybuzz::ttf_parser::{self, Face};
 
-use crate::discover;
 use crate::raster::{Bitmap, Outline};
+use crate::{GlyphId, ShapedGlyph, color, discover};
 
 /// Размеры ячейки в физических пикселях.
 #[derive(Debug, Clone, Copy)]
@@ -17,14 +18,6 @@ pub struct Metrics {
     /// Базовая линия от верха ячейки.
     pub baseline: i32,
     pub line_thickness: u32,
-}
-
-/// Что растеризовать.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct GlyphKey {
-    pub ch: char,
-    pub bold: bool,
-    pub italic: bool,
 }
 
 /// Не нашлось ни одного пригодного шрифта.
@@ -41,14 +34,17 @@ impl std::error::Error for FontError {}
 
 /// Системные шрифты, выбранное семейство и кэш глифов.
 pub struct FontSystem {
-    db: Database,
-    family: String,
+    pub(crate) db: Database,
+    pub(crate) family: String,
     // кегль в физических пикселях
-    size: f32,
+    pub(crate) size: f32,
     metrics: Metrics,
     // None — для символа нет шрифта; кэшируем, чтобы не сканировать повторно
-    fallbacks: HashMap<char, Option<ID>>,
-    glyphs: HashMap<GlyphKey, Bitmap>,
+    pub(crate) fallbacks: HashMap<(char, bool), Option<ID>>,
+    // результат шейпинга по тексту, жирности и курсиву
+    pub(crate) shaped: HashMap<(String, bool, bool), Rc<[ShapedGlyph]>>,
+    // растры по глифу и числу занимаемых ячеек
+    glyphs: HashMap<(GlyphId, u32), Bitmap>,
 }
 
 impl FontSystem {
@@ -64,13 +60,14 @@ impl FontSystem {
             .flatten()
             .ok_or(FontError)?;
         log::info!("Шрифт: {family}, {size} px, ячейка {metrics:?}");
-        let (fallbacks, glyphs) = Default::default();
+        let (fallbacks, shaped, glyphs) = Default::default();
         Ok(Self {
             db,
             family,
             size,
             metrics,
             fallbacks,
+            shaped,
             glyphs,
         })
     }
@@ -91,35 +88,26 @@ impl FontSystem {
             self.size = size;
             self.metrics = metrics;
             self.glyphs.clear();
+            self.shaped.clear();
         }
     }
 
-    /// Растр символа; пустой, если ни в одном шрифте нет контура.
-    pub fn glyph(&mut self, key: GlyphKey) -> &Bitmap {
-        if !self.glyphs.contains_key(&key) {
-            let bitmap = self.render(key).unwrap_or_default();
-            self.glyphs.insert(key, bitmap);
+    /// Растр глифа; `cells` нужен цветным эмодзи, чтобы вписаться в ячейки.
+    pub fn glyph(&mut self, id: GlyphId, cells: u32) -> &Bitmap {
+        if !self.glyphs.contains_key(&(id, cells)) {
+            let bitmap = self.render(id, cells).unwrap_or_default();
+            self.glyphs.insert((id, cells), bitmap);
         }
-        &self.glyphs[&key]
+        &self.glyphs[&(id, cells)]
     }
 
-    fn render(&mut self, key: GlyphKey) -> Option<Bitmap> {
-        let primary = discover::find_face(&self.db, &self.family, key.bold, key.italic)?;
-        if let Some(bitmap) = self.render_with(primary, key.ch) {
-            return Some(bitmap);
-        }
-        let db = &self.db;
-        let id = *self
-            .fallbacks
-            .entry(key.ch)
-            .or_insert_with(|| discover::fallback_face(db, key.ch));
-        self.render_with(id?, key.ch)
-    }
-
-    fn render_with(&self, id: ID, ch: char) -> Option<Bitmap> {
-        self.db.with_face_data(id, |data, index| {
+    fn render(&self, id: GlyphId, cells: u32) -> Option<Bitmap> {
+        self.db.with_face_data(id.face, |data, index| {
             let face = Face::parse(data, index).ok()?;
-            let glyph = face.glyph_index(ch)?;
+            let glyph = ttf_parser::GlyphId(id.glyph);
+            if let Some(bitmap) = color::render(&face, glyph, cells, self.metrics) {
+                return Some(bitmap);
+            }
             let mut outline = Outline::new(self.size / f32::from(face.units_per_em()));
             face.outline_glyph(glyph, &mut outline);
             Some(outline.rasterize())

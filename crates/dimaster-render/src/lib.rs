@@ -5,10 +5,13 @@
 //! поэтому проверяется тестами без видеокарты.
 
 mod atlas;
+mod bidi;
 mod frame;
 mod gpu;
 mod palette;
 mod pipeline;
+mod preedit;
+mod text;
 
 pub use frame::{PADDING, Viewport};
 pub use gpu::{RenderError, Renderer};

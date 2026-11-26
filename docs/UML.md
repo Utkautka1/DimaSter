@@ -9,6 +9,7 @@ graph TD
     app --> font[dimaster-font]
     render --> grid
     render --> font
+    font --> image[dimaster-image]
     app --> pty[dimaster-pty]
     grid --> vt[dimaster-vt]
 ```
@@ -68,7 +69,13 @@ classDiagram
     class Builder { +build(term, scroll) }
     class Atlas { +get(fonts, key) +clear() }
     class Pipeline { +upload(queue, upload) }
-    class FontSystem { +new(size) +metrics() +set_size(size) +glyph(key) }
+    class FontSystem { +new(size) +metrics() +set_size(size) +shape(text, bold, italic) +glyph(id, cells) }
+    class ShapedGlyph { id; cluster; x; y }
+    class Run { text; cells; color }
+    class Image { width; height; pixels }
+    FontSystem ..> ShapedGlyph
+    FontSystem ..> Image : decode_png
+    Builder --> Run
     class Outline { +rasterize() Bitmap }
 
     App *-- View

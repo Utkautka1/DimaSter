@@ -4,9 +4,9 @@
 //! сумма по строке даёт долю закрашенности пикселя. Это даёт сглаживание без
 //! суперсэмплинга и без хранения списков пересечений.
 
-use ttf_parser::OutlineBuilder;
+use rustybuzz::ttf_parser::OutlineBuilder;
 
-/// Растр глифа: покрытие 0..=255 и положение относительно базовой линии.
+/// Растр глифа и положение относительно базовой линии.
 #[derive(Debug, Clone, Default)]
 pub struct Bitmap {
     pub left: i32,
@@ -14,7 +14,9 @@ pub struct Bitmap {
     pub top: i32,
     pub width: usize,
     pub height: usize,
-    pub coverage: Vec<u8>,
+    /// Покрытие по байту на пиксель, а у цветного глифа — RGBA.
+    pub data: Vec<u8>,
+    pub color: bool,
 }
 
 type Point = (f32, f32);
@@ -69,13 +71,14 @@ impl Outline {
             // переносим в координаты растра: начало сверху слева, ось Y вниз
             area.line((from.0 - left, top - from.1), (to.0 - left, top - to.1));
         }
-        let coverage = area.coverage();
+        let (left, top) = (left as i32, top as i32);
         Bitmap {
-            left: left as i32,
-            top: top as i32,
+            left,
+            top,
             width,
             height,
-            coverage,
+            data: area.coverage(),
+            color: false,
         }
     }
 
@@ -222,13 +225,13 @@ mod tests {
     fn half_pixel_square_has_partial_coverage() {
         let bitmap = polygon(&[(0.5, 0.0), (2.0, 0.0), (2.0, 1.0), (0.5, 1.0)]);
         assert_eq!((bitmap.width, bitmap.height), (2, 1));
-        assert_eq!(bitmap.coverage, [128, 255]);
+        assert_eq!(bitmap.data, [128, 255]);
     }
 
     #[test]
     fn triangle_area_matches_geometry() {
         let bitmap = polygon(&[(0.0, 0.0), (10.0, 0.0), (0.0, 10.0)]);
-        let total: u32 = bitmap.coverage.iter().map(|&c| u32::from(c)).sum();
+        let total: u32 = bitmap.data.iter().map(|&c| u32::from(c)).sum();
         assert!((total as f32 / 255.0 - 50.0).abs() < 0.5);
     }
 }

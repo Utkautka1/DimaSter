@@ -33,5 +33,10 @@ fn fragment(pixel: Pixel) -> @location(0) vec4<f32> {
     if pixel.solid == 1u {
         return vec4<f32>(rgb, 1.0);
     }
-    return vec4<f32>(rgb, textureLoad(atlas, vec2<i32>(pixel.uv), 0).r);
+    let texel = textureLoad(atlas, vec2<i32>(pixel.uv), 0);
+    // бит 24 помечает цветной глиф: он рисуется своими цветами
+    if (pixel.color & 0x1000000u) != 0u {
+        return texel;
+    }
+    return vec4<f32>(rgb, texel.a);
 }

@@ -9,5 +9,7 @@ workspace = true
 
 [dependencies]
 fontdb.workspace = true
-ttf-parser.workspace = true
 log.workspace = true
+dimaster-image.workspace = true
+rustybuzz.workspace = true
+unicode-width.workspace = true

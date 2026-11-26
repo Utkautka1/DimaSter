@@ -1,11 +1,13 @@
 //! Превращает состояние терминала в список прямоугольников кадра.
 
 use bytemuck::{Pod, Zeroable};
-use dimaster_font::{FontSystem, GlyphKey, Metrics};
+use dimaster_font::{FontSystem, Metrics};
 use dimaster_grid::{Cell, CursorShape, Flags, Row, Span, Terminal};
 
-use crate::atlas::Atlas;
+use crate::atlas::{Atlas, Slot};
+use crate::bidi;
 use crate::palette::{self, Rgb};
+use crate::text::Run;
 
 /// Отступ от краёв окна в пикселях.
 pub const PADDING: u32 = 6;
@@ -22,7 +24,7 @@ pub(crate) struct Quad {
 }
 
 impl Quad {
-    fn solid(position: [f32; 2], size: [f32; 2], color: Rgb) -> Self {
+    pub(crate) fn solid(position: [f32; 2], size: [f32; 2], color: Rgb) -> Self {
         Self {
             position,
             size,
@@ -30,14 +32,27 @@ impl Quad {
             color,
         }
     }
+
+    pub(crate) fn glyph(position: [f32; 2], slot: Slot, color: Rgb) -> Self {
+        let size = [slot.width as f32, slot.height as f32];
+        let color = color | u32::from(slot.color) << 24;
+        Self {
+            position,
+            size,
+            uv: [slot.x as f32, slot.y as f32],
+            color,
+        }
+    }
 }
 
 /// Что именно показать из состояния терминала.
 #[derive(Debug, Default, Clone, Copy)]
-pub struct Viewport {
+pub struct Viewport<'a> {
     /// На сколько строк пользователь отмотал историю назад.
     pub scroll: usize,
     pub selection: Option<Span>,
+    /// Набираемый в IME текст, ещё не отправленный программе.
+    pub preedit: &'a str,
 }
 
 /// Всё, что нужно для сборки кадра.
@@ -48,7 +63,7 @@ pub(crate) struct Builder<'a> {
 }
 
 impl Builder<'_> {
-    pub(crate) fn build(&mut self, term: &Terminal, view: Viewport) {
+    pub(crate) fn build(&mut self, term: &Terminal, view: Viewport<'_>) {
         self.quads.clear();
         let scroll = view.scroll.min(term.screen().history().count());
         let first = term.visible_line(scroll);
@@ -59,12 +74,14 @@ impl Builder<'_> {
                 view.selection.is_some_and(|s| s.contains(line, col))
             });
         }
-        if scroll == 0 && term.modes().cursor_visible {
+        if scroll == 0 && !view.preedit.is_empty() {
+            self.preedit(term, view.preedit);
+        } else if scroll == 0 && term.modes().cursor_visible {
             self.cursor(term);
         }
     }
 
-    fn origin(&self, row: usize, col: usize) -> [f32; 2] {
+    pub(crate) fn origin(&self, row: usize, col: usize) -> [f32; 2] {
         let m = self.fonts.metrics();
         [
             (PADDING + col as u32 * m.cell_width) as f32,
@@ -73,21 +90,25 @@ impl Builder<'_> {
     }
 
     fn row(&mut self, index: usize, row: &Row, selected: impl Fn(usize) -> bool) {
+        let order = bidi::visual_columns(&row.cells);
+        let mut run = Run::default();
         for (col, cell) in row.cells.iter().enumerate() {
             if cell.style.flags.contains(Flags::WIDE_TAIL) {
                 continue;
             }
-            let origin = self.origin(index, col);
+            let column = order.as_ref().map_or(col, |o| o[col]);
+            let origin = self.origin(index, column);
             let (fg, mut bg) = colors(cell);
             if selected(col) {
                 bg = palette::SELECTION;
             }
             self.background(origin, cell, bg);
             if !cell.style.flags.contains(Flags::HIDDEN) {
-                self.glyphs(origin, cell, fg);
+                self.text_cell(&mut run, cell, fg, (index, column));
                 self.lines(origin, cell, fg);
             }
         }
+        self.flush(&mut run, index);
     }
 
     fn cell_width(&self, cell: &Cell) -> f32 {
@@ -110,34 +131,6 @@ impl Builder<'_> {
         }
     }
 
-    fn glyphs(&mut self, origin: [f32; 2], cell: &Cell, color: Rgb) {
-        let extra = cell.extra.iter().flat_map(|e| e.chars());
-        for ch in std::iter::once(cell.ch).chain(extra).filter(|&c| c != ' ') {
-            let key = GlyphKey {
-                ch,
-                bold: cell.style.flags.contains(Flags::BOLD),
-                italic: cell.style.flags.contains(Flags::ITALIC),
-            };
-            self.glyph(origin, key, color);
-        }
-    }
-
-    fn glyph(&mut self, origin: [f32; 2], key: GlyphKey, color: Rgb) {
-        let Some(slot) = self.atlas.get(self.fonts, key) else {
-            return;
-        };
-        let baseline = self.fonts.metrics().baseline;
-        self.quads.push(Quad {
-            position: [
-                origin[0] + slot.left as f32,
-                origin[1] + (baseline - slot.top) as f32,
-            ],
-            size: [slot.width as f32, slot.height as f32],
-            uv: [slot.x as f32, slot.y as f32],
-            color,
-        });
-    }
-
     fn lines(&mut self, origin: [f32; 2], cell: &Cell, color: Rgb) {
         let Metrics {
             baseline,
@@ -158,7 +151,9 @@ impl Builder<'_> {
     fn cursor(&mut self, term: &Terminal) {
         let cursor = term.cursor();
         let cell = &term.screen().rows()[cursor.row].cells[cursor.col];
-        let origin = self.origin(cursor.row, cursor.col);
+        let order = bidi::visual_columns(&term.screen().rows()[cursor.row].cells);
+        let column = order.map_or(cursor.col, |o| o[cursor.col]);
+        let origin = self.origin(cursor.row, column);
         let Metrics {
             cell_height,
             line_thickness,
@@ -175,7 +170,9 @@ impl Builder<'_> {
             .push(Quad::solid(position, size, palette::CURSOR));
         // под блоком символ перерисовывается цветом фона
         if term.modes().cursor_shape == CursorShape::Block {
-            self.glyphs(origin, cell, palette::BACKGROUND);
+            let mut run = Run::default();
+            self.text_cell(&mut run, cell, palette::BACKGROUND, (cursor.row, column));
+            self.flush(&mut run, cursor.row);
         }
     }
 }
@@ -196,7 +193,9 @@ fn colors(cell: &Cell) -> (Rgb, Rgb) {
 
 #[cfg(test)]
 mod tests {
-    use dimaster_grid::{Point, Selection, SelectionKind, Size};
+    use dimaster_grid::{Point, Selection, SelectionKind};
+
+    use dimaster_grid::Size;
 
     use super::*;
 
@@ -214,7 +213,7 @@ mod tests {
             &term,
             Viewport {
                 scroll,
-                selection: None,
+                ..Viewport::default()
             },
         );
         quads
@@ -259,11 +258,32 @@ mod tests {
         builder.build(
             &term,
             Viewport {
-                scroll: 0,
                 selection: Some(span),
+                ..Viewport::default()
             },
         );
         let painted = quads.iter().filter(|q| q.color == palette::SELECTION);
         assert_eq!(painted.count(), 2);
+    }
+
+    #[test]
+    fn preedit_replaces_cursor() {
+        let mut fonts = FontSystem::new(16.0).expect("в системе есть шрифт");
+        let (mut atlas, mut quads) = (Atlas::default(), Vec::new());
+        let term = Terminal::new(Size { rows: 1, cols: 4 });
+        let mut builder = Builder {
+            fonts: &mut fonts,
+            atlas: &mut atlas,
+            quads: &mut quads,
+        };
+        builder.build(
+            &term,
+            Viewport {
+                preedit: "длинный набор",
+                ..Viewport::default()
+            },
+        );
+        assert_eq!(quads[0].color, palette::SELECTION);
+        assert!(quads.iter().all(|q| q.color != palette::CURSOR));
     }
 }

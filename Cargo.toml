@@ -13,11 +13,13 @@ dimaster-grid = { path = "crates/dimaster-grid" }
 dimaster-pty = { path = "crates/dimaster-pty" }
 dimaster-font = { path = "crates/dimaster-font" }
 dimaster-render = { path = "crates/dimaster-render" }
+dimaster-image = { path = "crates/dimaster-image" }
+rustybuzz = "0.20"
+unicode-bidi = "0.3"
 libc = "0.2"
 winit = "0.30"
 wgpu = "30"
 fontdb = "0.24"
-ttf-parser = "0.25"
 pollster = "0.4"
 bytemuck = { version = "1", features = ["derive"] }
 arboard = { version = "3", features = ["wayland-data-control"] }

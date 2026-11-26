@@ -14,3 +14,4 @@ wgpu.workspace = true
 bytemuck.workspace = true
 pollster.workspace = true
 log.workspace = true
+unicode-bidi.workspace = true

@@ -111,6 +111,7 @@ impl ApplicationHandler<Wake> for App {
             WindowEvent::KeyboardInput { event, .. } if event.state.is_pressed() => {
                 view.key(&event);
             }
+            WindowEvent::Ime(Ime::Preedit(text, _)) => view.set_preedit(text),
             WindowEvent::Ime(Ime::Commit(text)) => view.type_bytes(text.into_bytes()),
             WindowEvent::CursorMoved { position, .. } => {
                 view.pointer_moved(position.x, position.y);

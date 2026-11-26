@@ -99,7 +99,7 @@ impl Renderer {
     }
 
     /// Рисует кадр. `false` — кадр пропущен и его нужно запросить снова.
-    pub fn draw(&mut self, term: &Terminal, fonts: &mut FontSystem, view: Viewport) -> bool {
+    pub fn draw(&mut self, term: &Terminal, fonts: &mut FontSystem, view: Viewport<'_>) -> bool {
         use wgpu::CurrentSurfaceTexture as Current;
         let frame = match self.surface.get_current_texture() {
             Current::Success(frame) | Current::Suboptimal(frame) => frame,
@@ -116,7 +116,7 @@ impl Renderer {
         true
     }
 
-    fn prepare(&mut self, term: &Terminal, fonts: &mut FontSystem, view: Viewport) {
+    fn prepare(&mut self, term: &Terminal, fonts: &mut FontSystem, view: Viewport<'_>) {
         self.build(term, fonts, view);
         if self.atlas.full {
             log::warn!("Атлас глифов переполнен — очищаем");
@@ -141,7 +141,7 @@ impl Renderer {
             .write_buffer(&self.instances, 0, bytemuck::cast_slice(&self.quads));
     }
 
-    fn build(&mut self, term: &Terminal, fonts: &mut FontSystem, view: Viewport) {
+    fn build(&mut self, term: &Terminal, fonts: &mut FontSystem, view: Viewport<'_>) {
         Builder {
             fonts,
             atlas: &mut self.atlas,

@@ -8,6 +8,7 @@ use dimaster_font::FontSystem;
 use dimaster_grid::{Size, Terminal};
 use dimaster_pty::WindowSize;
 use dimaster_render::{PADDING, Renderer, Viewport};
+use winit::dpi::{PhysicalPosition, PhysicalSize};
 use winit::event::KeyEvent;
 use winit::keyboard::{Key, KeyCode, ModifiersState, NamedKey, PhysicalKey};
 use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
@@ -61,6 +62,8 @@ pub(crate) struct View {
     sync_since: Option<Instant>,
     pub(crate) clipboard: Clipboard,
     pub(crate) selecting: Selecting,
+    // текст, который пользователь набирает в IME
+    preedit: String,
     wake: Arc<dyn Fn() + Send + Sync>,
 }
 
@@ -106,6 +109,7 @@ impl View {
             sync_since: None,
             clipboard: Clipboard::new(),
             selecting: Selecting::default(),
+            preedit: String::new(),
             wake: Arc::new(wake),
         }
     }
@@ -187,10 +191,28 @@ impl View {
         let view = Viewport {
             scroll: self.scroll,
             selection,
+            preedit: &self.preedit,
         };
         if !self.renderer.draw(&self.term, &mut self.fonts, view) {
             (self.wake)();
         }
+    }
+
+    pub(crate) fn set_preedit(&mut self, text: String) {
+        self.preedit = text;
+        self.place_ime_window();
+        self.window.request_redraw();
+    }
+
+    // окно кандидатов IME должно появляться у курсора
+    fn place_ime_window(&self) {
+        let (metrics, cursor) = (self.fonts.metrics(), self.term.cursor());
+        let at = |cells: usize, size: u32| PADDING + cells as u32 * size;
+        let x = at(cursor.col, metrics.cell_width);
+        let y = at(cursor.row, metrics.cell_height);
+        let size = PhysicalSize::new(metrics.cell_width, metrics.cell_height);
+        self.window
+            .set_ime_cursor_area(PhysicalPosition::new(x, y), size);
     }
 
     pub(crate) fn resize(&mut self, width: u32, height: u32) {

@@ -1,11 +1,14 @@
-//! Шрифты: поиск в системе, метрики ячейки и растеризация глифов.
+//! Шрифты: поиск в системе, шейпинг и растеризация глифов.
 //!
-//! Растеризатор свой; из `ttf-parser` берутся только контуры и таблицы.
-//! Цветные эмодзи, лигатуры и сложный шейпинг появятся на этапе типографики.
+//! Растеризатор контуров свой, шейпинг делает `rustybuzz` (лигатуры, арабская
+//! вязь), цветные эмодзи берутся из PNG-растров таблицы CBDT.
 
+mod color;
 mod discover;
 mod raster;
+mod shape;
 mod system;
 
 pub use raster::Bitmap;
-pub use system::{FontError, FontSystem, GlyphKey, Metrics};
+pub use shape::{GlyphId, ShapedGlyph};
+pub use system::{FontError, FontSystem, Metrics};

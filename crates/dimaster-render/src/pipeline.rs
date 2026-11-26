@@ -44,7 +44,7 @@ impl Pipeline {
         };
         let layout = wgpu::TexelCopyBufferLayout {
             offset: 0,
-            bytes_per_row: Some(slot.width),
+            bytes_per_row: Some(slot.width * 4),
             rows_per_image: None,
         };
         let size = wgpu::Extent3d {
@@ -67,7 +67,7 @@ fn create_atlas(device: &wgpu::Device) -> wgpu::Texture {
         mip_level_count: 1,
         sample_count: 1,
         dimension: wgpu::TextureDimension::D2,
-        format: wgpu::TextureFormat::R8Unorm,
+        format: wgpu::TextureFormat::Rgba8Unorm,
         usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
         view_formats: &[],
     })
