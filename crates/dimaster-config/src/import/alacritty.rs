@@ -2,7 +2,7 @@
 
 use toml::{Table, Value};
 
-use crate::{Config, parse_color};
+use crate::{Config, Theme, parse_color};
 
 const NAMES: [&str; 8] = [
     "black", "red", "green", "yellow", "blue", "magenta", "cyan", "white",
@@ -25,6 +25,17 @@ fn color(table: &Table, path: &[&str], target: &mut u32) {
     }
 }
 
+fn selection(table: &Table, theme: &mut Theme) {
+    color(
+        table,
+        &["colors", "selection", "background"],
+        &mut theme.selection,
+    );
+    theme.selection_text = find(table, &["colors", "selection", "text"])
+        .and_then(Value::as_str)
+        .and_then(|s| parse_color(s.trim_start_matches("0x")));
+}
+
 fn colors(table: &Table, config: &mut Config) {
     let theme = &mut config.theme;
     color(
@@ -38,14 +49,7 @@ fn colors(table: &Table, config: &mut Config) {
         &mut theme.background,
     );
     color(table, &["colors", "cursor", "cursor"], &mut theme.cursor);
-    color(
-        table,
-        &["colors", "selection", "background"],
-        &mut theme.selection,
-    );
-    theme.selection_text = find(table, &["colors", "selection", "text"])
-        .and_then(Value::as_str)
-        .and_then(|s| parse_color(s.trim_start_matches("0x")));
+    selection(table, theme);
     for (index, name) in NAMES.iter().enumerate() {
         color(table, &["colors", "normal", name], &mut theme.ansi[index]);
         color(

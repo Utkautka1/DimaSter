@@ -10,6 +10,7 @@ graph TD
     render --> grid
     render --> font
     font --> image[dimaster-image]
+    app --> config[dimaster-config]
     app --> pty[dimaster-pty]
     grid --> vt[dimaster-vt]
 ```
@@ -73,6 +74,16 @@ classDiagram
     class ShapedGlyph { id; cluster; x; y }
     class Run { text; cells; color }
     class Image { width; height; pixels }
+    class Config { font; theme; padding; cursor; scrollback; shell; keys }
+    class Theme { foreground; background; cursor; selection; ansi }
+    class Binding { key; mods; action }
+    class Source { +apply(config_home, config) }
+    class Appearance { colors; padding; rtl }
+    Config *-- Theme
+    Config *-- Binding
+    Source ..> Config
+    View *-- Config
+    Renderer *-- Appearance
     FontSystem ..> ShapedGlyph
     FontSystem ..> Image : decode_png
     Builder --> Run
