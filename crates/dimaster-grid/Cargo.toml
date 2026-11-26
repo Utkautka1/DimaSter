@@ -1,0 +1,21 @@
+[package]
+name = "dimaster-grid"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+dimaster-vt.workspace = true
+log.workspace = true
+unicode-width.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+criterion.workspace = true
+
+[[bench]]
+name = "throughput"
+harness = false

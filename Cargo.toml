@@ -1,0 +1,26 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[workspace.dependencies]
+dimaster-vt = { path = "crates/dimaster-vt" }
+dimaster-grid = { path = "crates/dimaster-grid" }
+dimaster-pty = { path = "crates/dimaster-pty" }
+libc = "0.2"
+log = "0.4"
+env_logger = "0.11"
+unicode-width = "0.2"
+proptest = "1"
+criterion = "0.7"
+
+[workspace.lints.clippy]
+too_many_lines = "warn"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

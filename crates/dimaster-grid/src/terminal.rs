@@ -1,0 +1,214 @@
+//! Эмулятор: объединяет парсер, оба экрана, курсор и режимы.
+
+use dimaster_vt::Parser;
+use unicode_width::UnicodeWidthChar;
+
+use crate::{Cell, Cursor, Flags, Modes, Screen};
+
+/// Размер сетки в ячейках.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Size {
+    pub rows: usize,
+    pub cols: usize,
+}
+
+impl Size {
+    // нулевой размер сломал бы всю арифметику курсора
+    fn clamped(self) -> Self {
+        Self {
+            rows: self.rows.max(1),
+            cols: self.cols.max(2),
+        }
+    }
+}
+
+/// Строки истории по умолчанию.
+const HISTORY_LIMIT: usize = 10_000;
+
+/// Терминал: байты программы на входе, состояние экрана на выходе.
+#[derive(Debug)]
+pub struct Terminal {
+    parser: Parser,
+    pub(crate) state: State,
+}
+
+/// Всё, что меняют команды парсера (отдельно от него из-за заимствований).
+#[derive(Debug)]
+pub(crate) struct State {
+    pub(crate) screen: Screen,
+    // неактивный экран: альтернативный или спрятанный основной
+    pub(crate) other: Screen,
+    pub(crate) alternate: bool,
+    pub(crate) cursor: Cursor,
+    // DECSC хранится отдельно для основного [0] и альтернативного [1] экранов
+    pub(crate) saved: [Cursor; 2],
+    pub(crate) modes: Modes,
+    pub(crate) tabs: Vec<bool>,
+    pub(crate) title: String,
+    pub(crate) cwd: Option<String>,
+    pub(crate) reply: Vec<u8>,
+    // последний напечатанный символ для REP (CSI b)
+    pub(crate) last_char: Option<char>,
+}
+
+impl Terminal {
+    pub fn new(size: Size) -> Self {
+        Self {
+            parser: Parser::default(),
+            state: State::new(size.clamped()),
+        }
+    }
+
+    pub fn advance(&mut self, bytes: &[u8]) {
+        self.parser.advance(&mut self.state, bytes);
+    }
+
+    pub fn resize(&mut self, size: Size) {
+        self.state.resize(size.clamped());
+    }
+
+    pub fn screen(&self) -> &Screen {
+        &self.state.screen
+    }
+
+    pub fn cursor(&self) -> Cursor {
+        self.state.cursor
+    }
+
+    pub fn modes(&self) -> Modes {
+        self.state.modes
+    }
+
+    pub fn title(&self) -> &str {
+        &self.state.title
+    }
+
+    /// Рабочий каталог shell из OSC 7 (нужен для восстановления сессий).
+    pub fn cwd(&self) -> Option<&str> {
+        self.state.cwd.as_deref()
+    }
+
+    /// Забирает ответы, которые нужно записать в PTY.
+    pub fn take_reply(&mut self) -> Vec<u8> {
+        std::mem::take(&mut self.state.reply)
+    }
+
+    /// Видимый текст построчно — для тестов и headless-режима.
+    pub fn text(&self) -> String {
+        let lines: Vec<_> = self
+            .state
+            .screen
+            .rows()
+            .iter()
+            .map(crate::Row::text)
+            .collect();
+        lines.join("\n").trim_end().to_owned()
+    }
+}
+
+fn default_tabs(cols: usize) -> Vec<bool> {
+    (0..cols).map(|c| c % 8 == 0).collect()
+}
+
+impl State {
+    pub(crate) fn new(size: Size) -> Self {
+        Self {
+            screen: Screen::new(size, HISTORY_LIMIT),
+            other: Screen::new(size, 0),
+            alternate: false,
+            cursor: Cursor::default(),
+            saved: [Cursor::default(); 2],
+            modes: Modes::default(),
+            tabs: default_tabs(size.cols),
+            title: String::new(),
+            cwd: None,
+            reply: Vec::new(),
+            last_char: None,
+        }
+    }
+
+    fn resize(&mut self, size: Size) {
+        let shift = self.screen.resize(size, self.cursor.row);
+        // под альтернативным экраном основной тоже должен сохранить строку курсора
+        let hidden_row = if self.alternate { self.saved[0].row } else { 0 };
+        let hidden_shift = self.other.resize(size, hidden_row);
+        self.saved[0].row = self.saved[0].row.saturating_sub(hidden_shift);
+        self.tabs = default_tabs(size.cols);
+        self.cursor.row -= shift;
+        self.cursor.col = self.cursor.col.min(size.cols - 1);
+        self.cursor.pending_wrap = false;
+    }
+
+    /// Печать символа с учётом ширины, переноса и режима вставки.
+    pub(crate) fn put(&mut self, ch: char) {
+        let ch = self.cursor.charsets.map(ch);
+        // ASCII — основной поток, таблицы Unicode для него не нужны
+        let width = if ch.is_ascii() {
+            1
+        } else {
+            ch.width().unwrap_or(0).min(2)
+        };
+        if width == 0 {
+            return self.combine(ch);
+        }
+        self.make_room(width);
+        if self.modes.insert {
+            self.insert_blank(width);
+        }
+        self.write_cell(ch, width);
+        self.move_after_print(width);
+        self.last_char = Some(ch);
+    }
+
+    fn make_room(&mut self, width: usize) {
+        let overflow = self.cursor.col + width > self.screen.cols();
+        if (self.cursor.pending_wrap || overflow) && self.modes.autowrap {
+            self.screen.rows[self.cursor.row].wrapped = true;
+            self.cursor.col = 0;
+            self.line_feed();
+        }
+        self.cursor.col = self.cursor.col.min(self.screen.cols() - width);
+        self.cursor.pending_wrap = false;
+    }
+
+    fn write_cell(&mut self, ch: char, width: usize) {
+        let (row, col) = (self.cursor.row, self.cursor.col);
+        self.split_wide(row, col, col + width);
+        let mut style = self.cursor.style;
+        style.flags.set(Flags::WIDE, width == 2);
+        let cells = &mut self.screen.rows[row].cells;
+        cells[col] = Cell::new(ch, style);
+        if width == 2 {
+            style.flags.set(Flags::WIDE, false);
+            style.flags.set(Flags::WIDE_TAIL, true);
+            cells[col + 1] = Cell::new(' ', style);
+        }
+    }
+
+    fn move_after_print(&mut self, width: usize) {
+        let next = self.cursor.col + width;
+        if next < self.screen.cols() {
+            self.cursor.col = next;
+        } else {
+            self.cursor.col = self.screen.cols() - 1;
+            self.cursor.pending_wrap = self.modes.autowrap;
+        }
+    }
+
+    // Знак нулевой ширины приклеивается к предыдущему символу
+    fn combine(&mut self, mark: char) {
+        let back = usize::from(!self.cursor.pending_wrap);
+        let Some(mut col) = self.cursor.col.checked_sub(back) else {
+            return;
+        };
+        let cells = &mut self.screen.rows[self.cursor.row].cells;
+        if cells[col].style.flags.contains(Flags::WIDE_TAIL) {
+            col = col.saturating_sub(1);
+        }
+        let extra = cells[col].extra.get_or_insert_default();
+        // защита от «zalgo»-потока, раздувающего одну ячейку
+        if extra.len() < 32 {
+            extra.push(mark);
+        }
+    }
+}
