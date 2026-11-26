@@ -16,10 +16,13 @@ const OUTPUT_QUEUE: usize = 64;
 /// Команда с окружением терминала.
 pub(crate) fn command(args: &[String]) -> Command {
     let mut command = Command::new(&args[0]);
+    let (term, terminfo) = crate::terminfo::select();
+    if let Some(directory) = terminfo {
+        command.env("TERMINFO", directory);
+    }
     command
         .args(&args[1..])
-        // до появления своего terminfo притворяемся xterm
-        .env("TERM", "xterm-256color")
+        .env("TERM", term)
         .env("COLORTERM", "truecolor")
         .env("TERM_PROGRAM", "dimaster");
     command

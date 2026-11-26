@@ -80,7 +80,10 @@ impl ApplicationHandler<Wake> for App {
         let Some(view) = &mut self.view else { return };
         match view.start_when_settled() {
             Ok(Some(at)) => event_loop.set_control_flow(ControlFlow::WaitUntil(at)),
-            Ok(None) => event_loop.set_control_flow(ControlFlow::Wait),
+            Ok(None) => {
+                let flow = view.refresh_deadline();
+                event_loop.set_control_flow(flow.map_or(ControlFlow::Wait, ControlFlow::WaitUntil));
+            }
             Err(e) => {
                 log::error!("Не удалось запустить shell: {e}");
                 self.error = Some(e.into());
@@ -109,6 +112,10 @@ impl ApplicationHandler<Wake> for App {
                 view.key(&event);
             }
             WindowEvent::Ime(Ime::Commit(text)) => view.type_bytes(text.into_bytes()),
+            WindowEvent::CursorMoved { position, .. } => {
+                view.pointer_moved(position.x, position.y);
+            }
+            WindowEvent::MouseInput { state, button, .. } => view.pointer_button(state, button),
             WindowEvent::MouseWheel { delta, .. } => view.wheel(lines(delta)),
             WindowEvent::Focused(focused) => view.focus(focused),
             _ => {}

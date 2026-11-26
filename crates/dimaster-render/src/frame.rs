@@ -2,7 +2,7 @@
 
 use bytemuck::{Pod, Zeroable};
 use dimaster_font::{FontSystem, GlyphKey, Metrics};
-use dimaster_grid::{Cell, Flags, Row, Terminal};
+use dimaster_grid::{Cell, CursorShape, Flags, Row, Terminal};
 
 use crate::atlas::Atlas;
 use crate::palette::{self, Rgb};
@@ -147,17 +147,28 @@ impl Builder<'_> {
         }
     }
 
-    // блочный курсор: заливка и тот же символ цветом фона поверх
     fn cursor(&mut self, term: &Terminal) {
         let cursor = term.cursor();
         let cell = &term.screen().rows()[cursor.row].cells[cursor.col];
         let origin = self.origin(cursor.row, cursor.col);
-        let size = [
-            self.cell_width(cell),
-            self.fonts.metrics().cell_height as f32,
-        ];
-        self.quads.push(Quad::solid(origin, size, palette::CURSOR));
-        self.glyphs(origin, cell, palette::BACKGROUND);
+        let Metrics {
+            cell_height,
+            line_thickness,
+            ..
+        } = self.fonts.metrics();
+        let (width, height) = (self.cell_width(cell), cell_height as f32);
+        let thin = (line_thickness * 2) as f32;
+        let (position, size) = match term.modes().cursor_shape {
+            CursorShape::Block => (origin, [width, height]),
+            CursorShape::Underline => ([origin[0], origin[1] + height - thin], [width, thin]),
+            CursorShape::Bar => (origin, [thin, height]),
+        };
+        self.quads
+            .push(Quad::solid(position, size, palette::CURSOR));
+        // под блоком символ перерисовывается цветом фона
+        if term.modes().cursor_shape == CursorShape::Block {
+            self.glyphs(origin, cell, palette::BACKGROUND);
+        }
     }
 }
 

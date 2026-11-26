@@ -12,6 +12,7 @@ impl State {
         match code {
             "0" | "2" => self.title = value.to_owned(),
             "7" => self.cwd = parse_file_url(value),
+            "10" | "11" if value == "?" => self.report_color(code),
             "133" => self.mark_prompt(value),
             _ => log::debug!("неподдерживаемый OSC {code}"),
         }

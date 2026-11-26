@@ -3,7 +3,8 @@
 use dimaster_vt::Parser;
 use unicode_width::UnicodeWidthChar;
 
-use crate::{Cell, Cursor, Flags, Modes, Screen};
+use crate::keyboard::KeyboardStack;
+use crate::{Cell, Cursor, DefaultColors, Flags, Modes, Screen};
 
 /// Размер сетки в ячейках.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -49,6 +50,10 @@ pub(crate) struct State {
     pub(crate) reply: Vec<u8>,
     // последний напечатанный символ для REP (CSI b)
     pub(crate) last_char: Option<char>,
+    pub(crate) keyboard: KeyboardStack,
+    // ширина и высота ячейки в пикселях, задаёт окно
+    pub(crate) cell_pixels: (usize, usize),
+    pub(crate) colors: DefaultColors,
 }
 
 impl Terminal {
@@ -77,6 +82,19 @@ impl Terminal {
 
     pub fn modes(&self) -> Modes {
         self.state.modes
+    }
+
+    pub fn is_alternate(&self) -> bool {
+        self.state.alternate
+    }
+
+    /// Флаги клавиатурного протокола Kitty для активного экрана.
+    pub fn keyboard_flags(&self) -> u16 {
+        self.state.keyboard.current(self.state.alternate)
+    }
+
+    pub fn set_cell_pixels(&mut self, width: usize, height: usize) {
+        self.state.cell_pixels = (width, height);
     }
 
     pub fn title(&self) -> &str {
@@ -124,6 +142,9 @@ impl State {
             cwd: None,
             reply: Vec::new(),
             last_char: None,
+            keyboard: KeyboardStack::default(),
+            cell_pixels: (0, 0),
+            colors: DefaultColors::default(),
         }
     }
 

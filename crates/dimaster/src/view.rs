@@ -15,12 +15,15 @@ use winit::window::Window;
 
 use crate::app::is_command;
 use crate::keys;
+use crate::pointer::Pointer;
 use crate::session::Session;
 
 // 12 pt при 96 DPI; настройка появится в Lua-конфиге
 const FONT_SIZE: f64 = 16.0;
 // столько порций разбираем за раз, чтобы поток вывода не блокировал ввод
 const BATCH: usize = 32;
+// дольше этого синхронизированный вывод не задерживает кадр: программа могла упасть
+const SYNC_LIMIT: Duration = Duration::from_millis(150);
 
 // порядок совпадает с алфавитом в latin_letter
 const LETTER_KEYS: [KeyCode; 26] = {
@@ -43,7 +46,7 @@ pub(crate) struct View {
     window: Arc<Window>,
     renderer: Renderer,
     fonts: FontSystem,
-    term: Terminal,
+    pub(crate) term: Terminal,
     // None, пока размер окна не устоялся
     session: Option<Session>,
     args: Vec<String>,
@@ -51,8 +54,9 @@ pub(crate) struct View {
     pub(crate) modifiers: ModifiersState,
     // на сколько строк отмотана история
     scroll: usize,
-    // накопленная дробная часть прокрутки тачпада
-    wheel_rest: f64,
+    pub(crate) pointer: Pointer,
+    // когда программа включила синхронизированный вывод
+    sync_since: Option<Instant>,
     clipboard: Option<arboard::Clipboard>,
     wake: Arc<dyn Fn() + Send + Sync>,
 }
@@ -98,7 +102,8 @@ impl View {
             start_at: Instant::now() + SETTLE,
             modifiers: ModifiersState::empty(),
             scroll: 0,
-            wheel_rest: 0.0,
+            pointer: Pointer::default(),
+            sync_since: None,
             clipboard,
             wake: Arc::new(wake),
         }
@@ -123,7 +128,7 @@ impl View {
         Ok(None)
     }
 
-    fn send(&self, bytes: Vec<u8>) {
+    pub(crate) fn send(&self, bytes: Vec<u8>) {
         if let Some(session) = &self.session {
             session.send(bytes);
         }
@@ -146,8 +151,30 @@ impl View {
         if self.term.title() != title {
             self.window.set_title(self.term.title());
         }
-        self.window.request_redraw();
+        self.refresh();
         true
+    }
+
+    /// Запрашивает кадр, если программа не просила подождать (режим 2026).
+    ///
+    /// Возвращает крайний срок, к которому кадр нужно показать принудительно.
+    pub(crate) fn refresh(&mut self) -> Option<Instant> {
+        if self.term.modes().synchronized {
+            let since = *self.sync_since.get_or_insert_with(Instant::now);
+            if since.elapsed() < SYNC_LIMIT {
+                return Some(since + SYNC_LIMIT);
+            }
+        }
+        if self.sync_since.take().is_some() || !self.term.modes().synchronized {
+            self.window.request_redraw();
+        }
+        None
+    }
+
+    /// Срок принудительного кадра, пока идёт синхронизированный вывод.
+    pub(crate) fn refresh_deadline(&mut self) -> Option<Instant> {
+        self.sync_since?;
+        self.refresh()
     }
 
     pub(crate) fn draw(&mut self) {
@@ -160,6 +187,9 @@ impl View {
         self.renderer.resize(width, height);
         let size = grid_size(&self.window, &self.fonts);
         self.term.resize(size);
+        let metrics = self.fonts.metrics();
+        self.term
+            .set_cell_pixels(metrics.cell_width as usize, metrics.cell_height as usize);
         match &self.session {
             Some(session) => session.resize(window_size(size)),
             None => self.start_at = Instant::now() + SETTLE,
@@ -180,9 +210,12 @@ impl View {
         }
         // без модификаторов: Ctrl+C должен работать и на русской раскладке
         let key = self.layout_independent(event);
-        let app_cursor = self.term.modes().app_cursor;
+        let modes = keys::KeyModes {
+            app_cursor: self.term.modes().app_cursor,
+            disambiguate: self.term.keyboard_flags() & 1 != 0,
+        };
         let text = event.text.as_deref();
-        if let Some(bytes) = keys::encode(&key, text, self.modifiers, app_cursor) {
+        if let Some(bytes) = keys::encode(&key, text, self.modifiers, modes) {
             self.type_bytes(bytes);
         }
     }
@@ -205,10 +238,10 @@ impl View {
             self.paste();
             return true;
         }
-        let page = self.term.screen().rows().len() as f64;
+        let page = self.term.screen().rows().len() as isize;
         match event.logical_key {
-            Key::Named(NamedKey::PageUp) if self.modifiers.shift_key() => self.wheel(page),
-            Key::Named(NamedKey::PageDown) if self.modifiers.shift_key() => self.wheel(-page),
+            Key::Named(NamedKey::PageUp) if self.modifiers.shift_key() => self.scroll_by(page),
+            Key::Named(NamedKey::PageDown) if self.modifiers.shift_key() => self.scroll_by(-page),
             _ => return false,
         }
         true
@@ -234,13 +267,23 @@ impl View {
         self.window.request_redraw();
     }
 
-    pub(crate) fn wheel(&mut self, lines: f64) {
-        self.wheel_rest += lines;
-        let whole = self.wheel_rest.trunc();
-        self.wheel_rest -= whole;
+    pub(crate) fn scroll_by(&mut self, lines: isize) {
         let max = self.term.screen().history().count();
-        self.scroll = self.scroll.saturating_add_signed(whole as isize).min(max);
+        self.scroll = self.scroll.saturating_add_signed(lines).min(max);
         self.window.request_redraw();
+    }
+
+    pub(crate) fn cell_at(&self, x: f64, y: f64) -> (usize, usize) {
+        let metrics = self.fonts.metrics();
+        let size = grid_size(&self.window, &self.fonts);
+        let index = |position: f64, cell: u32, count: usize| {
+            let offset = (position - f64::from(PADDING)).max(0.0);
+            ((offset / f64::from(cell)) as usize).min(count - 1)
+        };
+        (
+            index(x, metrics.cell_width, size.cols),
+            index(y, metrics.cell_height, size.rows),
+        )
     }
 
     pub(crate) fn focus(&self, focused: bool) {

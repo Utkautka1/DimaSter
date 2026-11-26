@@ -35,11 +35,15 @@ impl Perform for State {
     }
 
     fn csi(&mut self, seq: Sequence<'_>) {
-        match seq.intermediates {
-            [] => self.standard_csi(&seq),
-            [b'?'] => self.private_csi(&seq),
+        match (seq.intermediates, seq.action) {
+            ([], _) => self.standard_csi(&seq),
+            ([prefix @ (b'>' | b'<' | b'=' | b'?')], b'u') => self.keyboard_csi(*prefix, &seq),
+            ([b'?'], _) => self.private_csi(&seq),
             // вторичный DA: объявляем себя VT220-совместимым
-            [b'>'] if seq.action == b'c' => self.reply.extend_from_slice(b"\x1b[>1;10;0c"),
+            ([b'>'], b'c') => self.reply.extend_from_slice(b"\x1b[>1;10;0c"),
+            ([b'>'], b'q') => self.report_version(),
+            ([b' '], b'q') => self.modes.set_cursor_shape(seq.params.get_or(0, 0)),
+            ([b'?', b'$'], b'p') => self.report_mode(&seq),
             _ => log::debug!("неизвестный CSI: {seq:?}"),
         }
     }
@@ -77,7 +81,9 @@ impl State {
         self.set_alternate(false);
         let history = std::mem::take(&mut self.screen.history);
         let reply = std::mem::take(&mut self.reply);
+        let (cell_pixels, colors) = (self.cell_pixels, self.colors);
         *self = Self::new(size);
+        (self.cell_pixels, self.colors) = (cell_pixels, colors);
         self.screen.history = history;
         self.reply = reply;
     }
@@ -161,6 +167,7 @@ impl State {
             b'u' => self.restore_cursor(),
             b'c' => self.reply.extend_from_slice(b"\x1b[?62;22c"),
             b'n' => self.status_report(seq.params.get_or(0, 0)),
+            b't' => self.report_size(seq.params.get_or(0, 0)),
             _ => log::debug!("неизвестный CSI: {seq:?}"),
         }
     }

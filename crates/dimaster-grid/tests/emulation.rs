@@ -117,3 +117,24 @@ proptest! {
         }
     }
 }
+
+fn reply(input: &str) -> String {
+    let mut term = run(24, 80, input);
+    String::from_utf8(term.take_reply()).unwrap()
+}
+
+#[test]
+fn answers_capability_queries() {
+    assert_eq!(reply("\x1b[?2004h\x1b[?2004$p"), "\x1b[?2004;1$y");
+    assert_eq!(reply("\x1b[?9999$p"), "\x1b[?9999;0$y");
+    assert_eq!(reply("\x1b]11;?\x07"), "\x1b]11;rgb:1111/1313/1a1a\x1b\\");
+    assert_eq!(reply("\x1b[18t"), "\x1b[8;24;80t");
+    assert!(reply("\x1b[>q").starts_with("\x1bP>|DimaSter"));
+}
+
+#[test]
+fn keyboard_flags_stack_is_per_screen() {
+    assert_eq!(reply("\x1b[>31u\x1b[?u"), "\x1b[?1u");
+    assert_eq!(reply("\x1b[>1u\x1b[?1049h\x1b[?u"), "\x1b[?0u");
+    assert_eq!(reply("\x1b[>1u\x1b[<u\x1b[?u"), "\x1b[?0u");
+}

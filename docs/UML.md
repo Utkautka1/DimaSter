@@ -42,7 +42,13 @@ classDiagram
     class Cell { ch; extra; style }
     class Style { fg; bg; flags }
     class Cursor { row; col; style }
-    class Modes
+    class Modes { mouse; synchronized; cursor_shape }
+    class KeyboardStack { +current(alternate) }
+    class DefaultColors { foreground; background }
+    class Pointer { cell; held }
+    State *-- KeyboardStack
+    State *-- DefaultColors
+    View *-- Pointer
     class Pty { +spawn(command, size) +resize(size) +wait() }
     class App { +resumed() +window_event() +about_to_wait() }
     class View { +start_when_settled() +read_output() +draw() +resize() +key() }

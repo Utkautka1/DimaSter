@@ -2,17 +2,29 @@
 
 use winit::keyboard::{Key, ModifiersState, NamedKey};
 
+/// Режимы терминала, влияющие на кодирование.
+#[derive(Debug, Default, Clone, Copy)]
+pub(crate) struct KeyModes {
+    /// DECCKM: стрелки шлют `ESC O` вместо `ESC [`.
+    pub(crate) app_cursor: bool,
+    /// Протокол Kitty, флаг «disambiguate escape codes».
+    pub(crate) disambiguate: bool,
+}
+
 /// Байты для PTY; `None` — клавиша ничего не отправляет.
-///
-/// `app_cursor` — режим DECCKM, в нём стрелки шлют `ESC O` вместо `ESC [`.
 pub(crate) fn encode(
     key: &Key,
     text: Option<&str>,
     mods: ModifiersState,
-    app_cursor: bool,
+    modes: KeyModes,
 ) -> Option<Vec<u8>> {
+    if modes.disambiguate
+        && let Some(bytes) = unambiguous(key, mods)
+    {
+        return Some(bytes);
+    }
     if let Key::Named(named) = key
-        && let Some(bytes) = named_key(*named, mods, app_cursor)
+        && let Some(bytes) = named_key(*named, mods, modes.app_cursor)
     {
         return Some(bytes);
     }
@@ -24,6 +36,36 @@ pub(crate) fn encode(
     }
     let text = text.filter(|t| !t.is_empty())?;
     Some(with_alt(mods, text.as_bytes().to_vec()))
+}
+
+// `CSI код;модификаторы u` для клавиш, неотличимых в старой кодировке
+fn unambiguous(key: &Key, mods: ModifiersState) -> Option<Vec<u8>> {
+    let chord = mods.control_key() || mods.alt_key() || mods.super_key();
+    let modified = chord || mods.shift_key();
+    let code = match key {
+        Key::Named(NamedKey::Escape) => 27,
+        Key::Named(NamedKey::Enter) if modified => 13,
+        Key::Named(NamedKey::Tab) if modified => 9,
+        Key::Named(NamedKey::Backspace) if modified => 127,
+        Key::Named(NamedKey::Space) if chord => 32,
+        Key::Character(text) if chord => u32::from(text.chars().next()?.to_ascii_lowercase()),
+        // CSI R занят отчётом о позиции курсора
+        Key::Named(NamedKey::F3) => return Some(tilde(13, modifier_code(mods))),
+        _ => return None,
+    };
+    let sequence = match modifier_code(mods) {
+        1 => format!("\x1b[{code}u"),
+        modifiers => format!("\x1b[{code};{modifiers}u"),
+    };
+    Some(sequence.into_bytes())
+}
+
+fn tilde(number: u8, code: u8) -> Vec<u8> {
+    match code {
+        1 => format!("\x1b[{number}~"),
+        _ => format!("\x1b[{number};{code}~"),
+    }
+    .into_bytes()
 }
 
 fn with_alt(mods: ModifiersState, mut bytes: Vec<u8>) -> Vec<u8> {
@@ -82,12 +124,7 @@ fn function_key(key: NamedKey, mods: ModifiersState, app_cursor: bool) -> Option
         };
         return Some(sequence.into_bytes());
     }
-    let number = tilde_key(key)?;
-    let sequence = match code {
-        1 => format!("\x1b[{number}~"),
-        _ => format!("\x1b[{number};{code}~"),
-    };
-    Some(sequence.into_bytes())
+    Some(tilde(tilde_key(key)?, code))
 }
 
 fn letter_key(key: NamedKey) -> Option<char> {
@@ -144,8 +181,31 @@ pub(crate) fn paste(text: &str, bracketed: bool) -> Vec<u8> {
 mod tests {
     use super::*;
 
+    fn modes(app_cursor: bool, disambiguate: bool) -> KeyModes {
+        KeyModes {
+            app_cursor,
+            disambiguate,
+        }
+    }
+
+    #[test]
+    fn kitty_disambiguation() {
+        let kitty = modes(false, true);
+        let escape = Key::Named(NamedKey::Escape);
+        let none = ModifiersState::empty();
+        assert_eq!(encode(&escape, None, none, kitty).unwrap(), b"\x1b[27u");
+        let i = Key::Character("i".into());
+        assert_eq!(
+            encode(&i, Some("i"), ModifiersState::CONTROL, kitty).unwrap(),
+            b"\x1b[105;5u"
+        );
+        assert_eq!(encode(&i, Some("i"), none, kitty).unwrap(), b"i");
+        let enter = Key::Named(NamedKey::Enter);
+        assert_eq!(encode(&enter, None, none, kitty).unwrap(), b"\r");
+    }
+
     fn named(key: NamedKey, mods: ModifiersState, app: bool) -> Vec<u8> {
-        encode(&Key::Named(key), None, mods, app).unwrap()
+        encode(&Key::Named(key), None, mods, modes(app, false)).unwrap()
     }
 
     #[test]
@@ -167,16 +227,16 @@ mod tests {
     fn control_alt_and_plain_text() {
         let c = Key::Character("c".into());
         assert_eq!(
-            encode(&c, Some("c"), ModifiersState::CONTROL, false).unwrap(),
+            encode(&c, Some("c"), ModifiersState::CONTROL, modes(false, false)).unwrap(),
             [3]
         );
         assert_eq!(
-            encode(&c, Some("c"), ModifiersState::ALT, false).unwrap(),
+            encode(&c, Some("c"), ModifiersState::ALT, modes(false, false)).unwrap(),
             b"\x1bc"
         );
         let ru = Key::Character("ё".into());
         assert_eq!(
-            encode(&ru, Some("ё"), ModifiersState::empty(), false).unwrap(),
+            encode(&ru, Some("ё"), ModifiersState::empty(), modes(false, false)).unwrap(),
             "ё".as_bytes()
         );
     }

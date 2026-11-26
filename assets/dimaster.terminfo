@@ -1,0 +1,8 @@
+# Описание DimaSter: база xterm-256color минус то, чего терминал пока не умеет.
+xterm-dimaster|DimaSter terminal emulator,
+	ccc@, initc@,
+	Tc,
+	Ss=\E[%p1%d q,
+	Se=\E[2 q,
+	Sync=\E[?2026%?%p1%{1}%-%tl%eh%;,
+	use=xterm-256color,
