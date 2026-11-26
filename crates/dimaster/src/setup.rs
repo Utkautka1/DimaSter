@@ -11,7 +11,7 @@ use dimaster_config::config_dir;
 use dimaster_config::import::{Source, detect};
 use dimaster_config::{Config, File, scaffold};
 
-use crate::settings;
+use crate::{integration, settings};
 
 // «1 3» или «1,3» → выбранные источники в порядке ввода; пусто — базовые настройки
 fn choose(answer: &str, found: &[Source]) -> Option<Vec<Source>> {
@@ -135,6 +135,23 @@ fn wizard() -> io::Result<()> {
     }
 }
 
+fn exec_shell(program: &str, args: &[String]) -> io::Result<()> {
+    // shell и env из только что записанного конфига важнее переданных до мастера
+    let config = settings::read_or_default();
+    let (program, args) = match config.shell.split_first() {
+        Some((head, tail)) => (head.as_str(), tail),
+        None => (program, args),
+    };
+    let mut command = Command::new(program);
+    command.envs(settings::shell_env(&config));
+    if config.smart.integration && args.is_empty() {
+        let injection = integration::inject(&[program.to_owned()]);
+        command.args(injection.args).envs(injection.env);
+    }
+    command.args(args);
+    Err(command.exec())
+}
+
 /// Запускает мастер, затем заменяет процесс командой `then`, если она задана.
 pub(crate) fn run(then: &[String]) -> io::Result<()> {
     if let Err(e) = wizard() {
@@ -149,12 +166,7 @@ pub(crate) fn run(then: &[String]) -> io::Result<()> {
     let Some((program, args)) = then.split_first() else {
         return Ok(());
     };
-    // shell из только что перенесённого конфига важнее переданного
-    let config = settings::read_or_default();
-    let (program, args) = config.shell.split_first().unwrap_or((program, args));
-    let mut command = Command::new(program);
-    command.args(args);
-    Err(command.exec())
+    exec_shell(program, args)
 }
 
 #[cfg(test)]
