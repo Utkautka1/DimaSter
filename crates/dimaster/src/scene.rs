@@ -179,8 +179,7 @@ impl View {
 
     // подложки интерфейса снизу вверх по слоям
     fn rects(&self) -> Vec<Rect> {
-        let mut rects: Vec<_> = self.status_background().into_iter().collect();
-        rects.extend(self.minimap_rects());
+        let mut rects = self.minimap_rects();
         rects.extend(self.scrollbar_rects());
         rects.extend(self.glow_rects());
         rects
@@ -206,7 +205,10 @@ impl View {
             trail: if target.is_some() { &pose.trail } else { &[] },
             rects: &rects,
         };
-        if !self.renderer.draw(&self.term, &mut self.fonts, view) {
+        self.renderer.prepare(&self.term, &mut self.fonts, view);
+        // показ кадра может ждать монитор — вывод тем временем разбирается
+        self.term.release();
+        if !self.renderer.present() {
             (self.wake)();
         }
         self.schedule_animation();

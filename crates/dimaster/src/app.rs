@@ -9,7 +9,7 @@ use dimaster_render::{Renderer, wgpu};
 use notify::RecommendedWatcher;
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalSize;
-use winit::event::{Ime, MouseScrollDelta, WindowEvent};
+use winit::event::{ElementState, Ime, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy};
 use winit::platform::wayland::WindowAttributesExtWayland;
 use winit::window::{Window, WindowId};
@@ -134,6 +134,15 @@ impl App {
 
 impl App {
     // последнее окно сохраняет сессию, остальные считаются закрытыми намеренно
+    // кнопка мыши может нажать крестик своей рамки
+    fn mouse(&mut self, event_loop: &ActiveEventLoop, state: ElementState, button: MouseButton) {
+        let Some(view) = &mut self.view else { return };
+        view.pointer_button(state, button);
+        if view.closing {
+            self.close(event_loop);
+        }
+    }
+
     fn close(&mut self, event_loop: &ActiveEventLoop) {
         if let Some(view) = &mut self.view {
             let own = usize::from(self.server.is_some());
@@ -168,7 +177,9 @@ impl ApplicationHandler<Wake> for App {
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        let Some(view) = &mut self.view else { return };
+        let Some(view) = locked(&mut self.view) else {
+            return;
+        };
         view.autosave();
         match view.start_when_settled() {
             Ok(Some(at)) => event_loop.set_control_flow(ControlFlow::WaitUntil(at)),
@@ -182,10 +193,14 @@ impl ApplicationHandler<Wake> for App {
                 event_loop.exit();
             }
         }
+        // перед сном терминал отдаётся потоку разбора
+        view.term.release();
     }
 
     fn user_event(&mut self, event_loop: &ActiveEventLoop, event: Wake) {
-        let Some(view) = &mut self.view else { return };
+        let Some(view) = locked(&mut self.view) else {
+            return;
+        };
         match event {
             Wake::ConfigChanged => {
                 view.reload();
@@ -194,7 +209,7 @@ impl ApplicationHandler<Wake> for App {
             Wake::Remote(request) => view.remote(request),
             Wake::Facts(facts) => view.receive_facts(facts),
             // shell завершился сам — восстанавливать нечего
-            Wake::Output if !view.read_output() => {
+            Wake::Output if !view.on_output() => {
                 view.close_session(false);
                 event_loop.exit();
             }
@@ -203,7 +218,9 @@ impl ApplicationHandler<Wake> for App {
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _: WindowId, event: WindowEvent) {
-        let Some(view) = &mut self.view else { return };
+        let Some(view) = locked(&mut self.view) else {
+            return;
+        };
         match event {
             WindowEvent::CloseRequested => self.close(event_loop),
             WindowEvent::RedrawRequested => view.draw(),
@@ -215,20 +232,20 @@ impl ApplicationHandler<Wake> for App {
             }
             WindowEvent::Ime(Ime::Preedit(text, _)) => view.set_preedit(text),
             WindowEvent::Ime(Ime::Commit(text)) => view.type_bytes(text.into_bytes()),
-            WindowEvent::CursorMoved { position, .. } => {
-                view.pointer_moved(position.x, position.y);
-            }
-            WindowEvent::MouseInput { state, button, .. } => {
-                view.pointer_button(state, button);
-                if view.closing {
-                    self.close(event_loop);
-                }
-            }
             WindowEvent::MouseWheel { delta, .. } => view.wheel(lines(delta)),
             WindowEvent::Focused(focused) => view.focus(focused),
+            WindowEvent::CursorMoved { position, .. } => view.pointer_moved(position.x, position.y),
+            WindowEvent::MouseInput { state, button, .. } => self.mouse(event_loop, state, button),
             _ => {}
         }
     }
+}
+
+// каждый обработчик начинает с захвата терминала
+fn locked(view: &mut Option<View>) -> Option<&mut View> {
+    let view = view.as_mut()?;
+    view.term.acquire();
+    Some(view)
 }
 
 // начальный размер из настроек; тайловый композитор вправе его не принять

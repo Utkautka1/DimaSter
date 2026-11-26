@@ -29,6 +29,7 @@ mod sensors;
 mod session;
 mod settings;
 mod setup;
+mod shared;
 mod smart;
 mod status;
 mod store;

@@ -75,12 +75,14 @@ pub(crate) fn fonts(config: &Config, scale: f64) -> Result<FontSystem, FontError
     Ok(fonts)
 }
 
-/// Высота строки статуса в пикселях.
+/// Зазор под строкой статуса и над ней, в пикселях.
+pub(crate) const STATUS_MARGIN: u32 = 10;
+
+/// Высота строки статуса вместе с зазорами.
 pub(crate) fn status_height(config: &Config, cell_height: u32) -> u32 {
-    if config.widgets.statusbar {
-        cell_height
-    } else {
-        0
+    match config.widgets.statusbar {
+        true => cell_height + STATUS_MARGIN * 2,
+        false => 0,
     }
 }
 

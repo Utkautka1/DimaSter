@@ -68,7 +68,12 @@ classDiagram
     class Pty { +spawn(command, size) +resize(size) +wait() }
     class App { +resumed() +window_event() +about_to_wait() }
     class View { +start_when_settled() +read_output() +draw() +resize() +key() }
-    class Session { +spawn(args, size, wake) +send(bytes) +resize(size) }
+    class Session { +spawn(launch, size, output) +send(bytes) +resize(size) }
+    class Held { +acquire() +release() +share() }
+    class Signals { +raise() +close() +take() }
+    View *-- Held
+    Held o-- Terminal
+    Session ..> Signals
     class Renderer { +new() +resize() +draw(term, fonts, scroll) }
     class Builder { +build(term, scroll) }
     class Atlas { +get(fonts, key) +clear() }
@@ -230,4 +235,19 @@ sequenceDiagram
     T->>T: подсказка, снимок вывода
     V->>T: completed_commands()
     V->>V: свечение, уведомление, событие плагинам
+```
+
+## Потоки
+
+```mermaid
+sequenceDiagram
+    participant R as поток разбора
+    participant T as Terminal (FairMutex)
+    participant W as поток окна
+    R->>T: lock, advance(порция), unlock
+    R-->>W: Wake (один на пачку)
+    W->>T: lock на время событий
+    W->>W: собрать кадр
+    W->>T: unlock
+    W->>W: показать кадр (ждёт монитор)
 ```

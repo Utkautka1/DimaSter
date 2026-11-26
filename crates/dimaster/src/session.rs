@@ -1,21 +1,21 @@
 //! Процесс в PTY и потоки обмена с ним.
 //!
-//! Чтение и запись вынесены из UI-потока: иначе большая вставка в программу,
-//! которая не читает ввод, заморозила бы окно.
+//! Вывод разбирается в отдельном потоке прямо в общий терминал, а ввод пишется
+//! из третьего: ни поток вывода, ни программа, переставшая читать ввод, не
+//! замораживают окно.
 
 use std::io::{self, Read, Write};
 use std::path::Path;
 use std::process::Command;
-use std::sync::mpsc::{Receiver, Sender, SyncSender, channel, sync_channel};
+use std::sync::Arc;
+use std::sync::mpsc::{Receiver, Sender, channel};
 use std::thread;
 
 use dimaster_pty::{Pty, WindowSize};
 
 use crate::integration;
 use crate::restore::RESTORE_ENV;
-
-// столько порций может ждать отрисовки; дальше чтение тормозит программу
-const OUTPUT_QUEUE: usize = 64;
+use crate::shared::{SharedTerminal, Signals};
 
 /// Что и как запускать в PTY.
 #[derive(Debug)]
@@ -61,28 +61,30 @@ pub(crate) fn command(launch: &Launch<'_>) -> Command {
     command
 }
 
-/// Запущенный shell и каналы к нему.
+/// Куда попадает вывод shell и как об этом узнаёт окно.
+pub(crate) struct Output {
+    pub(crate) terminal: SharedTerminal,
+    pub(crate) signals: Arc<Signals>,
+    pub(crate) wake: Box<dyn Fn() + Send>,
+}
+
+/// Запущенный shell и потоки обмена с ним.
 pub(crate) struct Session {
     pty: Pty,
     input: Sender<Vec<u8>>,
-    pub(crate) output: Receiver<Vec<u8>>,
 }
 
 impl Session {
-    /// `wake` будит цикл событий; пустой канал после пробуждения — не ошибка.
-    pub(crate) fn spawn(
-        launch: &Launch<'_>,
-        size: WindowSize,
-        wake: impl Fn() + Send + 'static,
-    ) -> io::Result<Self> {
+    /// Запускает shell и поток, который разбирает его вывод прямо в терминал.
+    pub(crate) fn spawn(launch: &Launch<'_>, size: WindowSize, output: Output) -> io::Result<Self> {
         let pty = Pty::spawn(command(launch), size)?;
-        let (output_tx, output) = sync_channel(OUTPUT_QUEUE);
         let (input, input_rx) = channel();
         let reader = pty.try_clone_master()?;
         let writer = pty.try_clone_master()?;
-        thread::spawn(move || read_loop(reader, &output_tx, wake));
+        let replies = input.clone();
+        thread::spawn(move || read_loop(reader, &output, &replies));
         thread::spawn(move || write_loop(writer, &input_rx));
-        Ok(Self { pty, input, output })
+        Ok(Self { pty, input })
     }
 
     pub(crate) fn pid(&self) -> u32 {
@@ -102,18 +104,29 @@ impl Session {
     }
 }
 
-// Конец потока обозначается пустой порцией
-fn read_loop(mut reader: impl Read, output: &SyncSender<Vec<u8>>, wake: impl Fn()) {
+// блокировка берётся на одну порцию и сразу отдаётся
+fn feed(terminal: &SharedTerminal, bytes: &[u8]) -> Vec<u8> {
+    let mut terminal = terminal.lock();
+    terminal.advance(bytes);
+    terminal.take_reply()
+}
+
+fn read_loop(mut reader: impl Read, output: &Output, replies: &Sender<Vec<u8>>) {
     let mut buf = [0; 64 * 1024];
     loop {
         // EIO после выхода shell — обычное завершение
         let read = reader.read(&mut buf).unwrap_or(0);
-        if output.send(buf[..read].to_vec()).is_err() {
+        if read == 0 {
+            output.signals.close();
+            output.signals.raise();
+            return (output.wake)();
+        }
+        let reply = feed(&output.terminal, &buf[..read]);
+        if !reply.is_empty() && replies.send(reply).is_err() {
             return;
         }
-        wake();
-        if read == 0 {
-            return;
+        if output.signals.raise() {
+            (output.wake)();
         }
     }
 }

@@ -660,6 +660,7 @@ dependencies = [
  "env_logger",
  "log",
  "notify",
+ "parking_lot",
  "pollster",
  "unicode-width",
  "winit",

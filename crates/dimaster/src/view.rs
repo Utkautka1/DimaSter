@@ -20,18 +20,25 @@ use crate::desktop;
 use crate::modes::Mode;
 use crate::pointer::Pointer;
 use crate::select::Selecting;
-use crate::session::{Launch, Session};
+use crate::session::{Launch, Output, Session};
 use crate::settings;
+use crate::shared::{Held, Signals};
 use crate::smart::Assist;
 use crate::status::Status;
 
-// столько порций разбираем за раз, чтобы поток вывода не блокировал ввод
-const BATCH: usize = 32;
 // дольше этого синхронизированный вывод не задерживает кадр: программа могла упасть
 const SYNC_LIMIT: Duration = Duration::from_millis(150);
 
 // композитор присылает окончательные размер и масштаб не сразу после создания окна
 const SETTLE: Duration = Duration::from_millis(60);
+
+// заголовок, каталог и активный экран на прошлом пробуждении
+#[derive(Debug, Default)]
+struct Seen {
+    title: String,
+    cwd: Option<String>,
+    alternate: bool,
+}
 
 /// Окно, эмулятор и shell.
 pub(crate) struct View {
@@ -42,7 +49,10 @@ pub(crate) struct View {
     // прибавка к кеглю в пунктах от Ctrl+плюс/минус
     pub(crate) zoom: f32,
     pub(crate) config_error: bool,
-    pub(crate) term: Terminal,
+    pub(crate) term: Held,
+    signals: Arc<Signals>,
+    // что окно видело в прошлый раз: по этому замечаются перемены
+    seen: Seen,
     // None, пока размер окна не устоялся
     pub(crate) session: Option<Session>,
     args: Vec<String>,
@@ -136,7 +146,9 @@ impl View {
             config,
             zoom: 0.0,
             config_error: false,
-            term,
+            term: Held::new(term),
+            signals: Arc::default(),
+            seen: Seen::default(),
             session: None,
             args: args.to_vec(),
             start_at: Instant::now() + SETTLE,
@@ -187,6 +199,11 @@ impl View {
         }
         let size = self.grid_size();
         let wake = self.wake.clone();
+        let output = Output {
+            terminal: self.term.share(),
+            signals: self.signals.clone(),
+            wake: Box::new(move || wake()),
+        };
         let launch = Launch {
             integrate: self.config.smart.integration,
             env: &self.config.env,
@@ -195,7 +212,7 @@ impl View {
             directory: self.start_directory.as_deref(),
             socket: self.socket.as_deref(),
         };
-        self.session = Some(Session::spawn(&launch, window_size(size), move || wake())?);
+        self.session = Some(Session::spawn(&launch, window_size(size), output)?);
         Ok(None)
     }
 
@@ -205,39 +222,22 @@ impl View {
         }
     }
 
-    /// Разбирает накопившийся вывод. `false` — shell завершился.
-    pub(crate) fn read_output(&mut self) -> bool {
-        let title = self.term.title().to_owned();
-        let directory = self.term.cwd().map(str::to_owned);
-        for _ in 0..BATCH {
-            let Some(Ok(bytes)) = self.session.as_ref().map(|s| s.output.try_recv()) else {
-                break;
-            };
-            if bytes.is_empty() {
-                return false;
-            }
-            self.consume(&bytes);
+    /// Реагирует на разобранный вывод. `false` — shell завершился.
+    pub(crate) fn on_output(&mut self) -> bool {
+        // сначала принять новости: порция, пришедшая позже, разбудит снова
+        if self.signals.take() {
+            return false;
         }
-        if self.term.title() != title {
-            self.update_title();
-            let title = self.term.title().to_owned();
-            self.emit("title", &title);
-        }
-        self.report_directory(directory);
+        self.deliver_requests();
+        self.notice_changes();
         self.after_output();
         self.check_commands();
         self.refresh();
         true
     }
 
-    fn consume(&mut self, bytes: &[u8]) {
-        let alternate = self.term.is_alternate();
-        self.term.advance(bytes);
-        if alternate != self.term.is_alternate() {
-            self.selecting.clear();
-        }
-        let reply = self.term.take_reply();
-        self.send(reply);
+    // то, о чём программы просят окно: буфер обмена и уведомления
+    fn deliver_requests(&mut self) {
         for (primary, text) in self.term.take_clipboard_writes() {
             if self.config.clipboard_write {
                 let target = if primary {
@@ -254,10 +254,21 @@ impl View {
         }
     }
 
-    fn report_directory(&mut self, before: Option<String>) {
-        let now = self.term.cwd().map(str::to_owned);
-        if now != before {
-            self.emit("cwd", &now.unwrap_or_default());
+    fn notice_changes(&mut self) {
+        if self.term.is_alternate() != self.seen.alternate {
+            self.seen.alternate = self.term.is_alternate();
+            self.selecting.clear();
+        }
+        if self.term.title() != self.seen.title {
+            self.seen.title = self.term.title().to_owned();
+            self.update_title();
+            let title = self.seen.title.clone();
+            self.emit("title", &title);
+        }
+        if self.term.cwd() != self.seen.cwd.as_deref() {
+            self.seen.cwd = self.term.cwd().map(str::to_owned);
+            let cwd = self.seen.cwd.clone().unwrap_or_default();
+            self.emit("cwd", &cwd);
         }
     }
 

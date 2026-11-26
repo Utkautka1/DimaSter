@@ -4,11 +4,12 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use dimaster_config::{Segment, StatusLine};
-use dimaster_render::{Label, Rect};
+use dimaster_render::Label;
 use unicode_width::UnicodeWidthStr;
 
 use crate::modes::Mode;
 use crate::sensors::{self, Facts, Target};
+use crate::settings::STATUS_MARGIN;
 use crate::view::View;
 
 /// Последние данные и готовая строка.
@@ -19,6 +20,8 @@ pub(crate) struct Status {
     pub(crate) line: StatusLine,
 }
 
+// минимальный отступ строки статуса от краёв окна
+const MIN_INSET: u32 = 12;
 // полукруги Powerline из Nerd Font
 const LEFT_CAP: &str = "\u{e0b6}";
 const RIGHT_CAP: &str = "\u{e0b4}";
@@ -148,14 +151,22 @@ impl View {
         labels
     }
 
+    // отступ от краёв: скруглённые углы окна не должны резать текст
+    fn status_inset(&self) -> u32 {
+        self.config.padding.0.max(MIN_INSET)
+    }
+
     pub(crate) fn status_labels(&self) -> Vec<Label> {
         if self.status_height() == 0 {
             return Vec::new();
         }
         let metrics = self.fonts.metrics();
         let size = self.window.inner_size();
-        let columns = (size.width / metrics.cell_width) as usize;
-        let y = size.height.saturating_sub(metrics.cell_height);
+        let inset = self.status_inset();
+        let columns = (size.width.saturating_sub(inset * 2) / metrics.cell_width) as usize;
+        let y = size
+            .height
+            .saturating_sub(metrics.cell_height + STATUS_MARGIN);
         let line = &self.status.line;
         let right = columns.saturating_sub(width(&line.right));
         // центр уступает место краям
@@ -165,20 +176,8 @@ impl View {
             labels.extend(self.place(&line.center, center, y));
         }
         labels.extend(self.place(&line.right, right, y));
+        labels.iter_mut().for_each(|label| label.x += inset);
         labels
-    }
-
-    pub(crate) fn status_background(&self) -> Option<Rect> {
-        let height = self.status_height();
-        let size = self.window.inner_size();
-        (height > 0).then(|| Rect {
-            x: 0,
-            y: size.height.saturating_sub(height),
-            width: size.width,
-            height,
-            color: self.config.theme.selection,
-            translucent: true,
-        })
     }
 
     pub(crate) fn monitor_labels(&self) -> Vec<Label> {

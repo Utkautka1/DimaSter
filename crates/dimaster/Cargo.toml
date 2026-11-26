@@ -21,3 +21,4 @@ dimaster-config.workspace = true
 notify.workspace = true
 dimaster-image.workspace = true
 unicode-width.workspace = true
+parking_lot.workspace = true

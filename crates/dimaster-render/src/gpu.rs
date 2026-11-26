@@ -123,25 +123,8 @@ impl Renderer {
         self.images.next_frame
     }
 
-    /// Рисует кадр. `false` — кадр пропущен и его нужно запросить снова.
-    pub fn draw(&mut self, term: &Terminal, fonts: &mut FontSystem, view: Viewport<'_>) -> bool {
-        use wgpu::CurrentSurfaceTexture as Current;
-        let frame = match self.surface.get_current_texture() {
-            Current::Success(frame) | Current::Suboptimal(frame) => frame,
-            Current::Outdated | Current::Lost => {
-                self.surface.configure(&self.device, &self.config);
-                return false;
-            }
-            // свёрнутое окно придёт в себя по событию от оконной системы
-            _ => return true,
-        };
-        self.prepare(term, fonts, view);
-        self.submit(&frame.texture.create_view(&Default::default()));
-        self.queue.present(frame);
-        true
-    }
-
-    fn prepare(&mut self, term: &Terminal, fonts: &mut FontSystem, view: Viewport<'_>) {
+    /// Собирает кадр из состояния терминала; после этого он больше не нужен.
+    pub fn prepare(&mut self, term: &Terminal, fonts: &mut FontSystem, view: Viewport<'_>) {
         self.build(term, fonts, view);
         if self.atlas.full {
             log::warn!("Атлас глифов переполнен — очищаем");
@@ -202,6 +185,24 @@ impl Renderer {
         let start = (self.quads.len() + self.images.quads.len()) as u32;
         pass.set_bind_group(0, &self.pipeline.bindings, &[]);
         pass.draw(0..4, start..start + self.overlay.len() as u32);
+    }
+
+    /// Показывает собранный кадр; может ждать монитор, поэтому терминал уже
+    /// должен быть отпущен. `false` — кадр пропущен, нужно запросить снова.
+    pub fn present(&mut self) -> bool {
+        use wgpu::CurrentSurfaceTexture as Current;
+        let frame = match self.surface.get_current_texture() {
+            Current::Success(frame) | Current::Suboptimal(frame) => frame,
+            Current::Outdated | Current::Lost => {
+                self.surface.configure(&self.device, &self.config);
+                return false;
+            }
+            // свёрнутое окно придёт в себя по событию от оконной системы
+            _ => return true,
+        };
+        self.submit(&frame.texture.create_view(&Default::default()));
+        self.queue.present(frame);
+        true
     }
 
     fn build(&mut self, term: &Terminal, fonts: &mut FontSystem, view: Viewport<'_>) {
