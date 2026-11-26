@@ -1,7 +1,9 @@
 //! Графический протокол Kitty (APC `G`).
 
 use std::collections::HashMap;
+use std::fs::File;
 use std::io::Read;
+use std::os::fd::AsRawFd;
 use std::path::Path;
 
 use dimaster_image::{Animation, decode, decode_base64, inflate_zlib};
@@ -49,21 +51,61 @@ fn parse(data: &[u8]) -> Pending {
     }
 }
 
+// удалять можно только то, что создано для протокола во временном каталоге;
+// ссылки разрешаются, чтобы путь не вывел наружу
+fn is_temporary(path: &Path) -> bool {
+    let marked = path
+        .file_name()
+        .is_some_and(|n| n.to_string_lossy().contains("tty-graphics-protocol"));
+    let regular = std::fs::symlink_metadata(path).is_ok_and(|m| m.is_file());
+    let Ok(real) = path.canonicalize() else {
+        return false;
+    };
+    let roots = [std::env::temp_dir(), "/tmp".into(), "/dev/shm".into()];
+    let inside = roots
+        .iter()
+        .filter_map(|r| r.canonicalize().ok())
+        .any(|r| real.starts_with(r));
+    marked && regular && inside
+}
+
+// файлы ядра и устройства: даже открытие может иметь побочный эффект, а ответ
+// терминала выдаёт удалённой программе, существует ли файл
+fn is_readable_location(path: &Path) -> bool {
+    let Ok(real) = path.canonicalize() else {
+        return false;
+    };
+    let system = ["/proc", "/sys", "/dev"]
+        .iter()
+        .any(|root| real.starts_with(root));
+    !system || real.starts_with("/dev/shm")
+}
+
+// путь проверяется до открытия и ещё раз по открытому дескриптору: между ними
+// его могли подменить ссылкой
+fn open_checked(path: &Path) -> Option<File> {
+    let regular = std::fs::metadata(path).is_ok_and(|m| m.is_file());
+    if !regular || !is_readable_location(path) {
+        return None;
+    }
+    let file = File::open(path).ok()?;
+    let opened = format!("/proc/self/fd/{}", file.as_raw_fd());
+    let real = std::fs::read_link(opened).ok()?;
+    let meta = file.metadata().ok()?;
+    let fits = meta.is_file() && meta.len() <= MAX_PAYLOAD as u64;
+    (fits && is_readable_location(&real)).then_some(file)
+}
+
 // программа вне нашей машины может прислать путь, поэтому только обычные файлы
 fn read_file(path: &[u8], temporary: bool) -> Option<Vec<u8>> {
     let path = Path::new(std::str::from_utf8(path).ok()?);
-    let meta = std::fs::metadata(path).ok()?;
-    if !meta.is_file() || meta.len() > MAX_PAYLOAD as u64 {
-        return None;
-    }
     let mut data = Vec::new();
-    std::fs::File::open(path)
-        .ok()?
+    open_checked(path)?
         .take(MAX_PAYLOAD as u64)
         .read_to_end(&mut data)
         .ok()?;
     // удаляем только файлы, явно созданные для протокола
-    if temporary && path.to_string_lossy().contains("tty-graphics-protocol") {
+    if temporary && is_temporary(path) {
         let _ = std::fs::remove_file(path);
     }
     Some(data)
@@ -204,5 +246,27 @@ impl State {
             p => format!(",p={p}"),
         };
         self.answer(format!("\x1b_Gi={id}{placement};{status}\x1b\\"));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn kernel_and_device_files_are_never_opened() {
+        for path in [
+            "/proc/self/environ",
+            "/sys/kernel/uevent_seqnum",
+            "/dev/null",
+        ] {
+            assert!(open_checked(Path::new(path)).is_none(), "{path}");
+        }
+        let link = std::env::temp_dir().join(format!("dimaster-link-{}", std::process::id()));
+        let _ = std::fs::remove_file(&link);
+        std::os::unix::fs::symlink("/proc/self/environ", &link).unwrap();
+        assert!(open_checked(&link).is_none(), "ссылка в /proc");
+        std::fs::remove_file(link).unwrap();
+        assert!(open_checked(Path::new("/etc/hostname")).is_some());
     }
 }

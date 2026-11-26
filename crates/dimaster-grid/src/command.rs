@@ -5,6 +5,7 @@ use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
 use crate::terminal::State;
+use crate::untrusted::clean;
 use crate::{Color, PromptMark, Style};
 
 // сколько команд и строк вывода каждой хранится в памяти окна
@@ -96,7 +97,7 @@ impl State {
     }
 
     pub(crate) fn command_typed(&mut self, text: &str) {
-        self.commands.typed = text.chars().take(4096).collect();
+        self.commands.typed = clean(text);
     }
 
     pub(crate) fn command_started(&mut self) {

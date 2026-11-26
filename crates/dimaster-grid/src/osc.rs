@@ -4,6 +4,7 @@ use dimaster_image::decode_base64;
 
 use crate::PromptMark;
 use crate::terminal::State;
+use crate::untrusted::clean;
 
 // больше мегабайта в буфер обмена из программы не принимаем
 const CLIPBOARD_LIMIT: usize = 1 << 20;
@@ -23,8 +24,8 @@ impl State {
             };
         };
         match code {
-            "0" | "2" => self.title = value.to_owned(),
-            "7" => self.cwd = parse_file_url(value),
+            "0" | "2" => self.title = clean(value),
+            "7" => self.cwd = parse_file_url(value).map(|path| clean(&path)),
             "4" => self.palette_osc(value),
             "10" | "11" | "12" => self.dynamic_color(code, value),
             "104" | "110" | "111" | "112" => self.reset_colors(code, value),
@@ -41,7 +42,7 @@ impl State {
     fn notify(&mut self, title: &str, body: &str) {
         let progress = body.starts_with("4;");
         if !progress && self.notifications.len() < 8 {
-            self.notifications.push((title.to_owned(), body.to_owned()));
+            self.notifications.push((clean(title), clean(body)));
         }
     }
 

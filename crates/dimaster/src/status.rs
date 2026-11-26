@@ -71,6 +71,7 @@ impl View {
                 .filter(|_| wanted)
                 .map_or(0, |s| s.pid()),
             docker: widgets.statusbar && widgets.docker,
+            git_changes: widgets.git_changes,
         };
         if let Ok(mut shared) = self.status.target.lock() {
             *shared = target;

@@ -5,6 +5,9 @@ use std::collections::BTreeMap;
 use crate::Image;
 
 const MAX_SIDE: usize = 4096;
+// сколько раз можно закрасить пиксель: повторы поверх тех же мест не растят
+// картинку, но без предела подвешивают терминал на минуты
+const PAINT_BUDGET: usize = 8_000_000;
 // первые 16 регистров VT340
 const DEFAULT_COLORS: [u32; 16] = [
     0x000000, 0x3333cc, 0xcc2121, 0x33cc33, 0xcc33cc, 0x33cccc, 0xcccc33, 0x878787, 0x424242,
@@ -20,6 +23,7 @@ struct Canvas {
     x: usize,
     band: usize,
     size: (usize, usize),
+    painted: usize,
 }
 
 fn number(data: &mut &[u8]) -> u32 {
@@ -91,6 +95,7 @@ impl Canvas {
         let top = self.band * 6;
         if top + 6 <= MAX_SIDE {
             let rgb = self.rgb();
+            self.painted += (end - self.x) * bits.count_ones() as usize;
             for row in (0..6).filter(|row| bits & (1 << row) != 0) {
                 for x in self.x..end {
                     self.pixels.insert((top + row, x), rgb);
@@ -155,7 +160,7 @@ pub fn decode_sixel(mut data: &[u8]) -> Option<Image> {
     while let Some((&byte, rest)) = data.split_first() {
         data = rest;
         canvas.command(byte, &mut data);
-        if canvas.pixels.len() > 4_000_000 {
+        if canvas.pixels.len() > 4_000_000 || canvas.painted > PAINT_BUDGET {
             break;
         }
     }

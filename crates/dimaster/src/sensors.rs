@@ -23,6 +23,8 @@ pub(crate) struct Target {
     // номер процесса shell; 0 — ещё не запущен
     pub(crate) shell: u32,
     pub(crate) docker: bool,
+    /// Разрешено ли запускать `git status`.
+    pub(crate) git_changes: bool,
 }
 
 #[derive(Debug, PartialEq)]
@@ -87,16 +89,36 @@ fn output(program: &str, args: &[&str], directory: &Path) -> Option<String> {
         .then(|| String::from_utf8_lossy(&result.stdout).into_owned())
 }
 
-// первая строка `status -b` — ветка, остальные — изменённые файлы
-fn parse_git(text: &str) -> Option<(String, usize)> {
-    let mut lines = text.lines();
-    let head = lines.next()?.strip_prefix("## ")?;
-    let branch = head.strip_prefix("No commits yet on ").unwrap_or(head);
-    let branch = branch.split("...").next()?.to_owned();
-    Some((branch, lines.count()))
+// каталог .git этого репозитория; в worktree вместо него файл со ссылкой
+fn git_directory(directory: &Path) -> Option<PathBuf> {
+    let found = directory
+        .ancestors()
+        .map(|d| d.join(".git"))
+        .find(|p| p.exists())?;
+    if found.is_dir() {
+        return Some(found);
+    }
+    let pointer = std::fs::read_to_string(&found).ok()?;
+    let target = pointer.strip_prefix("gitdir:")?.trim();
+    Some(found.parent()?.join(target))
 }
 
-fn git(directory: &Path) -> Option<(String, usize)> {
+// «ref: refs/heads/main» или хэш отсоединённого HEAD
+fn parse_head(head: &str) -> Option<String> {
+    let head = head.trim();
+    let name = match head.strip_prefix("ref: refs/heads/") {
+        Some(branch) => branch,
+        None => head.get(..7)?,
+    };
+    Some(name.chars().filter(|c| !c.is_control()).take(80).collect())
+}
+
+/// Ветка читается из файла: сам git при этом не запускается.
+fn branch(directory: &Path) -> Option<String> {
+    parse_head(&std::fs::read_to_string(git_directory(directory)?.join("HEAD")).ok()?)
+}
+
+fn changes(directory: &Path) -> Option<usize> {
     const SAFE: [&str; 5] = [
         "--no-optional-locks",
         "-c",
@@ -104,8 +126,8 @@ fn git(directory: &Path) -> Option<(String, usize)> {
         "-c",
         "core.hooksPath=/dev/null",
     ];
-    let args = [&SAFE[..], &["status", "--porcelain=v1", "-b"]].concat();
-    parse_git(&output("git", &args, directory)?)
+    let args = [&SAFE[..], &["status", "--porcelain=v1"]].concat();
+    Some(output("git", &args, directory)?.lines().count())
 }
 
 // проект на этом языке — если в каталоге есть его файл
@@ -157,13 +179,19 @@ impl Sampler {
         self.previous = Some((name, ticks, now));
     }
 
+    fn repository(directory: &Path, count: bool, facts: &mut Facts) {
+        let Some(branch) = branch(directory) else {
+            return;
+        };
+        facts.push(("git_branch".into(), branch));
+        let changed = count
+            .then(|| changes(directory))
+            .flatten()
+            .filter(|&n| n > 0);
+        facts.extend(changed.map(|n| ("git_changes".into(), n.to_string())));
+    }
+
     fn project(&mut self, directory: &Path, facts: &mut Facts) {
-        if let Some((branch, changes)) = git(directory) {
-            facts.push(("git_branch".into(), branch));
-            if changes > 0 {
-                facts.push(("git_changes".into(), changes.to_string()));
-            }
-        }
         for (name, markers, program, flag) in TOOLS {
             if !markers.iter().any(|m| directory.join(m).exists()) {
                 continue;
@@ -180,6 +208,7 @@ impl Sampler {
         let mut facts = Facts::new();
         if let Some(directory) = &target.cwd {
             facts.push(("cwd".into(), directory.display().to_string()));
+            Self::repository(directory, target.git_changes, &mut facts);
             self.project(directory, &mut facts);
         }
         if target.shell != 0 {
@@ -228,7 +257,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parses_stat_git_and_versions() {
+    fn parses_stat_head_and_versions() {
         let stat = "7 (a b) S 1 7 7 34816 9 0 0 0 0 0 3 4 0 0 20 0 1 0 5 1000 256 0";
         let parsed = parse_stat(stat).unwrap();
         assert_eq!(
@@ -236,12 +265,23 @@ mod tests {
             ("a b", 7, 9)
         );
         assert_eq!((parsed.ticks, parsed.pages), (7, 256));
-        let git = parse_git("## main...origin/main [ahead 1]\n M a\n?? b\n").unwrap();
-        assert_eq!(git, ("main".to_owned(), 2));
+        assert_eq!(parse_head("ref: refs/heads/feat/x\n").unwrap(), "feat/x");
+        assert_eq!(parse_head("0123456789abcdef\n").unwrap(), "0123456");
         assert_eq!(
             version_number("go version go1.24.1 linux/amd64").unwrap(),
             "1.24.1"
         );
         assert_eq!(version_number("v22.1.0\n").unwrap(), "22.1.0");
+    }
+
+    // фильтр репозитория не должен запускаться, пока подсчёт выключен
+    #[test]
+    fn branch_is_read_without_running_git() {
+        let root = std::env::temp_dir().join(format!("dimaster-git-{}", std::process::id()));
+        std::fs::create_dir_all(root.join(".git")).unwrap();
+        std::fs::write(root.join(".git/HEAD"), "ref: refs/heads/main\n").unwrap();
+        std::fs::create_dir_all(root.join("sub")).unwrap();
+        assert_eq!(branch(&root.join("sub")).unwrap(), "main");
+        std::fs::remove_dir_all(root).unwrap();
     }
 }

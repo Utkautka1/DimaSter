@@ -145,8 +145,9 @@ fn widgets(config: &Config) -> String {
     let w = config.widgets;
     format!(
         "  -- строка статуса настраивается в statusbar.lua\n  widgets = {{\n    statusbar = {},\n    \
-         interval = {},\n    docker = {},\n    monitor = {},\n    minimap = {},\n  }},\n",
-        w.statusbar, w.interval, w.docker, w.monitor, w.minimap,
+         interval = {},\n    docker = {},\n    \
+         -- git status в чужом репозитории может выполнить его код\n    git_changes = {},\n    monitor = {},\n    minimap = {},\n  }},\n",
+        w.statusbar, w.interval, w.docker, w.git_changes, w.monitor, w.minimap,
     )
 }
 

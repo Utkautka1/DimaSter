@@ -73,6 +73,7 @@ impl State {
             picture,
             id,
         });
+        self.enforce_image_budget();
     }
 
     /// Как в Kitty: курсор оказывается правее нижней строки картинки.

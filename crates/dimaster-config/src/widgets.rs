@@ -12,6 +12,9 @@ pub struct Widgets {
     pub interval: f32,
     /// Считать ли контейнеры Docker.
     pub docker: bool,
+    /// Считать изменённые файлы через `git status`. Выключено: репозиторий
+    /// может заставить git выполнить свою программу (фильтры в `.git/config`).
+    pub git_changes: bool,
     /// Монитор ресурсов в углу окна.
     pub monitor: bool,
     /// Миникарта видна постоянно, а не только в своём режиме.
@@ -24,6 +27,7 @@ impl Default for Widgets {
             statusbar: true,
             interval: 3.0,
             docker: true,
+            git_changes: false,
             monitor: false,
             minimap: false,
         }
@@ -41,6 +45,7 @@ pub(crate) fn apply(table: &Table, widgets: &mut Widgets) -> Result<(), ConfigEr
     set(table, "statusbar", &mut widgets.statusbar)?;
     set(table, "interval", &mut widgets.interval)?;
     set(table, "docker", &mut widgets.docker)?;
+    set(table, "git_changes", &mut widgets.git_changes)?;
     set(table, "monitor", &mut widgets.monitor)?;
     set(table, "minimap", &mut widgets.minimap)?;
     // чаще раза в секунду опрашивать незачем, реже минуты — бессмысленно

@@ -77,14 +77,19 @@ impl State {
     }
 
     /// XTGETTCAP: имена и значения передаются в шестнадцатеричном виде.
+    ///
+    /// Ответ уходит в программу как её ввод, поэтому имя повторяется, только
+    /// если это действительно шестнадцатеричные цифры: иначе вывод файла мог
+    /// бы «напечатать» команду в shell.
     pub(crate) fn capability_report(&mut self, request: &[u8]) {
         for name in request.split(|&b| b == b';').take(32) {
-            let decoded = unhex(name);
-            let found = CAPABILITIES
-                .iter()
-                .find(|c| decoded.as_deref() == Some(c.0));
-            let raw = String::from_utf8_lossy(name).into_owned();
-            match found {
+            let hexadecimal = name.len() <= 64 && name.iter().all(u8::is_ascii_hexdigit);
+            let Some(decoded) = unhex(name).filter(|_| hexadecimal) else {
+                self.answer("\x1bP0+r\x1b\\".to_owned());
+                continue;
+            };
+            let raw = String::from_utf8_lossy(name);
+            match CAPABILITIES.iter().find(|c| c.0 == decoded) {
                 Some((_, value)) => self.answer(format!("\x1bP1+r{raw}={}\x1b\\", hex(value))),
                 None => self.answer(format!("\x1bP0+r{raw}\x1b\\")),
             }

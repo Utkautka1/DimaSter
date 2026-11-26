@@ -71,3 +71,16 @@ proptest! {
         let _ = decode_sixel(data.as_bytes());
     }
 }
+
+// повторы поверх одних и тех же пикселей не растят картинку, но тратят время
+#[test]
+fn sixel_overdraw_is_bounded_in_time() {
+    let data = "!4096~$".repeat(200_000);
+    let started = std::time::Instant::now();
+    let _ = decode_sixel(data.as_bytes());
+    assert!(
+        started.elapsed() < Duration::from_secs(3),
+        "{:?}",
+        started.elapsed()
+    );
+}

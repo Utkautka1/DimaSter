@@ -3,14 +3,39 @@
 //! Данные приходят от программ, поэтому ffmpeg разрешён только протокол
 //! `pipe`: подсунутый плейлист не сможет прочитать файлы или открыть сеть.
 
-use std::io::Write;
-use std::process::{Command, Stdio};
+use std::io::{Read, Write};
+use std::process::{Child, Command, Stdio};
 use std::thread;
+use std::time::{Duration, Instant};
 
 use crate::{Animation, decode_png};
 
+const TIMEOUT: Duration = Duration::from_secs(5);
+const MAX_OUTPUT: u64 = 128 * 1024 * 1024;
+
 pub(crate) fn decode(data: &[u8]) -> Option<Animation> {
-    let mut child = Command::new("ffmpeg")
+    let mut child = spawn_ffmpeg()?;
+    let mut input = child.stdin.take()?;
+    let mut output = child.stdout.take()?;
+    let owned = data.to_vec();
+    // пишем и читаем из других потоков: иначе оба процесса встанут на каналах
+    let writer = thread::spawn(move || input.write_all(&owned));
+    let reader = thread::spawn(move || {
+        let mut png = Vec::new();
+        output
+            .by_ref()
+            .take(MAX_OUTPUT)
+            .read_to_end(&mut png)
+            .map(|_| png)
+    });
+    wait_or_kill(&mut child);
+    let _ = writer.join();
+    let image = decode_png(&reader.join().ok()?.ok()?)?;
+    Some(Animation::still(image.width, image.height, image.pixels))
+}
+
+fn spawn_ffmpeg() -> Option<Child> {
+    Command::new("ffmpeg")
         .args(["-v", "error", "-protocol_whitelist", "pipe", "-i", "pipe:0"])
         .args([
             "-frames:v",
@@ -25,13 +50,18 @@ pub(crate) fn decode(data: &[u8]) -> Option<Animation> {
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
-        .ok()?;
-    let mut input = child.stdin.take()?;
-    let owned = data.to_vec();
-    // пишем из другого потока: иначе оба процесса могут встать на полных каналах
-    let writer = thread::spawn(move || input.write_all(&owned));
-    let output = child.wait_with_output().ok()?;
-    let _ = writer.join();
-    let image = decode_png(&output.stdout)?;
-    Some(Animation::still(image.width, image.height, image.pixels))
+        .ok()
+}
+
+// декодирование идёт в потоке окна: подвисший ffmpeg нельзя ждать бесконечно
+fn wait_or_kill(child: &mut Child) {
+    let deadline = Instant::now() + TIMEOUT;
+    while matches!(child.try_wait(), Ok(None)) {
+        if Instant::now() > deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            return;
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
 }

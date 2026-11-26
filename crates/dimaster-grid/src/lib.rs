@@ -24,6 +24,7 @@ mod search;
 mod selection;
 mod sgr;
 mod terminal;
+mod untrusted;
 
 pub use cell::{Cell, Color, Flags, Style};
 pub use colors::{ColorOverrides, DefaultColors};

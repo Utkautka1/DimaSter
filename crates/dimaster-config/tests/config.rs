@@ -93,6 +93,7 @@ fn customize_more(config: &mut Config) {
     config.widgets.statusbar = false;
     config.widgets.interval = 7.0;
     config.widgets.minimap = true;
+    config.widgets.git_changes = true;
     config.env = vec![("A".into(), "1".into()), ("B".into(), "x y".into())];
 }
 
