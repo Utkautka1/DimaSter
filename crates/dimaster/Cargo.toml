@@ -10,5 +10,10 @@ workspace = true
 [dependencies]
 dimaster-grid.workspace = true
 dimaster-pty.workspace = true
+dimaster-font.workspace = true
+dimaster-render.workspace = true
+winit.workspace = true
+arboard.workspace = true
+pollster.workspace = true
 log.workspace = true
 env_logger.workspace = true

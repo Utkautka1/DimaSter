@@ -5,6 +5,10 @@
 ```mermaid
 graph TD
     app[dimaster] --> grid[dimaster-grid]
+    app --> render[dimaster-render]
+    app --> font[dimaster-font]
+    render --> grid
+    render --> font
     app --> pty[dimaster-pty]
     grid --> vt[dimaster-vt]
 ```
@@ -40,6 +44,28 @@ classDiagram
     class Cursor { row; col; style }
     class Modes
     class Pty { +spawn(command, size) +resize(size) +wait() }
+    class App { +resumed() +window_event() +about_to_wait() }
+    class View { +start_when_settled() +read_output() +draw() +resize() +key() }
+    class Session { +spawn(args, size, wake) +send(bytes) +resize(size) }
+    class Renderer { +new() +resize() +draw(term, fonts, scroll) }
+    class Builder { +build(term, scroll) }
+    class Atlas { +get(fonts, key) +clear() }
+    class Pipeline { +upload(queue, upload) }
+    class FontSystem { +new(size) +metrics() +set_size(size) +glyph(key) }
+    class Outline { +rasterize() Bitmap }
+
+    App *-- View
+    View *-- Terminal
+    View *-- Session
+    View *-- Renderer
+    View *-- FontSystem
+    Session *-- Pty
+    Renderer *-- Atlas
+    Renderer *-- Pipeline
+    Renderer ..> Builder
+    Builder --> Atlas
+    Builder --> FontSystem
+    FontSystem ..> Outline
 
     Terminal *-- Parser
     Terminal *-- State
@@ -59,11 +85,15 @@ classDiagram
 
 ```mermaid
 sequenceDiagram
-    participant S as shell
-    participant P as Pty
+    participant W as окно (winit)
+    participant V as View
+    participant S as Session
     participant T as Terminal
-    S->>P: вывод
-    P->>T: advance(bytes)
-    T-->>P: take_reply()
-    P-->>S: ответ на запрос
+    participant R as Renderer
+    W->>V: клавиша
+    V->>S: байты в shell
+    S-->>V: Wake и вывод
+    V->>T: advance(bytes)
+    T-->>S: take_reply()
+    V->>R: draw(term)
 ```

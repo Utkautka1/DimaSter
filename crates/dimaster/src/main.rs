@@ -1,63 +1,39 @@
-//! Headless-режим первого этапа: прогоняет команду через эмулятор и печатает экран.
-//!
-//! Позволяет проверить ядро на реальных программах до появления окна.
+//! DimaSter: без аргументов открывает окно с shell пользователя.
 
-use std::io::{self, Read, Write};
-use std::process::{Command, ExitCode};
+mod app;
+mod headless;
+mod keys;
+mod session;
+mod view;
 
-use dimaster_grid::{Size, Terminal};
-use dimaster_pty::{Pty, WindowSize};
+use std::error::Error;
+use std::process::ExitCode;
 
-const SIZE: WindowSize = WindowSize {
-    rows: 40,
-    cols: 120,
-};
+const USAGE: &str = "использование: dimaster [-e команда...] [--headless команда...]";
 
 fn main() -> ExitCode {
-    env_logger::init();
-    let args: Vec<String> = std::env::args().skip(1).collect();
-    if args.is_empty() {
-        eprintln!("использование: dimaster <команда> [аргументы]");
-        return ExitCode::from(2);
-    }
-    match run(&args) {
-        Ok(screen) => {
-            println!("{screen}");
-            ExitCode::SUCCESS
-        }
+    // wgpu слишком подробен на info, поэтому по умолчанию только предупреждения
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn")).init();
+    match run(std::env::args().skip(1).collect()) {
+        Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
-            log::error!("не удалось выполнить {}: {e}", args[0]);
-            eprintln!("ошибка: {e}");
+            log::error!("{e}");
             ExitCode::FAILURE
         }
     }
 }
 
-/// Возвращает историю и видимый экран после завершения команды.
-fn run(args: &[String]) -> io::Result<String> {
-    let mut command = Command::new(&args[0]);
-    // до появления своего terminfo притворяемся xterm
-    command.args(&args[1..]).env("TERM", "xterm-256color");
-    let mut pty = Pty::spawn(command, SIZE)?;
-    let mut term = Terminal::new(Size {
-        rows: SIZE.rows.into(),
-        cols: SIZE.cols.into(),
-    });
-    pump(&mut pty, &mut term)?;
-    pty.wait()?;
-    let mut lines: Vec<String> = term.screen().history().map(|r| r.text()).collect();
-    lines.push(term.text());
-    Ok(lines.join("\n"))
-}
-
-fn pump(pty: &mut Pty, term: &mut Terminal) -> io::Result<()> {
-    let mut buf = [0; 64 * 1024];
-    loop {
-        let read = pty.read(&mut buf)?;
-        if read == 0 {
-            return Ok(());
+fn run(args: Vec<String>) -> Result<(), Box<dyn Error>> {
+    match args.split_first() {
+        None => {
+            let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".into());
+            app::run(vec![shell])
         }
-        term.advance(&buf[..read]);
-        pty.write_all(&term.take_reply())?;
+        Some((flag, command)) if flag == "-e" && !command.is_empty() => app::run(command.to_vec()),
+        Some((flag, command)) if flag == "--headless" && !command.is_empty() => {
+            println!("{}", headless::run(command)?);
+            Ok(())
+        }
+        _ => Err(USAGE.into()),
     }
 }
