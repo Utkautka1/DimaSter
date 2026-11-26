@@ -4,6 +4,7 @@
 //! который рисуется одним instanced-вызовом. Сборка списка отделена от wgpu,
 //! поэтому проверяется тестами без видеокарты.
 
+mod appearance;
 mod atlas;
 mod bidi;
 mod frame;
@@ -13,7 +14,8 @@ mod pipeline;
 mod preedit;
 mod text;
 
-pub use frame::{PADDING, Viewport};
+pub use appearance::Appearance;
+pub use frame::Viewport;
 pub use gpu::{RenderError, Renderer};
 // приложению нужно создать поверхность окна той же версией wgpu
 pub use wgpu;

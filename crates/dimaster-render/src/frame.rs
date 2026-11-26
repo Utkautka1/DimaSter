@@ -4,13 +4,11 @@ use bytemuck::{Pod, Zeroable};
 use dimaster_font::{FontSystem, Metrics};
 use dimaster_grid::{Cell, CursorShape, Flags, Row, Span, Terminal};
 
+use crate::appearance::Appearance;
 use crate::atlas::{Atlas, Slot};
 use crate::bidi;
 use crate::palette::{self, Rgb};
 use crate::text::Run;
-
-/// Отступ от краёв окна в пикселях.
-pub const PADDING: u32 = 6;
 
 /// Прямоугольник кадра в том виде, в каком его читает шейдер.
 #[repr(C)]
@@ -60,6 +58,7 @@ pub(crate) struct Builder<'a> {
     pub(crate) fonts: &'a mut FontSystem,
     pub(crate) atlas: &'a mut Atlas,
     pub(crate) quads: &'a mut Vec<Quad>,
+    pub(crate) look: &'a Appearance,
 }
 
 impl Builder<'_> {
@@ -84,13 +83,13 @@ impl Builder<'_> {
     pub(crate) fn origin(&self, row: usize, col: usize) -> [f32; 2] {
         let m = self.fonts.metrics();
         [
-            (PADDING + col as u32 * m.cell_width) as f32,
-            (PADDING + row as u32 * m.cell_height) as f32,
+            (self.look.padding.0 + col as u32 * m.cell_width) as f32,
+            (self.look.padding.1 + row as u32 * m.cell_height) as f32,
         ]
     }
 
     fn row(&mut self, index: usize, row: &Row, selected: impl Fn(usize) -> bool) {
-        let order = bidi::visual_columns(&row.cells);
+        let order = self.visual_order(&row.cells);
         let mut run = Run::default();
         for (col, cell) in row.cells.iter().enumerate() {
             if cell.style.flags.contains(Flags::WIDE_TAIL) {
@@ -98,9 +97,10 @@ impl Builder<'_> {
             }
             let column = order.as_ref().map_or(col, |o| o[col]);
             let origin = self.origin(index, column);
-            let (fg, mut bg) = colors(cell);
+            let (mut fg, mut bg) = colors(cell, self.look);
             if selected(col) {
-                bg = palette::SELECTION;
+                bg = self.look.selection;
+                fg = self.look.selection_text.unwrap_or(fg);
             }
             self.background(origin, cell, bg);
             if !cell.style.flags.contains(Flags::HIDDEN) {
@@ -109,6 +109,10 @@ impl Builder<'_> {
             }
         }
         self.flush(&mut run, index);
+    }
+
+    fn visual_order(&self, cells: &[Cell]) -> Option<Vec<usize>> {
+        bidi::visual_columns(cells).filter(|_| self.look.rtl)
     }
 
     fn cell_width(&self, cell: &Cell) -> f32 {
@@ -122,7 +126,7 @@ impl Builder<'_> {
 
     fn background(&mut self, origin: [f32; 2], cell: &Cell, color: Rgb) {
         // фон по умолчанию уже залит очисткой кадра
-        if color != palette::BACKGROUND {
+        if color != self.look.background {
             let size = [
                 self.cell_width(cell),
                 self.fonts.metrics().cell_height as f32,
@@ -151,7 +155,7 @@ impl Builder<'_> {
     fn cursor(&mut self, term: &Terminal) {
         let cursor = term.cursor();
         let cell = &term.screen().rows()[cursor.row].cells[cursor.col];
-        let order = bidi::visual_columns(&term.screen().rows()[cursor.row].cells);
+        let order = self.visual_order(&term.screen().rows()[cursor.row].cells);
         let column = order.map_or(cursor.col, |o| o[cursor.col]);
         let origin = self.origin(cursor.row, column);
         let Metrics {
@@ -167,21 +171,21 @@ impl Builder<'_> {
             CursorShape::Bar => (origin, [thin, height]),
         };
         self.quads
-            .push(Quad::solid(position, size, palette::CURSOR));
+            .push(Quad::solid(position, size, self.look.cursor));
         // под блоком символ перерисовывается цветом фона
         if term.modes().cursor_shape == CursorShape::Block {
             let mut run = Run::default();
-            self.text_cell(&mut run, cell, palette::BACKGROUND, (cursor.row, column));
+            self.text_cell(&mut run, cell, self.look.background, (cursor.row, column));
             self.flush(&mut run, cursor.row);
         }
     }
 }
 
 /// Итоговые цвета текста и фона с учётом INVERSE и DIM.
-fn colors(cell: &Cell) -> (Rgb, Rgb) {
+fn colors(cell: &Cell, look: &Appearance) -> (Rgb, Rgb) {
     let style = cell.style;
-    let mut fg = palette::resolve(style.fg, palette::FOREGROUND);
-    let mut bg = palette::resolve(style.bg, palette::BACKGROUND);
+    let mut fg = palette::resolve(style.fg, look.foreground, &look.ansi);
+    let mut bg = palette::resolve(style.bg, look.background, &look.ansi);
     if style.flags.contains(Flags::INVERSE) {
         std::mem::swap(&mut fg, &mut bg);
     }
@@ -208,6 +212,7 @@ mod tests {
             fonts: &mut fonts,
             atlas: &mut atlas,
             quads: &mut quads,
+            look: &Appearance::default(),
         };
         builder.build(
             &term,
@@ -234,56 +239,58 @@ mod tests {
     fn scrolled_view_shows_history_without_cursor() {
         assert_eq!(quads("a\r\n\r\n", 0).len(), 1);
         assert_eq!(quads("a\r\n\r\n", 5).len(), 1);
-        assert_eq!(quads("a\r\n\r\n", 5)[0].color, palette::FOREGROUND);
+        assert_eq!(
+            quads("a\r\n\r\n", 5)[0].color,
+            Appearance::default().foreground
+        );
     }
 
-    #[test]
-    fn selection_paints_background() {
+    // собирает кадр одной строки с заданными параметрами показа
+    fn render(input: &str, view: impl FnOnce(&Terminal) -> Viewport<'static>) -> Vec<Quad> {
         let mut fonts = FontSystem::new(16.0).expect("в системе есть шрифт");
         let (mut atlas, mut quads) = (Atlas::default(), Vec::new());
-        let mut term = Terminal::new(Size { rows: 2, cols: 8 });
-        term.advance(b"\x1b[?25lab");
-        let point = |col| Point { line: 0, col };
-        let kind = SelectionKind::Simple;
-        let span = term.span(Selection {
-            kind,
-            anchor: point(0),
-            head: point(1),
-        });
+        let mut term = Terminal::new(Size { rows: 1, cols: 8 });
+        term.advance(input.as_bytes());
+        let (view, look) = (view(&term), Appearance::default());
         let mut builder = Builder {
             fonts: &mut fonts,
             atlas: &mut atlas,
             quads: &mut quads,
+            look: &look,
         };
-        builder.build(
-            &term,
+        builder.build(&term, view);
+        quads
+    }
+
+    #[test]
+    fn selection_paints_background() {
+        let quads = render("\x1b[?25lab", |term| {
+            let point = |col| Point { line: 0, col };
+            let kind = SelectionKind::Simple;
+            let span = term.span(Selection {
+                kind,
+                anchor: point(0),
+                head: point(1),
+            });
             Viewport {
                 selection: Some(span),
                 ..Viewport::default()
-            },
-        );
-        let painted = quads.iter().filter(|q| q.color == palette::SELECTION);
+            }
+        });
+        let painted = quads
+            .iter()
+            .filter(|q| q.color == Appearance::default().selection);
         assert_eq!(painted.count(), 2);
     }
 
     #[test]
     fn preedit_replaces_cursor() {
-        let mut fonts = FontSystem::new(16.0).expect("в системе есть шрифт");
-        let (mut atlas, mut quads) = (Atlas::default(), Vec::new());
-        let term = Terminal::new(Size { rows: 1, cols: 4 });
-        let mut builder = Builder {
-            fonts: &mut fonts,
-            atlas: &mut atlas,
-            quads: &mut quads,
-        };
-        builder.build(
-            &term,
-            Viewport {
-                preedit: "длинный набор",
-                ..Viewport::default()
-            },
-        );
-        assert_eq!(quads[0].color, palette::SELECTION);
-        assert!(quads.iter().all(|q| q.color != palette::CURSOR));
+        let quads = render("", |_| Viewport {
+            preedit: "длинный набор",
+            ..Viewport::default()
+        });
+        let look = Appearance::default();
+        assert_eq!(quads[0].color, look.selection);
+        assert!(quads.iter().all(|q| q.color != look.cursor));
     }
 }

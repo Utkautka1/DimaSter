@@ -1,0 +1,99 @@
+//! Формат Ghostty: `ключ = значение`; темы — файлы того же формата.
+
+use std::path::Path;
+
+use crate::{Config, CursorStyle, parse_color};
+
+const THEME_DIR: &str = "/usr/share/ghostty/themes";
+
+fn pairs(text: &str) -> impl Iterator<Item = (&str, &str)> {
+    text.lines()
+        .filter(|l| !l.trim_start().starts_with('#'))
+        .filter_map(|l| l.split_once('='))
+        .map(|(k, v)| (k.trim(), v.trim().trim_matches('"')))
+}
+
+pub(crate) fn apply(text: &str, directory: &Path, config: &mut Config, depth: u8) {
+    // тема применяется первой: явные цвета конфига должны её перекрывать
+    for (key, value) in pairs(text).filter(|(k, _)| *k == "theme") {
+        include_theme(key, value, directory, config, depth);
+    }
+    for (key, value) in pairs(text) {
+        match key {
+            "config-file" if depth > 0 => {
+                let path = super::resolve(directory, value.trim_start_matches('?'));
+                if let Ok(included) = std::fs::read_to_string(path) {
+                    apply(&included, directory, config, depth - 1);
+                }
+            }
+            _ => setting(key, value, config),
+        }
+    }
+}
+
+fn include_theme(key: &str, value: &str, directory: &Path, config: &mut Config, depth: u8) {
+    // «light:X,dark:Y» — берём тёмный вариант
+    let name = value
+        .split(',')
+        .find_map(|p| p.trim().strip_prefix("dark:"))
+        .unwrap_or(value);
+    let found = [
+        directory.join("themes").join(name),
+        Path::new(THEME_DIR).join(name),
+    ]
+    .iter()
+    .find_map(|p| std::fs::read_to_string(p).ok());
+    match found {
+        Some(theme) if depth > 0 => apply(&theme, directory, config, depth - 1),
+        _ => log::warn!("{key} = {value}: тема Ghostty не найдена"),
+    }
+}
+
+fn color(value: &str, target: &mut u32) {
+    if let Some(color) = parse_color(value) {
+        *target = color;
+    }
+}
+
+fn setting(key: &str, value: &str, config: &mut Config) {
+    let theme = &mut config.theme;
+    match key {
+        "foreground" => color(value, &mut theme.foreground),
+        "background" => color(value, &mut theme.background),
+        "cursor-color" => color(value, &mut theme.cursor),
+        "selection-background" => color(value, &mut theme.selection),
+        "selection-foreground" => theme.selection_text = parse_color(value),
+        "palette" => palette(value, &mut theme.ansi),
+        _ => layout(key, value, config),
+    }
+}
+
+// `palette = 4=#89b4fa`; индексы выше 15 у нас не настраиваются
+fn palette(value: &str, ansi: &mut [u32; 16]) {
+    let Some((index, hex)) = value.split_once('=') else {
+        return;
+    };
+    let slot = index
+        .trim()
+        .parse::<usize>()
+        .ok()
+        .and_then(|i| ansi.get_mut(i));
+    if let Some(slot) = slot {
+        color(hex, slot);
+    }
+}
+
+fn layout(key: &str, value: &str, config: &mut Config) {
+    match key {
+        // повторные font-family — запасные шрифты, главный первый
+        "font-family" if config.font_family.is_none() => {
+            config.font_family = Some(value.to_owned());
+        }
+        "font-size" => config.font_size = value.parse().unwrap_or(config.font_size),
+        "window-padding-x" => config.padding.0 = value.parse().unwrap_or(config.padding.0),
+        "window-padding-y" => config.padding.1 = value.parse().unwrap_or(config.padding.1),
+        "cursor-style" => config.cursor = CursorStyle::parse(value).unwrap_or(config.cursor),
+        "command" => config.shell = value.split_whitespace().map(str::to_owned).collect(),
+        _ => {}
+    }
+}

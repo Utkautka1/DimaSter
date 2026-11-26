@@ -15,6 +15,10 @@ dimaster-font = { path = "crates/dimaster-font" }
 dimaster-render = { path = "crates/dimaster-render" }
 dimaster-image = { path = "crates/dimaster-image" }
 rustybuzz = "0.20"
+dimaster-config = { path = "crates/dimaster-config" }
+mlua = { version = "0.12", features = ["lua54", "vendored"] }
+notify = "9"
+toml = "1"
 unicode-bidi = "0.3"
 libc = "0.2"
 winit = "0.30"

@@ -4,51 +4,37 @@ use std::io;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use dimaster_config::Config;
 use dimaster_font::FontSystem;
 use dimaster_grid::{Size, Terminal};
 use dimaster_pty::WindowSize;
-use dimaster_render::{PADDING, Renderer, Viewport};
+use dimaster_render::{Renderer, Viewport};
 use winit::dpi::{PhysicalPosition, PhysicalSize};
-use winit::event::KeyEvent;
-use winit::keyboard::{Key, KeyCode, ModifiersState, NamedKey, PhysicalKey};
-use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
+use winit::keyboard::ModifiersState;
 use winit::window::Window;
 
-use crate::app::is_command;
-use crate::clipboard::{Clipboard, Target};
-use crate::keys;
+use crate::clipboard::Clipboard;
 use crate::pointer::Pointer;
 use crate::select::Selecting;
 use crate::session::Session;
 
-// 12 pt при 96 DPI; настройка появится в Lua-конфиге
-const FONT_SIZE: f64 = 16.0;
 // столько порций разбираем за раз, чтобы поток вывода не блокировал ввод
 const BATCH: usize = 32;
 // дольше этого синхронизированный вывод не задерживает кадр: программа могла упасть
 const SYNC_LIMIT: Duration = Duration::from_millis(150);
 
-// порядок совпадает с алфавитом в latin_letter
-const LETTER_KEYS: [KeyCode; 26] = {
-    use KeyCode::*;
-    [
-        KeyA, KeyB, KeyC, KeyD, KeyE, KeyF, KeyG, KeyH, KeyI, KeyJ, KeyK, KeyL, KeyM, KeyN, KeyO,
-        KeyP, KeyQ, KeyR, KeyS, KeyT, KeyU, KeyV, KeyW, KeyX, KeyY, KeyZ,
-    ]
-};
-
 // композитор присылает окончательные размер и масштаб не сразу после создания окна
 const SETTLE: Duration = Duration::from_millis(60);
-
-pub(crate) fn font_pixels(scale: f64) -> f32 {
-    (FONT_SIZE * scale) as f32
-}
 
 /// Окно, эмулятор и shell.
 pub(crate) struct View {
     pub(crate) window: Arc<Window>,
-    renderer: Renderer,
-    fonts: FontSystem,
+    pub(crate) renderer: Renderer,
+    pub(crate) fonts: FontSystem,
+    pub(crate) config: Config,
+    // прибавка к кеглю в пунктах от Ctrl+плюс/минус
+    pub(crate) zoom: f32,
+    pub(crate) config_error: bool,
     pub(crate) term: Terminal,
     // None, пока размер окна не устоялся
     session: Option<Session>,
@@ -67,13 +53,13 @@ pub(crate) struct View {
     wake: Arc<dyn Fn() + Send + Sync>,
 }
 
-fn grid_size(window: &Window, fonts: &FontSystem) -> Size {
+fn grid_size(window: &Window, fonts: &FontSystem, padding: (u32, u32)) -> Size {
     let size = window.inner_size();
     let metrics = fonts.metrics();
-    let cells = |pixels: u32, cell: u32| (pixels.saturating_sub(PADDING * 2) / cell) as usize;
+    let cells = |pixels: u32, pad: u32, cell: u32| (pixels.saturating_sub(pad * 2) / cell) as usize;
     Size {
-        rows: cells(size.height, metrics.cell_height).max(1),
-        cols: cells(size.width, metrics.cell_width).max(2),
+        rows: cells(size.height, padding.1, metrics.cell_height).max(1),
+        cols: cells(size.width, padding.0, metrics.cell_width).max(2),
     }
 }
 
@@ -90,15 +76,19 @@ impl View {
         window: Arc<Window>,
         renderer: Renderer,
         fonts: FontSystem,
+        config: Config,
         args: &[String],
         wake: impl Fn() + Send + Sync + 'static,
     ) -> Self {
-        let term = Terminal::new(grid_size(&window, &fonts));
+        let term = Terminal::new(grid_size(&window, &fonts, config.padding));
         window.request_redraw();
-        Self {
+        let mut view = Self {
             window,
             renderer,
             fonts,
+            config,
+            zoom: 0.0,
+            config_error: false,
             term,
             session: None,
             args: args.to_vec(),
@@ -111,7 +101,13 @@ impl View {
             selecting: Selecting::default(),
             preedit: String::new(),
             wake: Arc::new(wake),
-        }
+        };
+        view.apply_to_terminal();
+        view
+    }
+
+    fn grid_size(&self) -> Size {
+        grid_size(&self.window, &self.fonts, self.config.padding)
     }
 
     /// Запускает shell, когда размер устоялся: иначе программы из автозапуска
@@ -125,11 +121,10 @@ impl View {
         if Instant::now() < self.start_at {
             return Ok(Some(self.start_at));
         }
-        let size = grid_size(&self.window, &self.fonts);
+        let size = self.grid_size();
         let wake = self.wake.clone();
-        self.session = Some(Session::spawn(&self.args, window_size(size), move || {
-            wake()
-        })?);
+        let (term, size) = (&self.config.term, window_size(size));
+        self.session = Some(Session::spawn(&self.args, term, size, move || wake())?);
         Ok(None)
     }
 
@@ -158,7 +153,7 @@ impl View {
             self.send(reply);
         }
         if self.term.title() != title {
-            self.window.set_title(self.term.title());
+            self.update_title();
         }
         self.refresh();
         true
@@ -207,9 +202,9 @@ impl View {
     // окно кандидатов IME должно появляться у курсора
     fn place_ime_window(&self) {
         let (metrics, cursor) = (self.fonts.metrics(), self.term.cursor());
-        let at = |cells: usize, size: u32| PADDING + cells as u32 * size;
-        let x = at(cursor.col, metrics.cell_width);
-        let y = at(cursor.row, metrics.cell_height);
+        let at = |cells: usize, size: u32, pad: u32| pad + cells as u32 * size;
+        let x = at(cursor.col, metrics.cell_width, self.config.padding.0);
+        let y = at(cursor.row, metrics.cell_height, self.config.padding.1);
         let size = PhysicalSize::new(metrics.cell_width, metrics.cell_height);
         self.window
             .set_ime_cursor_area(PhysicalPosition::new(x, y), size);
@@ -217,7 +212,7 @@ impl View {
 
     pub(crate) fn resize(&mut self, width: u32, height: u32) {
         self.renderer.resize(width, height);
-        let size = grid_size(&self.window, &self.fonts);
+        let size = self.grid_size();
         self.term.resize(size);
         // после переразбиения номера строк другие
         self.selecting.clear();
@@ -230,60 +225,6 @@ impl View {
             None => self.start_at = Instant::now() + SETTLE,
         }
         self.window.request_redraw();
-    }
-
-    pub(crate) fn rescale(&mut self, scale: f64) {
-        self.fonts.set_size(font_pixels(scale));
-        self.renderer.reset_glyphs();
-        let size = self.window.inner_size();
-        self.resize(size.width, size.height);
-    }
-
-    pub(crate) fn key(&mut self, event: &KeyEvent) {
-        if self.shortcut(event) {
-            return;
-        }
-        // без модификаторов: Ctrl+C должен работать и на русской раскладке
-        let key = self.layout_independent(event);
-        let modes = keys::KeyModes {
-            app_cursor: self.term.modes().app_cursor,
-            disambiguate: self.term.keyboard_flags() & 1 != 0,
-        };
-        let text = event.text.as_deref();
-        if let Some(bytes) = keys::encode(&key, text, self.modifiers, modes) {
-            self.type_bytes(bytes);
-        }
-    }
-
-    fn layout_independent(&self, event: &KeyEvent) -> Key {
-        let key = event.key_without_modifiers();
-        let latin = matches!(&key, Key::Character(c) if c.is_ascii());
-        if !self.modifiers.control_key() || latin {
-            return key;
-        }
-        match event.physical_key {
-            PhysicalKey::Code(code) => latin_letter(code).map_or(key, |c| Key::Character(c.into())),
-            PhysicalKey::Unidentified(_) => key,
-        }
-    }
-
-    // сочетания самого терминала: копирование, вставка и прокрутка истории
-    fn shortcut(&mut self, event: &KeyEvent) -> bool {
-        if is_command(self.modifiers) {
-            match event.physical_key {
-                PhysicalKey::Code(KeyCode::KeyC) => self.copy(Target::Clipboard),
-                PhysicalKey::Code(KeyCode::KeyV) => self.paste(Target::Clipboard),
-                _ => return false,
-            }
-            return true;
-        }
-        let page = self.term.screen().rows().len() as isize;
-        match event.logical_key {
-            Key::Named(NamedKey::PageUp) if self.modifiers.shift_key() => self.scroll_by(page),
-            Key::Named(NamedKey::PageDown) if self.modifiers.shift_key() => self.scroll_by(-page),
-            _ => return false,
-        }
-        true
     }
 
     /// Ввод пользователя всегда возвращает вид к последней строке.
@@ -302,14 +243,14 @@ impl View {
 
     pub(crate) fn cell_at(&self, x: f64, y: f64) -> (usize, usize) {
         let metrics = self.fonts.metrics();
-        let size = grid_size(&self.window, &self.fonts);
-        let index = |position: f64, cell: u32, count: usize| {
-            let offset = (position - f64::from(PADDING)).max(0.0);
+        let size = self.grid_size();
+        let index = |position: f64, pad: u32, cell: u32, count: usize| {
+            let offset = (position - f64::from(pad)).max(0.0);
             ((offset / f64::from(cell)) as usize).min(count - 1)
         };
         (
-            index(x, metrics.cell_width, size.cols),
-            index(y, metrics.cell_height, size.rows),
+            index(x, self.config.padding.0, metrics.cell_width, size.cols),
+            index(y, self.config.padding.1, metrics.cell_height, size.rows),
         )
     }
 
@@ -319,10 +260,4 @@ impl View {
             self.send(report.to_vec());
         }
     }
-}
-
-/// Латинская буква физической клавиши при любой раскладке.
-fn latin_letter(code: KeyCode) -> Option<&'static str> {
-    let index = LETTER_KEYS.iter().position(|&c| c == code)?;
-    "abcdefghijklmnopqrstuvwxyz".get(index..=index)
 }

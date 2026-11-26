@@ -42,7 +42,7 @@ impl Perform for State {
             // вторичный DA: объявляем себя VT220-совместимым
             ([b'>'], b'c') => self.reply.extend_from_slice(b"\x1b[>1;10;0c"),
             ([b'>'], b'q') => self.report_version(),
-            ([b' '], b'q') => self.modes.set_cursor_shape(seq.params.get_or(0, 0)),
+            ([b' '], b'q') => self.cursor_style(seq.params.get_or(0, 0)),
             ([b'?', b'$'], b'p') => self.report_mode(&seq),
             _ => log::debug!("неизвестный CSI: {seq:?}"),
         }
@@ -54,6 +54,14 @@ impl Perform for State {
 }
 
 impl State {
+    // 0 означает «как настроил пользователь»
+    fn cursor_style(&mut self, style: u16) {
+        match style {
+            0 => self.modes.cursor_shape = self.default_cursor,
+            _ => self.modes.set_cursor_shape(style),
+        }
+    }
+
     fn plain_esc(&mut self, action: u8) {
         match action {
             b'7' => self.save_cursor(),
@@ -82,8 +90,11 @@ impl State {
         let history = std::mem::take(&mut self.screen.history);
         let reply = std::mem::take(&mut self.reply);
         let (cell_pixels, colors) = (self.cell_pixels, self.colors);
+        let (shape, limit) = (self.default_cursor, self.screen.limit);
         *self = Self::new(size);
         (self.cell_pixels, self.colors) = (cell_pixels, colors);
+        (self.default_cursor, self.modes.cursor_shape) = (shape, shape);
+        self.screen.limit = limit;
         self.screen.history = history;
         self.reply = reply;
     }

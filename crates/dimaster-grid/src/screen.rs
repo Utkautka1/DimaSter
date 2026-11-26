@@ -13,7 +13,7 @@ pub struct Screen {
     // сколько строк уже вытеснено из истории: делает номера строк постоянными
     pub(crate) evicted: u64,
     // максимум строк истории; 0 отключает её
-    limit: usize,
+    pub(crate) limit: usize,
     // область прокрутки, обе границы включительно
     pub(crate) top: usize,
     pub(crate) bottom: usize,
@@ -107,6 +107,13 @@ impl Screen {
             .pop_front()
             .map(|old| old.cells)
             .unwrap_or_default()
+    }
+
+    pub(crate) fn set_limit(&mut self, limit: usize) {
+        self.limit = limit;
+        let excess = self.history.len().saturating_sub(limit);
+        self.history.drain(..excess);
+        self.evicted += excess as u64;
     }
 
     /// Меняет размер без переразбиения: так ведёт себя альтернативный экран,

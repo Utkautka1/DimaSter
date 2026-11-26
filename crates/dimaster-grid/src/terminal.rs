@@ -5,7 +5,7 @@ use unicode_width::UnicodeWidthChar;
 
 use crate::keyboard::KeyboardStack;
 use crate::reflow::Position;
-use crate::{Cell, Cursor, DefaultColors, Flags, Modes, Screen};
+use crate::{Cell, Cursor, CursorShape, DefaultColors, Flags, Modes, Screen};
 
 /// Размер сетки в ячейках.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -55,6 +55,8 @@ pub(crate) struct State {
     // ширина и высота ячейки в пикселях, задаёт окно
     pub(crate) cell_pixels: (usize, usize),
     pub(crate) colors: DefaultColors,
+    // форма, к которой возвращает DECSCUSR 0
+    pub(crate) default_cursor: CursorShape,
 }
 
 impl Terminal {
@@ -96,6 +98,27 @@ impl Terminal {
 
     pub fn set_cell_pixels(&mut self, width: usize, height: usize) {
         self.state.cell_pixels = (width, height);
+    }
+
+    /// Цвета темы, которые терминал сообщает программам.
+    pub fn set_default_colors(&mut self, colors: DefaultColors) {
+        self.state.colors = colors;
+    }
+
+    pub fn set_default_cursor(&mut self, shape: CursorShape) {
+        self.state.default_cursor = shape;
+        self.state.modes.cursor_shape = shape;
+    }
+
+    /// Ограничивает историю основного экрана; лишние старые строки удаляются.
+    pub fn set_history_limit(&mut self, lines: usize) {
+        let state = &mut self.state;
+        let main = if state.alternate {
+            &mut state.other
+        } else {
+            &mut state.screen
+        };
+        main.set_limit(lines);
     }
 
     pub fn title(&self) -> &str {
@@ -153,6 +176,7 @@ impl State {
             keyboard: KeyboardStack::default(),
             cell_pixels: (0, 0),
             colors: DefaultColors::default(),
+            default_cursor: CursorShape::Block,
         }
     }
 

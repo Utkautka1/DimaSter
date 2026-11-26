@@ -3,29 +3,39 @@
 use std::error::Error;
 use std::sync::Arc;
 
-use dimaster_font::FontSystem;
+use dimaster_config::Config;
 use dimaster_render::{Renderer, wgpu};
+use notify::RecommendedWatcher;
 use winit::application::ApplicationHandler;
 use winit::event::{Ime, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy};
-use winit::keyboard::ModifiersState;
 use winit::platform::wayland::WindowAttributesExtWayland;
 use winit::window::{Window, WindowId};
 
+use crate::settings;
 use crate::view::View;
 
-/// Пробуждение цикла событий из потока чтения PTY.
+/// События из фоновых потоков.
 #[derive(Debug)]
-pub(crate) struct Wake;
+pub(crate) enum Wake {
+    /// Есть вывод shell или нужен повторный кадр.
+    Output,
+    ConfigChanged,
+}
 
 /// Открывает окно и работает, пока оно или shell не закроются.
-pub(crate) fn run(args: Vec<String>) -> Result<(), Box<dyn Error>> {
+pub(crate) fn run(args: Vec<String>, config: Config) -> Result<(), Box<dyn Error>> {
     let event_loop = EventLoop::<Wake>::with_user_event().build()?;
+    let proxy = event_loop.create_proxy();
+    let changed = proxy.clone();
+    let watcher = settings::watch(move || drop(changed.send_event(Wake::ConfigChanged)));
     let mut app = App {
         args,
-        proxy: event_loop.create_proxy(),
+        config,
+        proxy,
         view: None,
         error: None,
+        _watcher: watcher,
     };
     event_loop.run_app(&mut app)?;
     app.error.map_or(Ok(()), Err)
@@ -33,10 +43,13 @@ pub(crate) fn run(args: Vec<String>) -> Result<(), Box<dyn Error>> {
 
 struct App {
     args: Vec<String>,
+    config: Config,
     proxy: EventLoopProxy<Wake>,
     view: Option<View>,
     // ошибка запуска: цикл событий сам вернуть её не может
     error: Option<Box<dyn Error>>,
+    // слежение за конфигом живо, пока жив объект
+    _watcher: Option<RecommendedWatcher>,
 }
 
 impl App {
@@ -54,10 +67,11 @@ impl App {
         let surface = instance.create_surface(window.clone())?;
         let size = window.inner_size();
         let renderer = Renderer::new(instance, surface, (size.width, size.height))?;
-        let fonts = FontSystem::new(crate::view::font_pixels(window.scale_factor()))?;
+        let config = self.config.clone();
+        let fonts = settings::fonts(&config, window.scale_factor())?;
         let proxy = self.proxy.clone();
-        let wake = move || drop(proxy.send_event(Wake));
-        Ok(View::new(window, renderer, fonts, &self.args, wake))
+        let wake = move || drop(proxy.send_event(Wake::Output));
+        Ok(View::new(window, renderer, fonts, config, &self.args, wake))
     }
 }
 
@@ -92,11 +106,12 @@ impl ApplicationHandler<Wake> for App {
         }
     }
 
-    fn user_event(&mut self, event_loop: &ActiveEventLoop, _: Wake) {
-        if let Some(view) = &mut self.view
-            && !view.read_output()
-        {
-            event_loop.exit();
+    fn user_event(&mut self, event_loop: &ActiveEventLoop, event: Wake) {
+        let Some(view) = &mut self.view else { return };
+        match event {
+            Wake::ConfigChanged => view.reload(),
+            Wake::Output if !view.read_output() => event_loop.exit(),
+            Wake::Output => {}
         }
     }
 
@@ -131,9 +146,4 @@ fn lines(delta: MouseScrollDelta) -> f64 {
         // тачпад отдаёт пиксели; 20 px ≈ одна строка
         MouseScrollDelta::PixelDelta(position) => position.y / 20.0,
     }
-}
-
-/// Сочетание с Ctrl+Shift, зарезервированное самим терминалом.
-pub(crate) fn is_command(mods: ModifiersState) -> bool {
-    mods.control_key() && mods.shift_key()
 }

@@ -4,7 +4,6 @@ use dimaster_font::Metrics;
 use dimaster_grid::{Flags, Row, Size, Terminal};
 
 use crate::frame::{Builder, Quad};
-use crate::palette;
 use crate::text::Run;
 
 // раскладывает набранное по клеткам теми же правилами ширины, что и терминал
@@ -29,7 +28,7 @@ impl Builder<'_> {
                 self.text_cell(
                     &mut run,
                     cell,
-                    palette::FOREGROUND,
+                    self.look.foreground,
                     (cursor.row, start + col),
                 );
             }
@@ -48,10 +47,10 @@ impl Builder<'_> {
         let origin = self.origin(row, col);
         let size = [(width as u32 * cell_width) as f32, cell_height as f32];
         self.quads
-            .push(Quad::solid(origin, size, palette::SELECTION));
+            .push(Quad::solid(origin, size, self.look.selection));
         let line = [origin[0], origin[1] + size[1] - line_thickness as f32];
         let thin = [size[0], line_thickness as f32];
         self.quads
-            .push(Quad::solid(line, thin, palette::FOREGROUND));
+            .push(Quad::solid(line, thin, self.look.foreground));
     }
 }

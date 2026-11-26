@@ -1,0 +1,106 @@
+//! Сочетания клавиш и действия терминала.
+
+/// Модификаторы сочетания.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct Mods {
+    pub ctrl: bool,
+    pub shift: bool,
+    pub alt: bool,
+    pub logo: bool,
+}
+
+impl Mods {
+    /// Разбирает строку вида `ctrl+shift`.
+    pub fn parse(text: &str) -> Option<Self> {
+        let mut mods = Self::default();
+        for part in text.split('+').filter(|p| !p.is_empty()) {
+            match part.trim().to_ascii_lowercase().as_str() {
+                "ctrl" | "control" => mods.ctrl = true,
+                "shift" => mods.shift = true,
+                "alt" => mods.alt = true,
+                "super" | "logo" => mods.logo = true,
+                _ => return None,
+            }
+        }
+        Some(mods)
+    }
+}
+
+/// Действие, которое выполняет сам терминал.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Action {
+    Copy,
+    Paste,
+    PastePrimary,
+    ScrollPageUp,
+    ScrollPageDown,
+    ScrollTop,
+    ScrollBottom,
+    FontIncrease,
+    FontDecrease,
+    FontReset,
+    ReloadConfig,
+    /// Отключить сочетание, чтобы оно уходило программе.
+    None,
+}
+
+const ACTIONS: [(&str, Action); 12] = [
+    ("copy", Action::Copy),
+    ("paste", Action::Paste),
+    ("paste_primary", Action::PastePrimary),
+    ("scroll_page_up", Action::ScrollPageUp),
+    ("scroll_page_down", Action::ScrollPageDown),
+    ("scroll_top", Action::ScrollTop),
+    ("scroll_bottom", Action::ScrollBottom),
+    ("font_increase", Action::FontIncrease),
+    ("font_decrease", Action::FontDecrease),
+    ("font_reset", Action::FontReset),
+    ("reload_config", Action::ReloadConfig),
+    ("none", Action::None),
+];
+
+impl Action {
+    pub fn parse(name: &str) -> Option<Self> {
+        ACTIONS
+            .iter()
+            .find(|(n, _)| *n == name)
+            .map(|(_, action)| *action)
+    }
+}
+
+/// Одно сочетание. `key` — строчный символ или имя (`pageup`, `f5`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Binding {
+    pub key: String,
+    pub mods: Mods,
+    pub action: Action,
+}
+
+// сочетания по умолчанию совпадают с привычными по Ghostty и kitty
+const DEFAULTS: [(&str, &str, Action); 12] = [
+    ("c", "ctrl+shift", Action::Copy),
+    ("v", "ctrl+shift", Action::Paste),
+    ("insert", "shift", Action::PastePrimary),
+    ("pageup", "shift", Action::ScrollPageUp),
+    ("pagedown", "shift", Action::ScrollPageDown),
+    ("home", "shift", Action::ScrollTop),
+    ("end", "shift", Action::ScrollBottom),
+    ("=", "ctrl", Action::FontIncrease),
+    ("=", "ctrl+shift", Action::FontIncrease),
+    ("-", "ctrl", Action::FontDecrease),
+    ("0", "ctrl", Action::FontReset),
+    (",", "ctrl+shift", Action::ReloadConfig),
+];
+
+pub(crate) fn default_bindings() -> Vec<Binding> {
+    DEFAULTS
+        .iter()
+        .filter_map(|&(key, mods, action)| {
+            Some(Binding {
+                key: key.to_owned(),
+                mods: Mods::parse(mods)?,
+                action,
+            })
+        })
+        .collect()
+}

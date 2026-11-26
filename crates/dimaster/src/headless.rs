@@ -13,8 +13,8 @@ const SIZE: WindowSize = WindowSize {
 };
 
 /// Возвращает историю и видимый экран после завершения команды.
-pub(crate) fn run(args: &[String]) -> io::Result<String> {
-    let mut pty = Pty::spawn(command(args), SIZE)?;
+pub(crate) fn run(args: &[String], term_name: &str) -> io::Result<String> {
+    let mut pty = Pty::spawn(command(args, term_name), SIZE)?;
     let mut term = Terminal::new(Size {
         rows: SIZE.rows.into(),
         cols: SIZE.cols.into(),

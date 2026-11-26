@@ -3,18 +3,24 @@
 mod app;
 mod clipboard;
 mod headless;
+mod input;
 mod keys;
 mod mouse;
 mod pointer;
+mod reload;
 mod select;
 mod session;
+mod settings;
+mod setup;
 mod terminfo;
 mod view;
 
 use std::error::Error;
 use std::process::ExitCode;
 
-const USAGE: &str = "использование: dimaster [-e команда...] [--headless команда...]";
+use dimaster_config::Config;
+
+const USAGE: &str = "использование: dimaster [-e команда...] [--headless команда...] [--setup]";
 
 fn main() -> ExitCode {
     // wgpu слишком подробен на info, поэтому по умолчанию только предупреждения
@@ -28,17 +34,31 @@ fn main() -> ExitCode {
     }
 }
 
+// при первом запуске перед shell показывается мастер настройки
+fn first_command(config: &Config) -> Vec<String> {
+    let shell = settings::shell(config);
+    let missing = settings::config_path().is_some_and(|p| !p.exists());
+    match std::env::current_exe()
+        .ok()
+        .and_then(|p| p.into_os_string().into_string().ok())
+    {
+        Some(exe) if missing => [vec![exe, "--setup".to_owned()], shell].concat(),
+        _ => shell,
+    }
+}
+
 fn run(args: Vec<String>) -> Result<(), Box<dyn Error>> {
+    let config = settings::read_or_default();
     match args.split_first() {
-        None => {
-            let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".into());
-            app::run(vec![shell])
+        None => app::run(first_command(&config), config),
+        Some((flag, command)) if flag == "-e" && !command.is_empty() => {
+            app::run(command.to_vec(), config)
         }
-        Some((flag, command)) if flag == "-e" && !command.is_empty() => app::run(command.to_vec()),
         Some((flag, command)) if flag == "--headless" && !command.is_empty() => {
-            println!("{}", headless::run(command)?);
+            println!("{}", headless::run(command, &config.term)?);
             Ok(())
         }
+        Some((flag, then)) if flag == "--setup" => Ok(setup::run(then)?),
         _ => Err(USAGE.into()),
     }
 }

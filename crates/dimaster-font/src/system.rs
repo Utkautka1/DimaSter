@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::fmt;
+use std::path::PathBuf;
 use std::rc::Rc;
 
 use fontdb::{Database, ID};
@@ -49,9 +50,19 @@ pub struct FontSystem {
 
 impl FontSystem {
     pub fn new(size: f32) -> Result<Self, FontError> {
+        Self::with_settings(None, size, &[])
+    }
+
+    /// `family = None` — выбор fontconfig; `dirs` — свои каталоги шрифтов.
+    pub fn with_settings(
+        family: Option<&str>,
+        size: f32,
+        dirs: &[PathBuf],
+    ) -> Result<Self, FontError> {
         let mut db = Database::new();
         db.load_system_fonts();
-        let family = discover::default_family(&db).ok_or(FontError)?;
+        dirs.iter().for_each(|dir| db.load_fonts_dir(dir));
+        let family = choose_family(&db, family).ok_or(FontError)?;
         let id = discover::find_face(&db, &family, false, false).ok_or(FontError)?;
         let metrics = db
             .with_face_data(id, |data, index| {
@@ -113,6 +124,20 @@ impl FontSystem {
             Some(outline.rasterize())
         })?
     }
+}
+
+// опечатка в имени шрифта не должна оставлять терминал без текста
+fn choose_family(db: &Database, wanted: Option<&str>) -> Option<String> {
+    if let Some(name) = wanted {
+        let installed = db
+            .faces()
+            .any(|f| f.families.iter().any(|(n, _)| n == name));
+        if installed {
+            return Some(name.to_owned());
+        }
+        log::warn!("Шрифт «{name}» не найден, используется системный моноширинный");
+    }
+    discover::default_family(db)
 }
 
 fn measure(face: &Face<'_>, size: f32) -> Metrics {

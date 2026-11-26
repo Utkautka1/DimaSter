@@ -14,9 +14,9 @@ use dimaster_pty::{Pty, WindowSize};
 const OUTPUT_QUEUE: usize = 64;
 
 /// Команда с окружением терминала.
-pub(crate) fn command(args: &[String]) -> Command {
+pub(crate) fn command(args: &[String], term_name: &str) -> Command {
     let mut command = Command::new(&args[0]);
-    let (term, terminfo) = crate::terminfo::select();
+    let (term, terminfo) = crate::terminfo::select(term_name);
     if let Some(directory) = terminfo {
         command.env("TERMINFO", directory);
     }
@@ -39,10 +39,11 @@ impl Session {
     /// `wake` будит цикл событий; пустой канал после пробуждения — не ошибка.
     pub(crate) fn spawn(
         args: &[String],
+        term_name: &str,
         size: WindowSize,
         wake: impl Fn() + Send + 'static,
     ) -> io::Result<Self> {
-        let pty = Pty::spawn(command(args), size)?;
+        let pty = Pty::spawn(command(args, term_name), size)?;
         let (output_tx, output) = sync_channel(OUTPUT_QUEUE);
         let (input, input_rx) = channel();
         let reader = pty.try_clone_master()?;

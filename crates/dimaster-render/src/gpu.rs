@@ -5,9 +5,9 @@ use std::fmt;
 use dimaster_font::FontSystem;
 use dimaster_grid::Terminal;
 
+use crate::appearance::Appearance;
 use crate::atlas::Atlas;
 use crate::frame::{Builder, Quad, Viewport};
-use crate::palette;
 use crate::pipeline::Pipeline;
 
 /// Ошибка инициализации графики.
@@ -34,6 +34,7 @@ pub struct Renderer {
     config: wgpu::SurfaceConfiguration,
     pipeline: Pipeline,
     atlas: Atlas,
+    look: Appearance,
     quads: Vec<Quad>,
     instances: wgpu::Buffer,
 }
@@ -80,6 +81,7 @@ impl Renderer {
             config,
             pipeline,
             atlas,
+            look: Appearance::default(),
             quads,
             instances,
         }
@@ -91,6 +93,10 @@ impl Renderer {
             self.config.height = height;
             self.surface.configure(&self.device, &self.config);
         }
+    }
+
+    pub fn set_appearance(&mut self, look: Appearance) {
+        self.look = look;
     }
 
     /// Сбрасывает глифы после смены кегля.
@@ -146,6 +152,7 @@ impl Renderer {
             fonts,
             atlas: &mut self.atlas,
             quads: &mut self.quads,
+            look: &self.look,
         }
         .build(term, view);
     }
@@ -153,7 +160,7 @@ impl Renderer {
     fn submit(&self, view: &wgpu::TextureView) {
         let mut encoder = self.device.create_command_encoder(&Default::default());
         {
-            let mut pass = begin_pass(&mut encoder, view);
+            let mut pass = begin_pass(&mut encoder, view, self.look.background);
             pass.set_pipeline(&self.pipeline.pipeline);
             pass.set_bind_group(0, &self.pipeline.bindings, &[]);
             pass.set_vertex_buffer(0, self.instances.slice(..));
@@ -166,8 +173,9 @@ impl Renderer {
 fn begin_pass<'a>(
     encoder: &'a mut wgpu::CommandEncoder,
     view: &wgpu::TextureView,
+    background: u32,
 ) -> wgpu::RenderPass<'a> {
-    let channel = |shift: u32| f64::from(palette::BACKGROUND >> shift & 0xff) / 255.0;
+    let channel = |shift: u32| f64::from((background >> shift) & 0xff) / 255.0;
     let clear = wgpu::Color {
         r: channel(16),
         g: channel(8),

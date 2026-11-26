@@ -2,7 +2,7 @@
 //!
 //! По умолчанию `TERM` остаётся `xterm-256color`: на удалённых серверах записи
 //! `xterm-dimaster` нет, и по SSH ломались бы программы. Своя запись включается
-//! переменной `DIMASTER_TERM=xterm-dimaster`.
+//! `term = "xterm-dimaster"` в конфиге.
 
 use std::io::{self, Write};
 use std::path::PathBuf;
@@ -13,15 +13,18 @@ const NAME: &str = "xterm-dimaster";
 const FALLBACK: &str = "xterm-256color";
 
 /// Значение `TERM` и каталог terminfo, если нужен свой.
-pub(crate) fn select() -> (&'static str, Option<PathBuf>) {
-    if std::env::var("DIMASTER_TERM").as_deref() != Ok(NAME) {
-        return (FALLBACK, None);
+///
+/// `configured` берётся из конфига; `DIMASTER_TERM` имеет приоритет.
+pub(crate) fn select(configured: &str) -> (String, Option<PathBuf>) {
+    let wanted = std::env::var("DIMASTER_TERM").unwrap_or_else(|_| configured.to_owned());
+    if wanted != NAME {
+        return (wanted, None);
     }
     match install() {
-        Ok(directory) => (NAME, Some(directory)),
+        Ok(directory) => (wanted, Some(directory)),
         Err(e) => {
             log::warn!("Не удалось установить terminfo, используем {FALLBACK}: {e}");
-            (FALLBACK, None)
+            (FALLBACK.to_owned(), None)
         }
     }
 }
