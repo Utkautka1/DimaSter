@@ -19,11 +19,12 @@ pub struct File {
     pub owned_by_user: bool,
 }
 
-const FIXED: [(&str, &str, bool); 12] = [
+const FIXED: [(&str, &str, bool); 13] = [
     ("draw.lua", include_str!("files/draw.lua"), true),
     ("ui.lua", include_str!("files/ui.lua"), true),
     ("statusbar.lua", include_str!("files/statusbar.lua"), true),
     ("fetch.lua", include_str!("files/fetch.lua"), true),
+    ("starship.toml", include_str!("files/starship.toml"), true),
     (
         "plugins/example.lua",
         include_str!("files/plugin.lua"),

@@ -51,9 +51,9 @@ pub struct WindowConfig {
 impl Default for WindowConfig {
     fn default() -> Self {
         Self {
-            decorations: Decorations::Own,
-            opacity: 1.0,
-            blur: false,
+            decorations: Decorations::None,
+            opacity: 0.65,
+            blur: true,
             background_image: None,
             background_opacity: 0.3,
             background_dir: None,

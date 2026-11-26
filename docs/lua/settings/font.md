@@ -6,7 +6,7 @@
 |---|---|---|
 | `family` | имя семейства | из fontconfig |
 | `bold`, `italic`, `bold_italic` | отдельные семейства для начертаний | то же, что `family` |
-| `size` | пункты, 4–200 | `12` |
+| `size` | пункты, 4–200 | `11` |
 | `line_height` | множитель, 0.8–2.0 | `1.0` |
 | `ligatures` | `true` / `false` | `true` |
 | `features` | список OpenType-фич (`"-calt"`, `"ss01"`) | `{}` |

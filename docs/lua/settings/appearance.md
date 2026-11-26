@@ -6,6 +6,6 @@
 |---|---|---|
 | `theme` | имя темы | нет |
 | `colors` | таблица цветов поверх темы (см. [Темы](../themes/themes.md)) | нет |
-| `padding` | число или `{ x = , y = }`, пиксели, 0–500 | `6` |
+| `padding` | число или `{ x = , y = }`, пиксели, 0–500 | `{ x = 25, y = 20 }` |
 | `minimum_contrast` | минимальный контраст текста к фону, 1.0–21.0 | `1.0` |
-| `cursor` | `"block"`, `"underline"`, `"bar"` или таблица — см. [Курсор](../interface/cursor.md) | `"block"` |
+| `cursor` | `"block"`, `"underline"`, `"bar"` или таблица — см. [Курсор](../interface/cursor.md) | `"bar"` |

@@ -16,14 +16,14 @@ pub struct Theme {
 impl Default for Theme {
     fn default() -> Self {
         Self {
-            foreground: 0xd8dee9,
-            background: 0x11131a,
-            cursor: 0xe5e9f0,
-            selection: 0x3b4261,
-            selection_text: None,
+            foreground: 0xcdd6f4,
+            background: 0x1e1e2e,
+            cursor: 0xcba6f7,
+            selection: 0xf5e0dc,
+            selection_text: Some(0x1e1e2e),
             ansi: [
-                0x1d1f28, 0xf7768e, 0x9ece6a, 0xe0af68, 0x7aa2f7, 0xbb9af7, 0x7dcfff, 0xc0caf5,
-                0x565f89, 0xff899d, 0xb9f27c, 0xffc777, 0x8db0ff, 0xc7a9ff, 0xa4daff, 0xe5e9f0,
+                0x45475a, 0xf38ba8, 0xa6e3a1, 0xf9e2af, 0x89b4fa, 0xf5c2e7, 0x94e2d5, 0xbac2de,
+                0x585b70, 0xf7aec2, 0xc2ecbf, 0xfcd682, 0xaeccfc, 0xf398da, 0xb1eae1, 0xa6adc8,
             ],
         }
     }

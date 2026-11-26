@@ -223,6 +223,15 @@ pub(crate) fn cursor_shape(style: CursorStyle) -> CursorShape {
 /// Переменные для shell: из конфига и то, что нужно скриптам интеграции.
 pub(crate) fn shell_env(config: &Config) -> Vec<(String, String)> {
     let mut env = config.env.clone();
+    if !env.iter().any(|(k, _)| k == "STARSHIP_CONFIG")
+        && let Some(starship) = config_dir().map(|d| d.join("starship.toml"))
+        && starship.is_file()
+    {
+        env.push((
+            "STARSHIP_CONFIG".to_owned(),
+            starship.to_string_lossy().into_owned(),
+        ));
+    }
     if config.smart.not_found {
         env.push(("DIMASTER_NOT_FOUND".to_owned(), tr("команда не найдена")));
     }

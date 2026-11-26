@@ -37,8 +37,12 @@ mod tests {
 
     #[test]
     fn hides_chrome_and_enlarges_font() {
-        let shown = derive(&Config::default(), 1000);
-        assert_eq!((shown.font_size, shown.padding.0), (16.0, 100));
+        let base = Config::default();
+        let shown = derive(&base, 1000);
+        assert_eq!(
+            (shown.font_size, shown.padding.0),
+            (base.font_size + ZOOM, 100)
+        );
         assert!(!shown.scrollbar);
         assert_eq!(shown.window.decorations, Decorations::None);
     }
