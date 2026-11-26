@@ -2,6 +2,7 @@
 
 pub(crate) mod hint;
 pub(crate) mod history;
+pub(crate) mod minimap;
 pub(crate) mod palette;
 pub(crate) mod search;
 pub(crate) mod vi;
@@ -64,4 +65,5 @@ pub(crate) enum Mode {
     Palette(palette::Palette),
     Hint(hint::Hints),
     History(history::History),
+    Minimap(minimap::Minimap),
 }

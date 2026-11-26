@@ -59,7 +59,7 @@ impl View {
         let track = Track {
             x: size.width.saturating_sub(WIDTH + 1),
             top,
-            height: size.height.saturating_sub(top),
+            height: size.height.saturating_sub(top + self.status_height()),
             total: range.end - range.start,
         };
         let first = self.term.visible_line(self.scroll) - range.start;

@@ -48,6 +48,9 @@ pub enum Action {
     CommandHistory,
     SudoFix,
     Presentation,
+    Minimap,
+    ToggleMonitor,
+    ToggleStatusBar,
     NewWindow,
     /// Прокрутить к предыдущему приглашению shell (нужны метки OSC 133).
     PromptPrevious,
@@ -60,7 +63,10 @@ pub enum Action {
     None,
 }
 
-const ACTIONS: [(&str, Action); 23] = [
+const ACTIONS: [(&str, Action); 26] = [
+    ("minimap", Action::Minimap),
+    ("toggle_monitor", Action::ToggleMonitor),
+    ("toggle_statusbar", Action::ToggleStatusBar),
     ("hint_mode", Action::HintMode),
     ("command_history", Action::CommandHistory),
     ("sudo_fix", Action::SudoFix),
@@ -115,7 +121,10 @@ pub struct Binding {
 }
 
 // сочетания по умолчанию совпадают с привычными по Ghostty и kitty
-const DEFAULTS: [(&str, &str, Action); 23] = [
+const DEFAULTS: [(&str, &str, Action); 26] = [
+    ("m", "ctrl+shift", Action::Minimap),
+    ("o", "ctrl+shift", Action::ToggleMonitor),
+    ("b", "ctrl+shift", Action::ToggleStatusBar),
     ("u", "ctrl+shift", Action::HintMode),
     ("h", "ctrl+shift", Action::CommandHistory),
     ("s", "ctrl+shift", Action::SudoFix),

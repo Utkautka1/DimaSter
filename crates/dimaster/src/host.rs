@@ -23,12 +23,13 @@ impl View {
                     .for_each(|e| log::warn!("Плагин не загружен: {e}"));
                 self.plugins = Some(plugins);
                 self.emit("startup", "");
+                self.render_status();
             }
             Err(e) => log::warn!("Плагины недоступны: {e}"),
         }
     }
 
-    fn plugin_snapshot(&self) -> Snapshot {
+    pub(crate) fn plugin_snapshot(&self) -> Snapshot {
         let selection = self.selecting.selection.map(|s| self.term.selected_text(s));
         Snapshot {
             title: self.term.title().to_owned(),

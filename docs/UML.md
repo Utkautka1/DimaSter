@@ -123,6 +123,16 @@ classDiagram
     Commands *-- Finished
     Commands *-- SmartOptions
     View *-- Assist
+    class Status { target; facts; line }
+    class Sampler { +sample(target) }
+    class StatusLine { left; center; right }
+    class Segment { text; color; background; rounded }
+    class Minimap { origin }
+    View *-- Status
+    Status ..> Sampler : отдельный поток
+    Status *-- StatusLine
+    StatusLine *-- Segment
+    Plugins ..> StatusLine
     View ..> Rect
     class Layout { lines; logo; image; logo_width }
     class ColorOverrides { palette; foreground; background; cursor }

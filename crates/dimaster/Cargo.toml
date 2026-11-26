@@ -20,3 +20,4 @@ env_logger.workspace = true
 dimaster-config.workspace = true
 notify.workspace = true
 dimaster-image.workspace = true
+unicode-width.workspace = true

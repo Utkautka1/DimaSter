@@ -4,7 +4,10 @@ use dimaster_config::Action;
 
 use super::Press;
 
-const COMMANDS: [(&str, Action); 19] = [
+const COMMANDS: [(&str, Action); 22] = [
+    ("Миникарта", Action::Minimap),
+    ("Монитор ресурсов", Action::ToggleMonitor),
+    ("Строка статуса", Action::ToggleStatusBar),
     ("Метки на ссылках", Action::HintMode),
     ("История команд", Action::CommandHistory),
     ("Добавить sudo", Action::SudoFix),

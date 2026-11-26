@@ -21,6 +21,7 @@ pub(crate) fn run(args: &[String], term_name: &str) -> io::Result<String> {
             directory: None,
             socket: None,
             integrate: false,
+            env: &[],
         }),
         SIZE,
     )?;

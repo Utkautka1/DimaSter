@@ -141,6 +141,29 @@ fn smart(config: &Config) -> String {
     )
 }
 
+fn widgets(config: &Config) -> String {
+    let w = config.widgets;
+    format!(
+        "  -- строка статуса настраивается в statusbar.lua\n  widgets = {{\n    statusbar = {},\n    \
+         interval = {},\n    docker = {},\n    monitor = {},\n    minimap = {},\n  }},\n",
+        w.statusbar, w.interval, w.docker, w.monitor, w.minimap,
+    )
+}
+
+// отсортированная таблица переменных или пример в комментарии
+fn environment(config: &Config) -> String {
+    if config.env.is_empty() {
+        return "  -- env = { STARSHIP_CONFIG = \"~/.config/dimaster/starship.toml\" },\n"
+            .to_owned();
+    }
+    let pairs: Vec<_> = config
+        .env
+        .iter()
+        .map(|(k, v)| format!("[{}] = {}", quote(k), quote(v)))
+        .collect();
+    format!("  env = {{ {} }},\n", pairs.join(", "))
+}
+
 // мышь и буфер обмена
 fn interaction(config: &Config) -> String {
     format!(
@@ -167,7 +190,7 @@ pub(super) fn behavior(config: &Config) -> String {
         config.images_scroll,
         config.rtl,
         quote(&config.term),
-        interaction(config) + &smart(config),
+        interaction(config) + &smart(config) + &widgets(config) + &environment(config),
         config.remote_control,
         config.restore_session,
         config.session_history,

@@ -23,6 +23,7 @@ use crate::select::Selecting;
 use crate::session::{Launch, Session};
 use crate::settings;
 use crate::smart::Assist;
+use crate::status::Status;
 
 // столько порций разбираем за раз, чтобы поток вывода не блокировал ввод
 const BATCH: usize = 32;
@@ -66,6 +67,7 @@ pub(crate) struct View {
     /// Нажата кнопка закрытия своей рамки.
     pub(crate) closing: bool,
     pub(crate) assist: Assist,
+    pub(crate) status: Status,
     // обычные настройки, пока включена презентация
     pub(crate) normal_config: Option<Config>,
     pub(crate) plugins: Option<Plugins>,
@@ -81,9 +83,9 @@ fn grid_size(window: &Window, fonts: &FontSystem, config: &Config) -> Size {
     let size = window.inner_size();
     let metrics = fonts.metrics();
     let padding = config.padding;
-    let height = size
-        .height
-        .saturating_sub(settings::title_height(config, metrics.cell_height));
+    let reserved = settings::title_height(config, metrics.cell_height)
+        + settings::status_height(config, metrics.cell_height);
+    let height = size.height.saturating_sub(reserved);
     let cells = |pixels: u32, pad: u32, cell: u32| (pixels.saturating_sub(pad * 2) / cell) as usize;
     Size {
         rows: cells(height, padding.1, metrics.cell_height).max(1),
@@ -151,6 +153,7 @@ impl View {
             hover_link: None,
             closing: false,
             assist: Assist::default(),
+            status: Status::default(),
             normal_config: None,
             plugins: None,
             plugin_depth: 0,
@@ -184,6 +187,7 @@ impl View {
         let wake = self.wake.clone();
         let launch = Launch {
             integrate: self.config.smart.integration,
+            env: &self.config.env,
             args: &self.args,
             term_name: &self.config.term,
             directory: self.start_directory.as_deref(),
@@ -315,7 +319,7 @@ impl View {
         match &mut self.mode {
             Mode::Search(search) => search.update(&self.term),
             Mode::Vi(_) => self.mode = Mode::Normal,
-            Mode::Hint(_) => self.mode = Mode::Normal,
+            Mode::Hint(_) | Mode::Minimap(_) => self.mode = Mode::Normal,
             Mode::Normal | Mode::Palette(_) | Mode::History(_) => {}
         }
     }

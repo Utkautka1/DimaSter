@@ -6,7 +6,7 @@ use winit::window::Fullscreen;
 
 use crate::clipboard::Target;
 use crate::desktop;
-use crate::modes::{Mode, Press, hint, history, palette, press, search, vi};
+use crate::modes::{Mode, Press, hint, history, minimap, palette, press, search, vi};
 use crate::view::View;
 
 impl View {
@@ -46,6 +46,7 @@ impl View {
         }
         if let Some(press) = press(key, text, self.modifiers) {
             self.mode_press(press);
+            self.render_status();
             self.window.request_redraw();
         }
         true
@@ -66,6 +67,7 @@ impl View {
             Mode::Vi(state) => self.vi_press(state, press),
             Mode::Hint(state) => self.hint_press(state, press),
             Mode::History(state) => self.history_press(state, press),
+            Mode::Minimap(state) => self.minimap_press(state, press),
             Mode::Palette(mut state) => match state.press(press) {
                 palette::Outcome::Stay => self.mode = Mode::Palette(state),
                 palette::Outcome::Run(action) => self.perform(action),
@@ -124,6 +126,36 @@ impl View {
             history::Outcome::CopyOutput(text) => self.clipboard.set(Target::Clipboard, text),
             history::Outcome::Close => {}
         }
+    }
+
+    pub(crate) fn open_minimap(&mut self) {
+        self.mode = Mode::Minimap(minimap::Minimap {
+            origin: self.scroll,
+        });
+        self.window.request_redraw();
+    }
+
+    fn minimap_press(&mut self, state: minimap::Minimap, press: Press) {
+        let max = self.term.screen().history().count();
+        match state.press(press, self.scroll, max, self.term.screen().rows().len()) {
+            minimap::Outcome::Scroll(scroll) => {
+                self.scroll = scroll;
+                self.mode = Mode::Minimap(state);
+            }
+            minimap::Outcome::Accept => {}
+            minimap::Outcome::Cancel => self.scroll = state.origin,
+        }
+    }
+
+    // виджет включается до перечитывания конфига
+    pub(crate) fn toggle_widget(&mut self, statusbar: bool) {
+        let mut config = self.config.clone();
+        match statusbar {
+            true => config.widgets.statusbar = !config.widgets.statusbar,
+            false => config.widgets.monitor = !config.widgets.monitor,
+        }
+        self.apply(config);
+        self.render_status();
     }
 
     /// Прокручивает так, чтобы строка стала видимой.

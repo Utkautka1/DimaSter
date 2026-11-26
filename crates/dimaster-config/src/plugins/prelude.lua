@@ -20,7 +20,18 @@ local function guard(what, callback, ...)
   if not ok then dimaster.log(what .. ": " .. tostring(problem)) end
 end
 
+local statusbar
+
+function dimaster.statusbar(callback)
+  assert(type(callback) == "function", "dimaster.statusbar: нужна функция")
+  statusbar = callback
+end
+
 local registry = {}
+
+function registry.status(info)
+  if statusbar then return statusbar(info) end
+end
 
 function registry.emit(event, ...)
   for _, callback in ipairs(handlers[event] or {}) do

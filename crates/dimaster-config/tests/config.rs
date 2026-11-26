@@ -90,6 +90,10 @@ fn customize_more(config: &mut Config) {
     config.smart.long_command = 3.5;
     config.smart.glow_color = 0x010203;
     config.smart.double_alt_sudo = true;
+    config.widgets.statusbar = false;
+    config.widgets.interval = 7.0;
+    config.widgets.minimap = true;
+    config.env = vec![("A".into(), "1".into()), ("B".into(), "x y".into())];
 }
 
 fn custom() -> Config {

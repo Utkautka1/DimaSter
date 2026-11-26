@@ -3,7 +3,7 @@
 use std::time::Instant;
 
 use dimaster_grid::{Point, Span};
-use dimaster_render::{Label, Viewport};
+use dimaster_render::{Label, Rect, Viewport};
 
 use crate::chrome::BUTTONS;
 use crate::modes::Mode;
@@ -87,6 +87,9 @@ impl View {
         let text = match &self.mode {
             Mode::Search(search) => search.status(),
             Mode::Hint(_) => " Метка — открыть, ЗАГЛАВНАЯ — копировать, Esc ".into(),
+            Mode::Minimap(_) => {
+                " Карта: j/k прокрутка · g/G края · Enter здесь · Esc назад ".into()
+            }
             Mode::Vi(_) => " VI: hjkl w b 0 $ g G · v V · y копировать · / поиск · q выход ".into(),
             _ => return None,
         };
@@ -148,14 +151,25 @@ impl View {
             _ => self.selecting.selection,
         };
         let mut labels = self.title_labels();
+        labels.extend(self.status_labels());
         labels.extend(self.status_label());
         labels.extend(self.palette_labels());
         labels.extend(self.mode_panels());
+        labels.extend(self.monitor_labels());
         (
             selection.map(|s| self.term.span(s)),
             self.highlights(),
             labels,
         )
+    }
+
+    // подложки интерфейса снизу вверх по слоям
+    fn rects(&self) -> Vec<Rect> {
+        let mut rects: Vec<_> = self.status_background().into_iter().collect();
+        rects.extend(self.minimap_rects());
+        rects.extend(self.scrollbar_rects());
+        rects.extend(self.glow_rects());
+        rects
     }
 
     pub(crate) fn draw(&mut self) {
@@ -165,8 +179,7 @@ impl View {
             .animator
             .tick(target.unwrap_or_default(), effects, self.focused, now);
         let (selection, highlights, labels) = self.decorations();
-        let mut rects = self.scrollbar_rects();
-        rects.extend(self.glow_rects());
+        let rects = self.rects();
         let view = Viewport {
             scroll: self.scroll,
             selection,

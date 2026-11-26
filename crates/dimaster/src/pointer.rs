@@ -44,7 +44,10 @@ impl View {
             _ => return,
         };
         let pressed = state.is_pressed();
-        if pressed && button == Button::Left && (self.chrome_press() || self.follow_link()) {
+        if pressed
+            && button == Button::Left
+            && (self.chrome_press() || self.minimap_click() || self.follow_link())
+        {
             return;
         }
         self.pointer.held = pressed.then_some(button);

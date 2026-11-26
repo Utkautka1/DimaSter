@@ -33,6 +33,7 @@
 | `local.lua` | ваши правки, самый сильный слой | нет |
 | `plugins/*.lua` | плагины | нет |
 | `fetch.lua` | оформление `dimaster fetch` | нет |
+| `statusbar.lua` | строка статуса | нет |
 
 Перед перезаписью изменённого файла мастер (`dimaster --setup`) кладёт копию в `backups/<время>/`.
 
@@ -133,6 +134,8 @@ return { theme = night and "catppuccin-mocha" or "gruvbox-dark" }
 | `scrollback` | строк истории, до 1 000 000 | `10000` |
 | `scrollbar` | полоса прокрутки с метками | `true` |
 | `smart` | см. [Умная оболочка](#умная-оболочка) | включено |
+| `widgets` | см. [Виджеты](#виджеты-и-строка-статуса) | строка статуса включена |
+| `env` | переменные окружения shell: `{ ИМЯ = "значение" }` | `{}` |
 | `shell` | команда списком: `{ "/usr/bin/fish", "-l" }` | `$SHELL` |
 | `term` | значение `TERM`; свой — `"xterm-dimaster"` | `"xterm-256color"` |
 | `rtl` | переставлять иврит и арабский | `true` |
@@ -172,6 +175,56 @@ return {
 История команд (Ctrl+Shift+H) хранится в памяти окна: до 100 команд и 200 строк вывода каждой, на диск не пишется. `j`/`k` выбор, Enter вставляет команду, `y` копирует вывод.
 
 В окне настроек есть `window.background_dir`: фон выбирается случайно из картинок каталога при запуске и перечитывании настроек.
+
+## Виджеты и строка статуса
+
+```lua
+return {
+  widgets = {
+    statusbar = true,
+    interval = 3,      -- секунды между обновлениями, 1–60
+    docker = true,     -- считать контейнеры
+    monitor = false,   -- CPU и память команды в углу
+    minimap = false,   -- карта буфера видна постоянно
+  },
+}
+```
+
+Строку статуса целиком описывает `statusbar.lua`:
+
+```lua
+dimaster.statusbar(function(info)
+  return {
+    left = { { text = " " .. info.user .. " ", color = "#11111b", background = "#cba6f7", rounded = true } },
+    center = { info.git_branch or "" },
+    right = { os.date("%H:%M") },
+  }
+end)
+```
+
+Элемент — строка или таблица: `text`, `color`, `background`, `rounded` (скруглённые края, нужен Nerd Font). Все тексты, значки и порядок — ваши.
+
+| Поле `info` | Содержимое |
+|---|---|
+| `mode` | `NORMAL`, `VI`, `ПОИСК`… |
+| `host`, `user`, `cwd` | машина, пользователь, каталог |
+| `git_branch`, `git_changes` | ветка и число изменённых файлов |
+| `node`, `python`, `go` | версии, если в каталоге есть проект этого языка |
+| `process`, `cpu`, `memory` | команда в терминале: имя, загрузка в %, память |
+| `docker_running`, `docker_stopped` | контейнеры |
+
+Поля без данных равны `nil`. Git вызывается с отключёнными `fsmonitor` и хуками репозитория. Пинг SSH-сервера из ТЗ не реализован.
+
+## Приглашение shell и `env`
+
+Приглашение (имя, каталог, версии, время перед `➜`) рисует не терминал, а программа в shell — например, `starship`; её тексты настраиваются в `~/.config/starship.toml`. Чтобы у DimaSter было своё приглашение, не затрагивая другие терминалы:
+
+```lua
+-- local.lua
+return { env = { STARSHIP_CONFIG = "~/.config/dimaster/starship.toml" } }
+```
+
+`env` задаёт любые переменные окружения для shell; `~/` раскрывается. Действует на новые окна.
 
 ## Темы
 
@@ -236,6 +289,9 @@ return {
 | `command_history` | история команд с выводом | Ctrl+Shift+H |
 | `sudo_fix` | добавить `sudo` | Ctrl+Shift+S |
 | `presentation` | режим презентации | Ctrl+Shift+Z |
+| `minimap` | режим миникарты: j/k, g/G, Enter, Esc; щелчок мышью | Ctrl+Shift+M |
+| `toggle_monitor` | монитор ресурсов в углу | Ctrl+Shift+O |
+| `toggle_statusbar` | строка статуса | Ctrl+Shift+B |
 | `none` | отключить сочетание | |
 | `send:<текст>` | отправить текст программе; работают `\r`, `\27` | |
 | `plugin:<имя>` | команда плагина | |

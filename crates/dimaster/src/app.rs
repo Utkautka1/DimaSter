@@ -16,6 +16,7 @@ use winit::window::{Window, WindowId};
 
 use crate::remote::{self, Request, Server};
 use crate::restore::take_saved;
+use crate::sensors::Facts;
 use crate::settings;
 use crate::store::Saved;
 use crate::view::View;
@@ -28,6 +29,8 @@ pub(crate) enum Wake {
     ConfigChanged,
     /// Команда из `dimaster ctl`.
     Remote(Request),
+    /// Свежие данные для виджетов.
+    Facts(Facts),
 }
 
 /// Открывает окно и работает, пока оно или shell не закроются.
@@ -152,6 +155,8 @@ impl ApplicationHandler<Wake> for App {
                     view.restore(saved);
                 }
                 view.load_plugins();
+                let proxy = self.proxy.clone();
+                view.start_sensors(move |facts| proxy.send_event(Wake::Facts(facts)).is_ok());
                 self.view = Some(view);
             }
             Err(e) => {
@@ -187,6 +192,7 @@ impl ApplicationHandler<Wake> for App {
                 view.load_plugins();
             }
             Wake::Remote(request) => view.remote(request),
+            Wake::Facts(facts) => view.receive_facts(facts),
             // shell завершился сам — восстанавливать нечего
             Wake::Output if !view.read_output() => {
                 view.close_session(false);

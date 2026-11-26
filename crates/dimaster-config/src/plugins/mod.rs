@@ -5,6 +5,7 @@
 //! Зависший плагин прерывается по времени, чтобы не заморозить окно.
 
 mod api;
+mod status;
 
 use std::cell::{Cell, RefCell};
 use std::path::Path;
@@ -14,6 +15,8 @@ use std::time::{Duration, Instant};
 use mlua::{Function, HookTriggers, Lua, Table, VmState};
 
 use crate::context;
+
+pub use status::{Segment, StatusLine};
 
 // дольше этого один вызов плагина выполняться не должен
 const BUDGET: Duration = Duration::from_millis(100);
@@ -47,7 +50,7 @@ pub struct Plugins {
     shared: Rc<Shared>,
     deadline: Rc<Cell<Instant>>,
     // интерпретатор должен жить, пока жив реестр
-    _lua: Lua,
+    lua: Lua,
 }
 
 fn limit_time(lua: &Lua, deadline: Rc<Cell<Instant>>) -> mlua::Result<()> {
@@ -90,6 +93,17 @@ fn run_scripts(lua: &Lua, directory: &Path, deadline: &Cell<Instant>) -> Vec<Str
     errors
 }
 
+// пользовательский statusbar.lua или встроенный
+fn run_statusbar(lua: &Lua, directory: &Path) -> Result<(), String> {
+    let path = directory.join("statusbar.lua");
+    let source = std::fs::read_to_string(&path)
+        .unwrap_or_else(|_| include_str!("../scaffold/files/statusbar.lua").to_owned());
+    lua.load(source)
+        .set_name("statusbar.lua")
+        .exec()
+        .map_err(|e| format!("{}: {e}", path.display()))
+}
+
 impl Plugins {
     /// Возвращает плагины и сообщения о тех, что не загрузились.
     pub fn load(directory: &Path) -> mlua::Result<(Self, Vec<String>)> {
@@ -103,21 +117,28 @@ impl Plugins {
             .load(include_str!("prelude.lua"))
             .set_name("prelude")
             .eval()?;
-        let errors = run_scripts(&lua, directory, &deadline);
+        let mut errors = run_scripts(&lua, directory, &deadline);
+        deadline.set(Instant::now() + BUDGET);
+        errors.extend(run_statusbar(&lua, directory).err());
         Ok((
             Self {
                 registry,
                 shared,
                 deadline,
-                _lua: lua,
+                lua,
             },
             errors,
         ))
     }
 
-    fn call(&self, method: &str, arguments: impl mlua::IntoLuaMulti, snapshot: Snapshot) {
+    // свежий снимок и новый запас времени перед вызовом Lua
+    fn prepare_call(&self, snapshot: Snapshot) {
         *self.shared.snapshot.borrow_mut() = snapshot;
         self.deadline.set(Instant::now() + BUDGET);
+    }
+
+    fn call(&self, method: &str, arguments: impl mlua::IntoLuaMulti, snapshot: Snapshot) {
+        self.prepare_call(snapshot);
         let result = self
             .registry
             .get::<Function>(method)

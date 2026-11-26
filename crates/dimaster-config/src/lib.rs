@@ -16,6 +16,7 @@ mod plugins;
 mod scaffold;
 mod smart;
 mod theme;
+mod widgets;
 mod window;
 
 pub use color::parse_color;
@@ -24,7 +25,9 @@ pub use fetch::{DEFAULT_FETCH, Layout, run_fetch};
 pub use keys::{Action, Binding, Mods};
 pub use load::{ConfigError, config_dir, load, parse};
 pub use plugins::{Effect, Plugins, Snapshot};
+pub use plugins::{Segment, StatusLine};
 pub use scaffold::{File, scaffold};
 pub use smart::Smart;
 pub use theme::{Theme, builtin_names};
+pub use widgets::Widgets;
 pub use window::{Decorations, Effects, WindowConfig};

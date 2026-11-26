@@ -94,6 +94,7 @@ cargo run --release -p dimaster -- --setup
 | Ctrl+Shift+H | история команд с их выводом |
 | Ctrl+Shift+S | добавить `sudo` |
 | Ctrl+Shift+Z | режим презентации |
+| Ctrl+Shift+M / O / B | миникарта / монитор ресурсов / строка статуса |
 
 ## Плагины
 

@@ -74,6 +74,15 @@ pub(crate) fn fonts(config: &Config, scale: f64) -> Result<FontSystem, FontError
     Ok(fonts)
 }
 
+/// Высота строки статуса в пикселях.
+pub(crate) fn status_height(config: &Config, cell_height: u32) -> u32 {
+    if config.widgets.statusbar {
+        cell_height
+    } else {
+        0
+    }
+}
+
 /// Высота своей полосы заголовка в пикселях.
 pub(crate) fn title_height(config: &Config, cell_height: u32) -> u32 {
     match config.window.decorations {

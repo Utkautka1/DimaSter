@@ -661,6 +661,7 @@ dependencies = [
  "log",
  "notify",
  "pollster",
+ "unicode-width",
  "winit",
 ]
 

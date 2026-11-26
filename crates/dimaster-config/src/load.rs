@@ -10,7 +10,7 @@ use crate::{
     Action, Binding, Config, CopyOnSelect, CursorStyle, Decorations, Effects, Mods, Theme,
     WindowConfig, parse_color,
 };
-use crate::{context, load_smart};
+use crate::{context, load_smart, widgets};
 
 /// Понятное человеку описание того, что не так в конфиге.
 #[derive(Debug)]
@@ -253,6 +253,10 @@ fn apply_sections(table: &Table, config: &mut Config) -> Result<(), ConfigError>
         load_smart::apply(&smart, &mut config.smart)?;
     }
     flag(table, "scrollbar", &mut config.scrollbar)?;
+    apply_env(table, config)?;
+    if let Some(table) = table.get::<Option<Table>>("widgets")? {
+        widgets::apply(&table, &mut config.widgets)?;
+    }
     flag(table, "remote_control", &mut config.remote_control)?;
     if let Some(session) = table.get::<Option<Table>>("session")? {
         flag(&session, "restore", &mut config.restore_session)?;
@@ -291,4 +295,22 @@ fn apply_interaction(table: &Table, config: &mut Config) -> Result<(), ConfigErr
         &mut config.scroll_multiplier,
     )?;
     flag(table, "clipboard_write", &mut config.clipboard_write)
+}
+
+// значения с `~/` раскрываются: так указывают пути к другим конфигам
+fn apply_env(table: &Table, config: &mut Config) -> Result<(), ConfigError> {
+    let Some(variables) = table.get::<Option<Table>>("env")? else {
+        return Ok(());
+    };
+    for pair in variables.pairs::<String, String>() {
+        let (name, value) = pair?;
+        if name.is_empty() || name.contains('=') {
+            return Err(invalid("env", &name));
+        }
+        config
+            .env
+            .push((name, expand(value).to_string_lossy().into_owned()));
+    }
+    config.env.sort();
+    Ok(())
 }

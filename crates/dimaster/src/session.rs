@@ -27,6 +27,8 @@ pub(crate) struct Launch<'a> {
     pub(crate) socket: Option<&'a Path>,
     /// Подключать ли интеграцию с shell.
     pub(crate) integrate: bool,
+    /// Переменные из настроек.
+    pub(crate) env: &'a [(String, String)],
 }
 
 /// Команда с окружением терминала.
@@ -46,6 +48,7 @@ pub(crate) fn command(launch: &Launch<'_>) -> Command {
     if let Some(socket) = launch.socket {
         command.env("DIMASTER_SOCKET", socket);
     }
+    command.envs(launch.env.iter().cloned());
     if launch.integrate {
         let injection = integration::inject(launch.args);
         command.args(injection.args).envs(injection.env);

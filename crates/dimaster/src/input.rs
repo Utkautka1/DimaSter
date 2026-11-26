@@ -61,21 +61,28 @@ impl View {
             return;
         }
         if let Some(action) = find_action(&self.config.keys, &key, self.modifiers) {
-            return self.perform(action);
+            self.perform(action);
+            return self.render_status();
         }
         let modes = keys::KeyModes {
             app_cursor: self.term.modes().app_cursor,
             disambiguate: self.term.keyboard_flags() & 1 != 0,
         };
         let text = event.text.as_deref();
-        if let Some(bytes) = keys::encode(&key, text, self.modifiers, modes) {
-            // Enter начинает новую строку, остальное — набранный текст
-            self.assist.typed = !matches!(key, Key::Named(NamedKey::Enter));
-            self.type_bytes(bytes);
-        } else if self.config.smart.double_alt_sudo
-            && matches!(key, Key::Named(NamedKey::Alt))
-            && self.assist.alt_tap(Instant::now())
-        {
+        match keys::encode(&key, text, self.modifiers, modes) {
+            Some(bytes) => {
+                // Enter начинает новую строку, остальное — набранный текст
+                self.assist.typed = !matches!(key, Key::Named(NamedKey::Enter));
+                self.type_bytes(bytes);
+            }
+            None => self.maybe_double_alt(&key),
+        }
+    }
+
+    // сама по себе клавиша Alt ничего не отправляет
+    fn maybe_double_alt(&mut self, key: &Key) {
+        let alt = matches!(key, Key::Named(NamedKey::Alt));
+        if self.config.smart.double_alt_sudo && alt && self.assist.alt_tap(Instant::now()) {
             self.sudo_fix();
         }
     }
@@ -100,6 +107,9 @@ impl View {
             Action::CommandHistory => self.open_history(),
             Action::SudoFix => self.sudo_fix(),
             Action::Presentation => self.toggle_presentation(),
+            Action::Minimap => self.open_minimap(),
+            Action::ToggleMonitor => self.toggle_widget(false),
+            Action::ToggleStatusBar => self.toggle_widget(true),
             other => log::debug!("действие без обработчика: {other:?}"),
         }
     }

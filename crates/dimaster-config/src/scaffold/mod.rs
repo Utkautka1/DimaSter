@@ -17,7 +17,8 @@ pub struct File {
     pub owned_by_user: bool,
 }
 
-const FIXED: [(&str, &str, bool); 9] = [
+const FIXED: [(&str, &str, bool); 10] = [
+    ("statusbar.lua", include_str!("files/statusbar.lua"), true),
     ("fetch.lua", include_str!("files/fetch.lua"), true),
     (
         "plugins/example.lua",
