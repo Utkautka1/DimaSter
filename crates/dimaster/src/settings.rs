@@ -235,6 +235,15 @@ pub(crate) fn shell_env(config: &Config) -> Vec<(String, String)> {
     if config.smart.not_found {
         env.push(("DIMASTER_NOT_FOUND".to_owned(), tr("команда не найдена")));
     }
+    if config.smart.startup_fetch {
+        env.push(("DIMASTER_STARTUP_FETCH".to_owned(), "1".to_owned()));
+        if let Ok(exe) = std::env::current_exe() {
+            env.push((
+                "DIMASTER_BIN".to_owned(),
+                exe.to_string_lossy().into_owned(),
+            ));
+        }
+    }
     env
 }
 
@@ -244,4 +253,23 @@ pub(crate) fn shell(config: &Config) -> Vec<String> {
         return config.shell.clone();
     }
     vec![std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".into())]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn startup_fetch_env_follows_config() {
+        let mut config = Config::default();
+        let enabled = shell_env(&config);
+        assert!(
+            enabled
+                .iter()
+                .any(|(k, v)| k == "DIMASTER_STARTUP_FETCH" && v == "1")
+        );
+        config.smart.startup_fetch = false;
+        let disabled = shell_env(&config);
+        assert!(!disabled.iter().any(|(k, _)| k == "DIMASTER_STARTUP_FETCH"));
+    }
 }

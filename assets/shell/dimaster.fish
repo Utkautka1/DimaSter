@@ -1,4 +1,16 @@
 # Интеграция DimaSter для fish.
+if status is-interactive; and set -q DIMASTER_STARTUP_FETCH
+    function __dimaster_startup_fetch --on-event fish_prompt
+        functions -e __dimaster_startup_fetch
+        set -l bin "$DIMASTER_BIN"
+        set -e DIMASTER_STARTUP_FETCH DIMASTER_BIN
+        if test -n "$bin" -a -x "$bin"
+            "$bin" fetch
+        else if command -q dimaster
+            dimaster fetch
+        end
+    end
+end
 function __dimaster_preexec --on-event fish_preexec
     set -l line (string replace -ra '[[:cntrl:]]' ' ' -- $argv[1] | string join ' ')
     printf '\e]633;E;%s\a\e]133;C\a' "$line"

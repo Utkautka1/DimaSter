@@ -5,6 +5,8 @@
 pub struct Smart {
     /// Подключать ли скрипты интеграции к zsh, bash и fish.
     pub integration: bool,
+    /// Запускать ли `dimaster fetch` автоматически при старте нового shell.
+    pub startup_fetch: bool,
     /// Своё «команда не найдена» на языке терминала.
     pub not_found: bool,
     // пустая строка отключает подсказку
@@ -25,6 +27,7 @@ impl Default for Smart {
     fn default() -> Self {
         Self {
             integration: true,
+            startup_fetch: true,
             not_found: true,
             ok: "➜ OK".to_owned(),
             empty: "∅ Ничего не найдено".to_owned(),

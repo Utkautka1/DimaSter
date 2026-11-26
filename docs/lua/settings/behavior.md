@@ -35,6 +35,7 @@ return {
   scrollbar = true,          -- полоса прокрутки: синие метки команд, красные ошибки, жёлтые находки
   smart = {
     integration = true,
+    startup_fetch = true,    -- автоматически запускать `dimaster fetch` при открытии shell
     not_found = true,        -- «команда не найдена» на языке терминала (zsh, bash, fish)
     ok = "➜ OK",             -- под успешной командой без вывода; "" отключает
     empty = "∅ Ничего не найдено",

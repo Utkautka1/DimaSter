@@ -32,6 +32,18 @@ pub(crate) struct Launch<'a> {
     pub(crate) env: &'a [(String, String)],
 }
 
+// чужие значения от внешнего DimaSter не должны наследоваться до подстановки новых
+fn reset_env(command: &mut Command, socket: Option<&Path>) {
+    command
+        .env_remove("DIMASTER_SOCKET")
+        .env_remove(RESTORE_ENV)
+        .env_remove("DIMASTER_STARTUP_FETCH")
+        .env_remove("DIMASTER_BIN");
+    if let Some(socket) = socket {
+        command.env("DIMASTER_SOCKET", socket);
+    }
+}
+
 /// Команда с окружением терминала.
 pub(crate) fn command(launch: &Launch<'_>) -> Command {
     let mut command = Command::new(&launch.args[0]);
@@ -42,13 +54,7 @@ pub(crate) fn command(launch: &Launch<'_>) -> Command {
     if let Some(directory) = launch.directory {
         command.current_dir(directory);
     }
-    // чужие значения от внешнего DimaSter не должны наследоваться
-    command
-        .env_remove("DIMASTER_SOCKET")
-        .env_remove(RESTORE_ENV);
-    if let Some(socket) = launch.socket {
-        command.env("DIMASTER_SOCKET", socket);
-    }
+    reset_env(&mut command, launch.socket);
     command.envs(launch.env.iter().cloned());
     if launch.integrate {
         let injection = integration::inject(launch.args);

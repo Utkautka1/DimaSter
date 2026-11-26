@@ -87,6 +87,7 @@ fn customize_more(config: &mut Config) {
     config.window.background_dir = Some("/w".into());
     config.scrollbar = false;
     config.smart.ok = String::new();
+    config.smart.startup_fetch = false;
     config.smart.long_command = 3.5;
     config.smart.glow_color = 0x010203;
     config.smart.double_alt_sudo = true;

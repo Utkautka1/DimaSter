@@ -9,6 +9,22 @@ fi
 [[ -f "${ZDOTDIR:-$HOME}/.zshenv" ]] && source "${ZDOTDIR:-$HOME}/.zshenv"
 
 if [[ -o interactive ]]; then
+  autoload -Uz add-zsh-hook
+  if [[ -n "$DIMASTER_STARTUP_FETCH" ]]; then
+    # Одноразовый вывод dimaster fetch после чтения пользовательского .zshrc, но до первого prompt
+    __dimaster_startup_fetch() {
+      add-zsh-hook -d precmd __dimaster_startup_fetch
+      unset -f __dimaster_startup_fetch
+      local bin="$DIMASTER_BIN"
+      unset DIMASTER_STARTUP_FETCH DIMASTER_BIN
+      if [[ -n "$bin" && -x "$bin" ]]; then
+        "$bin" fetch
+      elif (( $+commands[dimaster] )); then
+        dimaster fetch
+      fi
+    }
+    add-zsh-hook precmd __dimaster_startup_fetch
+  fi
   __dimaster_precmd() {
     local code=$?
     printf '\e]133;D;%s\a\e]7;file://%s%s\a\e]133;A\a' "$code" "$HOST" "${PWD//\%/%25}"
@@ -16,7 +32,6 @@ if [[ -o interactive ]]; then
   __dimaster_preexec() {
     printf '\e]633;E;%s\a\e]133;C\a' "${1//[[:cntrl:]]/ }"
   }
-  autoload -Uz add-zsh-hook
   add-zsh-hook precmd __dimaster_precmd
   add-zsh-hook preexec __dimaster_preexec
 fi
