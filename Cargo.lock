@@ -732,6 +732,7 @@ dependencies = [
  "dimaster-grid",
  "dimaster-i18n",
  "log",
+ "naga",
  "pollster",
  "unicode-bidi",
  "wgpu",

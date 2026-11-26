@@ -24,6 +24,8 @@ pub(crate) struct Pose {
 pub(crate) struct Animator {
     pub(crate) look: CursorLook,
     cursor: Option<(f32, f32)>,
+    // конец хвоста: догоняет курсор медленнее, чем тот движется к цели
+    tail: (f32, f32),
     offset: f32,
     last: Instant,
     blink_from: Instant,
@@ -35,6 +37,7 @@ impl Animator {
         Self {
             look: CursorLook::default(),
             cursor: None,
+            tail: (0.0, 0.0),
             offset: 0.0,
             last: now,
             blink_from: now,
@@ -69,7 +72,7 @@ impl Animator {
         if !effects.smooth_scroll || self.offset.abs() < 0.5 {
             self.offset = 0.0;
         }
-        self.moving = cursor != target || self.offset != 0.0;
+        self.moving = cursor != target || self.offset != 0.0 || !trail.is_empty();
         let phase = now.duration_since(self.blink_from).as_millis() / self.blink().as_millis();
         let blink_hidden = effects.cursor_blink && focused && phase % 2 == 1;
         Pose {
@@ -117,13 +120,23 @@ impl Animator {
             .filter(|_| effects.cursor_animation)
             .unwrap_or(target);
         let at = self.advance(from, target, step);
-        self.cursor = Some(at);
-        let far = (target.0 - at.0).hypot(target.1 - at.1) > self.look.trail_distance;
-        let trail = match effects.cursor_trail && far {
-            true => self.trail(from, at),
-            false => Vec::new(),
-        };
-        (at, trail)
+        let shown = self.cursor.replace(at).is_some();
+        (at, self.follow(at, effects.cursor_trail && shown, step))
+    }
+
+    // хвост появляется после прыжка длиннее порога и тает, пока не догонит
+    fn follow(&mut self, at: (f32, f32), enabled: bool, step: (f32, f32)) -> Vec<(f32, f32)> {
+        let lag = (at.0 - self.tail.0).hypot(at.1 - self.tail.1);
+        let started = self.moving && lag > 0.2;
+        if !enabled || (!started && lag <= self.look.trail_distance) {
+            self.tail = at;
+            return Vec::new();
+        }
+        self.tail = self.advance(self.tail, at, (step.0 * 0.4, step.1 * 0.6));
+        match self.tail == at {
+            true => Vec::new(),
+            false => self.trail(self.tail, at),
+        }
     }
 
     /// Когда нужен следующий кадр; `None` — всё неподвижно.

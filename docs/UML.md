@@ -99,7 +99,6 @@ classDiagram
     Renderer *-- Textures
     class Config { font; theme; padding; cursor; scrollback; shell; keys }
     class Theme { foreground; background; cursor; selection; ansi }
-    class Binding { key; mods; action }
     class Source { +apply(config_home, config) }
     class Appearance { colors; padding; rtl }
     Config *-- Theme
@@ -147,6 +146,17 @@ classDiagram
     Config *-- Ui
     Config *-- CursorLook
     class Drawn { rects; labels }
+    class Shape { <<enum>> Rect; Line; Polygon; Text }
+    Plugins ..> Shape : draw.lua
+    class Binding { chords; actions; unconsumed; performable; table }
+    class KeyState { pending; tables; +find(bindings, pressed) }
+    View *-- KeyState
+    class Policy { title; colors; cursor_shape; pointer_shape; progress }
+    class Programs
+    class Bell { flash; attention; notify; command }
+    Config *-- Programs
+    Config *-- Bell
+    Programs ..> Policy
     View ..> Drawn
     class BarStyle { top; margin; padding; background; radius; opacity }
     StatusBar *-- BarStyle

@@ -16,3 +16,6 @@ bytemuck.workspace = true
 pollster.workspace = true
 log.workspace = true
 unicode-bidi.workspace = true
+
+[dev-dependencies]
+naga = { version = "=30.0.2", features = ["wgsl-in"] }

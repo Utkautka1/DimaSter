@@ -62,9 +62,9 @@ fn stroke(local: vec2<f32>, size: vec2<f32>, width: f32, rising: bool) -> f32 {
     }
     let half = vec2<f32>(width * 0.5);
     let along = size - half * 2.0;
-    let from = point - half;
-    let t = clamp(dot(from, along) / max(dot(along, along), 0.0001), 0.0, 1.0);
-    return clamp(width * 0.5 - length(from - along * t) + 0.5, 0.0, 1.0);
+    let offset = point - half;
+    let t = clamp(dot(offset, along) / max(dot(along, along), 0.0001), 0.0, 1.0);
+    return clamp(width * 0.5 - length(offset - along * t) + 0.5, 0.0, 1.0);
 }
 
 @fragment
