@@ -135,6 +135,7 @@ pub(crate) fn appearance(config: &Config, cell_height: u32) -> Appearance {
         cursor_look: cursor_look(config),
         selection: theme.selection,
         selection_text: theme.selection_text,
+        bold: None,
         ansi: theme.ansi,
         padding: config.padding,
         rtl: config.rtl,

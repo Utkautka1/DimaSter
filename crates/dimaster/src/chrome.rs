@@ -154,7 +154,7 @@ impl View {
         let icon = match resize {
             Some(direction) => CursorIcon::from(direction),
             None if self.hover_link.is_some() => CursorIcon::Pointer,
-            None => CursorIcon::Text,
+            None => self.program_pointer().unwrap_or(CursorIcon::Text),
         };
         self.window.set_cursor(icon);
     }

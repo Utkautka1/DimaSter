@@ -5,6 +5,7 @@ use unicode_width::UnicodeWidthChar;
 
 use crate::colors::ColorOverrides;
 use crate::command::Commands;
+use crate::extensions::{Policy, Progress};
 use crate::graphics::Store;
 use crate::hyperlink::Links;
 use crate::keyboard::KeyboardStack;
@@ -71,6 +72,11 @@ pub(crate) struct State {
     pub(crate) default_cursor: CursorShape,
     pub(crate) graphics: Store,
     pub(crate) notifications: Vec<(String, String)>,
+    // сколько раз прозвенел BEL
+    pub(crate) bells: u64,
+    pub(crate) pointer: Option<String>,
+    pub(crate) progress: Option<Progress>,
+    pub(crate) policy: Policy,
 }
 
 impl Terminal {
@@ -151,6 +157,27 @@ impl Terminal {
         std::mem::take(&mut self.state.notifications)
     }
 
+    /// Счётчик звонков: окно замечает новые по его росту.
+    pub fn bells(&self) -> u64 {
+        self.state.bells
+    }
+
+    /// Форма указателя, которую просит программа (OSC 22).
+    pub fn pointer_shape(&self) -> Option<&str> {
+        self.state.pointer.as_deref()
+    }
+
+    pub fn progress(&self) -> Option<Progress> {
+        self.state.progress
+    }
+
+    pub fn set_policy(&mut self, policy: Policy) {
+        self.state.policy = policy;
+        if !policy.colors {
+            self.state.overrides = ColorOverrides::default();
+        }
+    }
+
     pub fn color_overrides(&self) -> &ColorOverrides {
         &self.state.overrides
     }
@@ -225,6 +252,8 @@ fn default_tabs(cols: usize) -> Vec<bool> {
 }
 
 impl State {
+    // плоское перечисление начальных значений без логики
+    #[allow(clippy::too_many_lines)]
     pub(crate) fn new(size: Size) -> Self {
         Self {
             screen: Screen::new(size, HISTORY_LIMIT),
@@ -249,6 +278,10 @@ impl State {
             default_cursor: CursorShape::Block,
             graphics: Store::default(),
             notifications: Vec::new(),
+            bells: 0,
+            pointer: None,
+            progress: None,
+            policy: Policy::default(),
         }
     }
 
@@ -271,6 +304,8 @@ impl State {
         }
         self.cursor.row = self.cursor.row.min(size.rows - 1);
         self.cursor.col = self.cursor.col.min(size.cols - 1);
+        self.screen.reset_margins();
+        self.other.reset_margins();
     }
 
     fn other_resize(&mut self, size: Size) {
@@ -318,7 +353,8 @@ impl State {
         }
         while !run.is_empty() {
             self.make_room(1);
-            let (chunk, rest) = run.split_at(run.len().min(self.screen.cols() - self.cursor.col));
+            let room = self.right_edge() + 1 - self.cursor.col;
+            let (chunk, rest) = run.split_at(run.len().min(room));
             self.write_ascii(chunk);
             run = rest;
         }
@@ -343,13 +379,15 @@ impl State {
     }
 
     fn make_room(&mut self, width: usize) {
-        let overflow = self.cursor.col + width > self.screen.cols();
+        let overflow = self.cursor.col + width > self.right_edge() + 1;
         if (self.cursor.pending_wrap || overflow) && self.modes.autowrap {
-            self.screen.rows[self.cursor.row].wrapped = true;
-            self.cursor.col = 0;
+            // перенос внутри полей не склеивает строки при смене ширины
+            self.screen.rows[self.cursor.row].wrapped = !self.screen.narrowed();
+            self.cursor.col = self.left_edge();
             self.line_feed();
         }
-        self.cursor.col = self.cursor.col.min(self.screen.cols() - width);
+        let last = self.right_edge() + 1;
+        self.cursor.col = self.cursor.col.min(last.saturating_sub(width));
         self.cursor.pending_wrap = false;
     }
 
@@ -372,10 +410,11 @@ impl State {
 
     fn move_after_print(&mut self, width: usize) {
         let next = self.cursor.col + width;
-        if next < self.screen.cols() {
+        let last = self.right_edge();
+        if next <= last {
             self.cursor.col = next;
         } else {
-            self.cursor.col = self.screen.cols() - 1;
+            self.cursor.col = last;
             self.cursor.pending_wrap = self.modes.autowrap;
         }
     }

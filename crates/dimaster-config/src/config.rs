@@ -3,7 +3,9 @@
 use std::path::PathBuf;
 
 use crate::keys::default_bindings;
-use crate::{Binding, CursorLook, Effects, Smart, Theme, Ui, Widgets, WindowConfig};
+use crate::{
+    Bell, Binding, CursorLook, Effects, Programs, Smart, Theme, Ui, Widgets, WindowConfig,
+};
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum CursorStyle {
@@ -109,6 +111,8 @@ pub struct Config {
     /// Полоса прокрутки с метками команд.
     pub scrollbar: bool,
     pub widgets: Widgets,
+    pub programs: Programs,
+    pub bell: Bell,
     /// Вид интерфейса поверх терминала.
     pub ui: Ui,
     /// Переменные окружения для shell этого терминала.
@@ -148,6 +152,8 @@ impl Default for Config {
             smart: Smart::default(),
             scrollbar: true,
             widgets: Widgets::default(),
+            programs: Programs::default(),
+            bell: Bell::default(),
             ui: Ui::default(),
             env: Vec::new(),
         }

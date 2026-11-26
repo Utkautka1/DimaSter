@@ -11,8 +11,11 @@ impl State {
     pub(crate) fn line_feed(&mut self) {
         self.cursor.pending_wrap = false;
         if self.cursor.row == self.screen.bottom {
-            let fill = self.blank();
-            self.screen.scroll_up(1, &fill);
+            // курсор вне боковых полей область не прокручивает
+            if self.within_margins() {
+                let fill = self.blank();
+                self.screen.scroll_up(1, &fill);
+            }
         } else if self.cursor.row + 1 < self.screen.rows.len() {
             self.cursor.row += 1;
         }
@@ -21,22 +24,24 @@ impl State {
     pub(crate) fn reverse_line_feed(&mut self) {
         self.cursor.pending_wrap = false;
         if self.cursor.row == self.screen.top {
-            let fill = self.blank();
-            self.screen.scroll_down(1, &fill);
+            if self.within_margins() {
+                let fill = self.blank();
+                self.screen.scroll_down(1, &fill);
+            }
         } else {
             self.cursor.row = self.cursor.row.saturating_sub(1);
         }
     }
 
-    /// Абсолютное перемещение; в origin mode строки считаются от области прокрутки.
+    /// Абсолютное перемещение; в origin mode отсчёт идёт от полей.
     pub(crate) fn goto(&mut self, row: usize, col: usize) {
-        let (base, last) = if self.modes.origin {
-            (self.screen.top, self.screen.bottom)
-        } else {
-            (0, self.screen.rows.len() - 1)
+        let screen = &self.screen;
+        let (base, last, left, right) = match self.modes.origin {
+            true => (screen.top, screen.bottom, screen.left, screen.right),
+            false => (0, screen.rows.len() - 1, 0, screen.cols() - 1),
         };
         self.cursor.row = (base + row).min(last);
-        self.set_col(col);
+        self.set_col((left + col).min(right));
     }
 
     pub(crate) fn set_col(&mut self, col: usize) {
@@ -139,31 +144,44 @@ impl State {
         }
     }
 
+    // конец строки для сдвига символов: правое поле или край экрана
+    fn shift_end(&self) -> Option<usize> {
+        match self.screen.narrowed() {
+            false => Some(self.screen.cols()),
+            true => self.within_margins().then(|| self.screen.right + 1),
+        }
+    }
+
     pub(crate) fn insert_blank(&mut self, count: usize) {
         let (row, col) = (self.cursor.row, self.cursor.col);
-        let count = count.min(self.screen.cols() - col);
+        let Some(end) = self.shift_end() else { return };
+        let count = count.min(end - col);
         let fill = self.blank();
-        self.split_wide(row, col, self.screen.cols() - count);
-        let cells = &mut self.screen.rows[row].cells;
-        cells[col..].rotate_right(count);
-        cells[col..col + count].fill(fill);
+        self.split_wide(row, col, end - count);
+        self.split_wide(row, end, end);
+        let cells = &mut self.screen.rows[row].cells[col..end];
+        cells.rotate_right(count);
+        cells[..count].fill(fill);
     }
 
     pub(crate) fn delete_chars(&mut self, count: usize) {
         let (row, col) = (self.cursor.row, self.cursor.col);
-        let count = count.min(self.screen.cols() - col);
+        let Some(end) = self.shift_end() else { return };
+        let count = count.min(end - col);
         let fill = self.blank();
         self.split_wide(row, col, col + count);
-        let cells = &mut self.screen.rows[row].cells;
-        cells[col..].rotate_left(count);
+        self.split_wide(row, end, end);
+        let cells = &mut self.screen.rows[row].cells[col..end];
+        cells.rotate_left(count);
         let tail = cells.len() - count;
         cells[tail..].fill(fill);
         self.cursor.pending_wrap = false;
     }
 
-    /// IL/DL: вставка и удаление строк действуют только внутри области прокрутки.
+    /// IL/DL: вставка и удаление строк действуют только внутри полей.
     pub(crate) fn shift_lines(&mut self, count: usize, insert: bool) {
-        if !(self.screen.top..=self.screen.bottom).contains(&self.cursor.row) {
+        let rows = self.screen.top..=self.screen.bottom;
+        if !rows.contains(&self.cursor.row) || !self.within_margins() {
             return;
         }
         let top = std::mem::replace(&mut self.screen.top, self.cursor.row);
@@ -174,11 +192,14 @@ impl State {
             self.delete_lines(count, &fill);
         }
         self.screen.top = top;
-        self.set_col(0);
+        self.set_col(self.screen.left);
     }
 
     // удалённые строки не должны попадать в историю, даже если top == 0
     fn delete_lines(&mut self, count: usize, fill: &Cell) {
+        if self.screen.narrowed() {
+            return self.screen.scroll_span(count, true, fill);
+        }
         let (top, bottom) = (self.screen.top, self.screen.bottom);
         let count = count.min(bottom - top + 1);
         self.screen.rows[top..=bottom].rotate_left(count);

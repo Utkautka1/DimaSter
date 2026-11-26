@@ -19,6 +19,9 @@ pub struct Screen {
     // область прокрутки, обе границы включительно
     pub(crate) top: usize,
     pub(crate) bottom: usize,
+    // боковые поля, включительно
+    pub(crate) left: usize,
+    pub(crate) right: usize,
 }
 
 impl Screen {
@@ -33,6 +36,8 @@ impl Screen {
             keep_images: true,
             top: 0,
             bottom: size.rows - 1,
+            left: 0,
+            right: size.cols - 1,
         }
     }
 
@@ -53,6 +58,9 @@ impl Screen {
     /// Буфер ушедшей строки переиспользуется как новая пустая: прокрутка —
     /// самая частая операция, и выделять на неё всю ширину слишком дорого.
     pub(crate) fn scroll_up(&mut self, count: usize, fill: &Cell) {
+        if self.narrowed() {
+            return self.scroll_span(count, true, fill);
+        }
         let count = count.min(self.bottom - self.top + 1);
         let cols = self.cols();
         for _ in 0..count {
@@ -74,6 +82,9 @@ impl Screen {
     }
 
     pub(crate) fn scroll_down(&mut self, count: usize, fill: &Cell) {
+        if self.narrowed() {
+            return self.scroll_span(count, false, fill);
+        }
         let count = count.min(self.bottom - self.top + 1);
         let blank = Row::new(self.cols(), fill);
         for _ in 0..count {

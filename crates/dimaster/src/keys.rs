@@ -1,6 +1,6 @@
 //! Кодирование клавиш в последовательности xterm.
 
-use winit::keyboard::{Key, ModifiersState, NamedKey};
+use winit::keyboard::{Key, KeyCode, ModifiersState, NamedKey, PhysicalKey};
 
 /// Режимы терминала, влияющие на кодирование.
 #[derive(Debug, Default, Clone, Copy)]
@@ -36,6 +36,29 @@ pub(crate) fn encode(
     }
     let text = text.filter(|t| !t.is_empty())?;
     Some(with_alt(mods, text.as_bytes().to_vec()))
+}
+
+/// DECKPAM: клавиши цифрового блока шлют `ESC O <буква>`.
+pub(crate) fn keypad(key: PhysicalKey) -> Option<Vec<u8>> {
+    use KeyCode::*;
+    let PhysicalKey::Code(code) = key else {
+        return None;
+    };
+    let digits = [
+        Numpad0, Numpad1, Numpad2, Numpad3, Numpad4, Numpad5, Numpad6, Numpad7, Numpad8, Numpad9,
+    ];
+    let digit = digits.iter().position(|&d| d == code);
+    let letter = match code {
+        _ if digit.is_some() => b'p' + digit? as u8,
+        NumpadDecimal => b'n',
+        NumpadEnter => b'M',
+        NumpadAdd => b'k',
+        NumpadSubtract => b'm',
+        NumpadMultiply => b'j',
+        NumpadDivide => b'o',
+        _ => return None,
+    };
+    Some(vec![0x1b, b'O', letter])
 }
 
 // `CSI код;модификаторы u` для клавиш, неотличимых в старой кодировке

@@ -34,6 +34,7 @@ mod session;
 mod settings;
 mod setup;
 mod shared;
+mod signals;
 mod smart;
 mod status;
 mod store;

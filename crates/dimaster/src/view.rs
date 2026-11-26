@@ -24,6 +24,7 @@ use crate::select::Selecting;
 use crate::session::{Launch, Output, Session};
 use crate::settings;
 use crate::shared::{Held, Signals};
+use crate::signals::{FLASH, Ringer};
 use crate::smart::Assist;
 use crate::status::Status;
 
@@ -79,6 +80,7 @@ pub(crate) struct View {
     /// Нажата кнопка закрытия своей рамки.
     pub(crate) closing: bool,
     pub(crate) keymap: KeyState,
+    pub(crate) ringer: Ringer,
     pub(crate) assist: Assist,
     pub(crate) status: Status,
     // обычные настройки, пока включена презентация
@@ -168,6 +170,7 @@ impl View {
             hover_uri: None,
             closing: false,
             keymap: KeyState::default(),
+            ringer: Ringer::default(),
             assist: Assist::default(),
             status: Status::default(),
             normal_config: None,
@@ -239,6 +242,8 @@ impl View {
         self.notice_changes();
         self.after_output();
         self.check_commands();
+        self.check_bell();
+        self.update_pointer_icon();
         self.refresh();
         true
     }
@@ -330,7 +335,9 @@ impl View {
         let motion = self
             .animator
             .next_frame(self.config.effects, self.focused, now);
-        self.animate_at = [picture, motion, glow].into_iter().flatten().min();
+        // кадр, который погасит вспышку звонка
+        let flash = self.ringer.since.map(|t| t + FLASH).filter(|&t| t > now);
+        self.animate_at = [picture, motion, glow, flash].into_iter().flatten().min();
     }
 
     // номера строк изменились: поиск повторяется, vi-курсор теряет смысл

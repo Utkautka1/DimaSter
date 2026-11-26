@@ -104,7 +104,9 @@ impl View {
 
     // Shift оставляет мышь терминалу, даже если программа её захватила
     fn report(&mut self, button: Button, action: Action) -> bool {
-        if self.modifiers.shift_key() {
+        // Shift обычно оставляет мышь терминалу; программа может просить его себе
+        let wanted = self.config.programs.shift_mouse && self.term.modes().shift_escape;
+        if self.modifiers.shift_key() && !wanted {
             return false;
         }
         let (col, row) = self.pointer.cell;

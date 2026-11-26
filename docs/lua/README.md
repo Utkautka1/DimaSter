@@ -14,6 +14,7 @@
 | `settings/keys.lua` | [Клавиши и действия](settings/keys.md) |
 | `ui.lua` | [Вид интерфейса](interface/ui.md) |
 | `statusbar.lua` | [Строка статуса и виджеты](interface/statusbar.md) |
+| ключи `programs`, `bell` | [Программы и звонок](settings/programs.md) |
 | ключ `cursor` | [Курсор](interface/cursor.md) |
 | `themes/*.lua` | [Темы](themes/themes.md) |
 | `lang/*.lua` | [Языки](lang/lang.md) |

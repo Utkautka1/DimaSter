@@ -72,7 +72,7 @@ impl View {
         if self.mode_key(&key, text) {
             return;
         }
-        let bytes = self.encoded(&key, text);
+        let bytes = self.program_bytes(event, &key, text);
         let physical = physical_name(event.physical_key);
         let name = key_name(&key).filter(|_| !is_modifier(&key));
         if let Some(name) = name {
@@ -89,6 +89,13 @@ impl View {
             }
             None => self.maybe_double_alt(&key),
         }
+    }
+
+    // цифровой блок в режиме приложения кодируется по физической клавише
+    fn program_bytes(&self, event: &KeyEvent, key: &Key, text: Option<&str>) -> Option<Vec<u8>> {
+        let keypad = self.term.modes().app_keypad && self.modifiers.is_empty();
+        let numpad = keypad.then(|| keys::keypad(event.physical_key)).flatten();
+        numpad.or_else(|| self.encoded(key, text))
     }
 
     // что получила бы программа без всяких привязок

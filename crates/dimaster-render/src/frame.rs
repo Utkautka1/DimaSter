@@ -223,6 +223,9 @@ fn colors(cell: &Cell, look: &Appearance) -> (Rgb, Rgb) {
     let style = cell.style;
     let mut fg = resolve(style.fg, look.foreground, look);
     let mut bg = resolve(style.bg, look.background, look);
+    if style.flags.contains(Flags::BOLD) && style.fg == Color::Default {
+        fg = look.bold.unwrap_or(fg);
+    }
     if style.flags.contains(Flags::INVERSE) {
         std::mem::swap(&mut fg, &mut bg);
     }

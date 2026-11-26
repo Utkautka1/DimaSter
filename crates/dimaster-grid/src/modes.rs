@@ -1,7 +1,8 @@
 //! Переключаемые режимы терминала (SM/RM и DECSET/DECRST).
 
-/// Форма курсора (DECSCUSR).
 use dimaster_i18n::t;
+
+/// Форма курсора (DECSCUSR).
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum CursorShape {
     #[default]
@@ -27,6 +28,10 @@ pub struct Modes {
     /// Программа просит не показывать кадр, пока не дорисует (режим 2026).
     pub synchronized: bool,
     pub cursor_shape: CursorShape,
+    /// DECLRMM (режим 69): `CSI s` задаёт боковые поля.
+    pub margins: bool,
+    /// XTSHIFTESCAPE: программа хочет получать Shift с мышью.
+    pub shift_escape: bool,
 }
 
 impl Default for Modes {
@@ -44,6 +49,8 @@ impl Default for Modes {
             sgr_mouse: false,
             synchronized: false,
             cursor_shape: CursorShape::Block,
+            margins: false,
+            shift_escape: false,
         }
     }
 }
@@ -54,6 +61,7 @@ impl Modes {
         Some(match mode {
             1 => self.app_cursor,
             7 => self.autowrap,
+            69 => self.margins,
             25 => self.cursor_visible,
             1000 | 1002 | 1003 => self.mouse == mode,
             1004 => self.focus_events,

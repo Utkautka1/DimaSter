@@ -18,32 +18,41 @@ impl State {
         }
         let text = String::from_utf8_lossy(data);
         let Some((code, value)) = text.split_once(';') else {
-            // сбросы цветов приходят без аргументов
-            return match text.as_ref() {
-                code @ ("104" | "110" | "111" | "112") => self.reset_colors(code, ""),
+            // сбросы приходят без аргументов
+            return match text.parse() {
+                Ok(code @ (104 | 105 | 110..=119)) => self.reset_colors(code, ""),
                 _ => log::debug!("{}", t!("OSC без аргументов: {text}", text = text)),
             };
         };
         match code {
-            "0" | "2" => self.title = clean(value),
+            "0" | "2" if self.policy.title => self.title = clean(value),
+            // значок окна не показывается; запрещённый заголовок молча пропускается
+            "0" | "1" | "2" => {}
             "8" => self.hyperlink(value),
             "7" => self.cwd = parse_file_url(value).map(|path| clean(&path)),
-            "4" => self.palette_osc(value),
-            "10" | "11" | "12" => self.dynamic_color(code, value),
-            "104" | "110" | "111" | "112" => self.reset_colors(code, value),
+            "22" => self.pointer_shape(value),
             "52" => self.clipboard_osc(value),
-            "9" => self.notify("DimaSter", value),
+            "9" => self.conemu(value),
             "777" => self.notify_titled(value),
             "133" => self.mark_prompt(value),
             "633" => self.command_line(value),
+            _ => self.color_osc(code, value),
+        }
+    }
+
+    fn color_osc(&mut self, code: &str, value: &str) {
+        match code.parse() {
+            Ok(4) if self.policy.colors => self.palette_osc(value),
+            Ok(5) if self.policy.colors => self.special_colors(value),
+            Ok(code @ 10..=19) if self.policy.colors => self.dynamic_colors(code, value),
+            Ok(code @ (104 | 105 | 110..=119)) => self.reset_colors(code, value),
+            Ok(4 | 5 | 10..=19) => {}
             _ => log::debug!("{}", t!("неподдерживаемый OSC {code}", code = code)),
         }
     }
 
-    // OSC 9;4;… — это индикатор прогресса ConEmu, а не уведомление
-    fn notify(&mut self, title: &str, body: &str) {
-        let progress = body.starts_with("4;");
-        if !progress && self.notifications.len() < 8 {
+    pub(crate) fn notify(&mut self, title: &str, body: &str) {
+        if self.policy.notifications && self.notifications.len() < 8 {
             self.notifications.push((clean(title), clean(body)));
         }
     }

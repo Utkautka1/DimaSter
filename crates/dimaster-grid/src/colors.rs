@@ -31,6 +31,10 @@ pub struct ColorOverrides {
     pub foreground: Option<u32>,
     pub background: Option<u32>,
     pub cursor: Option<u32>,
+    /// OSC 5: цвета жирного, подчёркнутого и прочего по номеру.
+    pub special: BTreeMap<u8, u32>,
+    /// OSC 13–19, кроме перечисленных выше: 17 — выделение, 19 — его текст.
+    pub dynamic: BTreeMap<u16, u32>,
 }
 
 // `#rgb`, `#rrggbb` или `rgb:r/g/b` с 1–4 цифрами на канал
@@ -103,34 +107,82 @@ impl State {
         }
     }
 
-    /// OSC 10, 11, 12: цвет текста, фона и курсора.
-    pub(crate) fn dynamic_color(&mut self, code: &str, value: &str) {
-        let (theme, slot) = match code {
-            "10" => (self.colors.foreground, &mut self.overrides.foreground),
-            "11" => (self.colors.background, &mut self.overrides.background),
-            _ => (self.colors.cursor, &mut self.overrides.cursor),
-        };
-        if value == "?" {
-            let color = slot.unwrap_or(theme);
-            self.report_rgb(code, color);
-        } else if let Some(color) = parse(value) {
-            *slot = Some(color);
+    // цвет из темы, который отвечают на запрос неизменённого
+    fn theme_color(&self, code: u16) -> u32 {
+        match code {
+            11 | 14 | 16 | 19 => self.colors.background,
+            12 => self.colors.cursor,
+            _ => self.colors.foreground,
         }
     }
 
-    /// OSC 104 и 110–112: возврат к цветам темы.
-    pub(crate) fn reset_colors(&mut self, code: &str, value: &str) {
+    fn dynamic_slot(&self, code: u16) -> Option<u32> {
+        let overrides = &self.overrides;
         match code {
-            "104" if value.is_empty() => self.overrides.palette.clear(),
-            "104" => value
-                .split(';')
-                .filter_map(|i| i.parse().ok())
-                .for_each(|i: u8| {
-                    self.overrides.palette.remove(&i);
-                }),
-            "110" => self.overrides.foreground = None,
-            "111" => self.overrides.background = None,
-            _ => self.overrides.cursor = None,
+            10 => overrides.foreground,
+            11 => overrides.background,
+            12 => overrides.cursor,
+            _ => overrides.dynamic.get(&code).copied(),
+        }
+    }
+
+    fn set_dynamic(&mut self, code: u16, color: Option<u32>) {
+        let overrides = &mut self.overrides;
+        match code {
+            10 => overrides.foreground = color,
+            11 => overrides.background = color,
+            12 => overrides.cursor = color,
+            _ => match color {
+                Some(color) => drop(overrides.dynamic.insert(code, color)),
+                None => drop(overrides.dynamic.remove(&code)),
+            },
+        }
+    }
+
+    /// OSC 10–19: несколько значений подряд идут по следующим номерам.
+    pub(crate) fn dynamic_colors(&mut self, first: u16, value: &str) {
+        for (code, spec) in (first..=19).zip(value.split(';')) {
+            if spec == "?" {
+                let color = self
+                    .dynamic_slot(code)
+                    .unwrap_or_else(|| self.theme_color(code));
+                self.report_rgb(&code.to_string(), color);
+            } else if let Some(color) = parse(spec) {
+                self.set_dynamic(code, Some(color));
+            }
+        }
+    }
+
+    /// OSC 5: пары «номер;цвет», 0 — жирный.
+    pub(crate) fn special_colors(&mut self, value: &str) {
+        let mut parts = value.split(';');
+        while let (Some(index), Some(spec)) = (parts.next(), parts.next()) {
+            let Some(index) = index.parse::<u8>().ok().filter(|i| *i < 5) else {
+                continue;
+            };
+            if spec == "?" {
+                let color = self.overrides.special.get(&index).copied();
+                let color = color.unwrap_or(self.colors.foreground);
+                self.report_rgb(&format!("5;{index}"), color);
+            } else if let Some(color) = parse(spec) {
+                self.overrides.special.insert(index, color);
+            }
+        }
+    }
+
+    /// OSC 104, 105 и 110–119: возврат к цветам темы.
+    pub(crate) fn reset_colors(&mut self, code: u16, value: &str) {
+        let listed = || value.split(';').filter_map(|i| i.parse::<u8>().ok());
+        match code {
+            104 if value.is_empty() => self.overrides.palette.clear(),
+            104 => listed().for_each(|i| {
+                let _ = self.overrides.palette.remove(&i);
+            }),
+            105 if value.is_empty() => self.overrides.special.clear(),
+            105 => listed().for_each(|i| {
+                let _ = self.overrides.special.remove(&i);
+            }),
+            _ => self.set_dynamic(code - 100, None),
         }
     }
 }

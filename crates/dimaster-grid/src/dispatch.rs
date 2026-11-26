@@ -17,10 +17,11 @@ impl Perform for State {
 
     fn execute(&mut self, byte: u8) {
         match byte {
-            0x08 => self.set_col(self.cursor.col.saturating_sub(1)),
+            0x07 => self.bells = self.bells.wrapping_add(1),
+            0x08 => self.set_col(self.cursor.col.saturating_sub(1).max(self.left_edge())),
             b'\t' => self.tab(1, true),
             b'\n' | 0x0B | 0x0C => self.line_feed(),
-            b'\r' => self.set_col(0),
+            b'\r' => self.carriage_return(),
             // SO и SI переключают наборы G1/G0
             0x0E => self.cursor.charsets.active = 1,
             0x0F => self.cursor.charsets.active = 0,
@@ -51,6 +52,8 @@ impl Perform for State {
             ([b'>'], b'c') => self.reply.extend_from_slice(b"\x1b[>1;10;0c"),
             ([b'>'], b'q') => self.report_version(),
             ([b' '], b'q') => self.cursor_style(seq.params.get_or(0, 0)),
+            // XTSHIFTESCAPE: 1 — Shift с мышью достаётся программе
+            ([b'>'], b's') => self.modes.shift_escape = seq.params.get_or(0, 0) == 1,
             ([b'?', b'$'], b'p') => self.report_mode(&seq),
             ([b'!'], b'p') => self.soft_reset(),
             _ => log::debug!(
@@ -85,6 +88,7 @@ impl State {
     // 0 означает «как настроил пользователь»
     fn cursor_style(&mut self, style: u16) {
         match style {
+            _ if !self.policy.cursor_shape => {}
             0 => self.modes.cursor_shape = self.default_cursor,
             _ => self.modes.set_cursor_shape(style),
         }
@@ -96,7 +100,7 @@ impl State {
             b'8' => self.restore_cursor(),
             b'D' => self.line_feed(),
             b'E' => {
-                self.set_col(0);
+                self.carriage_return();
                 self.line_feed();
             }
             b'H' => self.tabs[self.cursor.col] = true,
@@ -158,11 +162,11 @@ impl State {
         match seq.action {
             b'A' => self.move_vertical(-delta),
             b'B' | b'e' => self.move_vertical(delta),
-            b'C' | b'a' => self.set_col(self.cursor.col + n),
-            b'D' => self.set_col(self.cursor.col.saturating_sub(n)),
+            b'C' | b'a' => self.set_col((self.cursor.col + n).min(self.right_edge())),
+            b'D' => self.set_col(self.cursor.col.saturating_sub(n).max(self.left_edge())),
             b'E' | b'F' => {
                 self.move_vertical(if seq.action == b'E' { delta } else { -delta });
-                self.set_col(0);
+                self.carriage_return();
             }
             b'G' | b'`' => self.set_col(n - 1),
             b'H' | b'f' => self.goto(n - 1, usize::from(seq.params.get_or(1, 1)) - 1),
@@ -207,6 +211,10 @@ impl State {
                 let bottom = usize::from(seq.params.get_or(1, rows));
                 self.set_scroll_region(n - 1, bottom - 1);
             }
+            b's' if self.modes.margins => {
+                let right = usize::from(seq.params.get_or(1, self.screen.cols() as u16));
+                self.set_margins(n - 1, right.max(1) - 1);
+            }
             b's' => self.save_cursor(),
             b'u' => self.restore_cursor(),
             b'c' => self.reply.extend_from_slice(b"\x1b[?62;4;22c"),
@@ -249,7 +257,13 @@ impl State {
                 } else {
                     0
                 };
-                let (row, col) = (self.cursor.row - base.min(self.cursor.row), self.cursor.col);
+                let left = if self.modes.origin {
+                    self.screen.left
+                } else {
+                    0
+                };
+                let row = self.cursor.row - base.min(self.cursor.row);
+                let col = self.cursor.col.saturating_sub(left);
                 let report = format!("\x1b[{};{}R", row + 1, col + 1);
                 self.reply.extend_from_slice(report.as_bytes());
             }
@@ -291,6 +305,7 @@ impl State {
                 self.modes.origin = on;
                 self.goto(0, 0);
             }
+            69 => self.set_margin_mode(on),
             47 | 1047 => self.set_alternate(on),
             1048 if on => self.save_cursor(),
             1048 => self.restore_cursor(),

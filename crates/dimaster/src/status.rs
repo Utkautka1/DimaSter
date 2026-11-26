@@ -95,6 +95,9 @@ impl View {
         facts.push(("host".into(), host.trim().to_owned()));
         facts.push(("user".into(), std::env::var("USER").unwrap_or_default()));
         facts.push(("mode".into(), mode_name(&self.mode)));
+        if let Some(progress) = self.term.progress() {
+            facts.push(("progress".into(), progress.value.to_string()));
+        }
         if let Some((table, _)) = self.keymap.tables.last() {
             facts.push(("key_table".into(), table.clone()));
         }

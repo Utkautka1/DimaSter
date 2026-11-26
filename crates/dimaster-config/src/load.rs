@@ -9,7 +9,7 @@ use mlua::{Lua, Table, Value};
 use crate::import::ghostty_theme;
 use crate::theme::builtin_source;
 use crate::{Config, CopyOnSelect, Decorations, Effects, Theme, WindowConfig, parse_color};
-use crate::{context, cursor, load_keys, load_smart, load_ui, widgets};
+use crate::{context, cursor, load_keys, load_smart, load_ui, programs, widgets};
 
 /// Понятное человеку описание того, что не так в конфиге.
 #[derive(Debug)]
@@ -91,6 +91,7 @@ pub fn parse(source: &str, directory: Option<&Path>) -> Result<Config, ConfigErr
     apply_font(&table, &mut config)?;
     apply_general(&table, &mut config)?;
     load_keys::apply(&table, &mut config)?;
+    programs::apply(&table, &mut config)?;
     apply_sections(&table, &mut config)?;
     Ok(config)
 }

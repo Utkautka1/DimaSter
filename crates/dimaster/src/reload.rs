@@ -77,6 +77,8 @@ impl View {
             .set_default_colors(settings::default_colors(&self.config));
         self.term
             .set_default_cursor(settings::cursor_shape(self.config.cursor));
+        let policy = self.policy();
+        self.term.set_policy(policy);
         self.term.set_history_limit(self.config.scrollback);
         self.term.set_images_scroll(self.config.images_scroll);
         let smart = &self.config.smart;
