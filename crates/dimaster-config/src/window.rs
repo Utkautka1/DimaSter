@@ -42,6 +42,8 @@ pub struct WindowConfig {
     // насколько заметна фоновая картинка, 0.0..=1.0
     pub background_opacity: f32,
     // начальный размер в ячейках; тайловые композиторы его игнорируют
+    /// Каталог картинок: фон выбирается случайно.
+    pub background_dir: Option<PathBuf>,
     pub columns: Option<u32>,
     pub rows: Option<u32>,
 }
@@ -54,6 +56,7 @@ impl Default for WindowConfig {
             blur: false,
             background_image: None,
             background_opacity: 0.3,
+            background_dir: None,
             columns: None,
             rows: None,
         }

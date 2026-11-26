@@ -44,6 +44,10 @@ pub enum Action {
     ViMode,
     CommandPalette,
     ToggleFullscreen,
+    HintMode,
+    CommandHistory,
+    SudoFix,
+    Presentation,
     NewWindow,
     /// Прокрутить к предыдущему приглашению shell (нужны метки OSC 133).
     PromptPrevious,
@@ -56,7 +60,11 @@ pub enum Action {
     None,
 }
 
-const ACTIONS: [(&str, Action); 19] = [
+const ACTIONS: [(&str, Action); 23] = [
+    ("hint_mode", Action::HintMode),
+    ("command_history", Action::CommandHistory),
+    ("sudo_fix", Action::SudoFix),
+    ("presentation", Action::Presentation),
     ("toggle_fullscreen", Action::ToggleFullscreen),
     ("new_window", Action::NewWindow),
     ("prompt_previous", Action::PromptPrevious),
@@ -107,7 +115,11 @@ pub struct Binding {
 }
 
 // сочетания по умолчанию совпадают с привычными по Ghostty и kitty
-const DEFAULTS: [(&str, &str, Action); 19] = [
+const DEFAULTS: [(&str, &str, Action); 23] = [
+    ("u", "ctrl+shift", Action::HintMode),
+    ("h", "ctrl+shift", Action::CommandHistory),
+    ("s", "ctrl+shift", Action::SudoFix),
+    ("z", "ctrl+shift", Action::Presentation),
     ("enter", "ctrl", Action::ToggleFullscreen),
     ("n", "ctrl+shift", Action::NewWindow),
     ("arrowup", "ctrl+shift", Action::PromptPrevious),

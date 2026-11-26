@@ -2,6 +2,8 @@
 
 use dimaster_config::{Config, Decorations};
 
+use dimaster_grid::SmartOptions;
+
 use crate::settings;
 use crate::view::View;
 
@@ -20,6 +22,8 @@ impl View {
         }
         match settings::read() {
             Ok(config) => {
+                // новые настройки отменяют презентацию
+                self.normal_config = None;
                 self.config_error = false;
                 if config != self.config {
                     log::info!("Конфиг перечитан");
@@ -34,7 +38,7 @@ impl View {
         self.update_title();
     }
 
-    fn apply(&mut self, config: Config) {
+    pub(crate) fn apply(&mut self, config: Config) {
         let style_before = (self.config.line_height, self.config.ligatures);
         let font_changed = (&config.font_family, &config.font_dirs, config.font_size)
             != (
@@ -68,6 +72,13 @@ impl View {
             .set_default_cursor(settings::cursor_shape(self.config.cursor));
         self.term.set_history_limit(self.config.scrollback);
         self.term.set_images_scroll(self.config.images_scroll);
+        let smart = &self.config.smart;
+        self.term.set_smart_options(SmartOptions {
+            ok: smart.ok.clone(),
+            empty: smart.empty.clone(),
+            errors: smart.errors,
+            search_tools: smart.search_tools.clone(),
+        });
         let window = &self.config.window;
         self.window
             .set_decorations(window.decorations == Decorations::System);

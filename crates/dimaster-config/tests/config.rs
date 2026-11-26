@@ -74,6 +74,24 @@ fn write_tree(directory: &std::path::Path, config: &Config) {
     }
 }
 
+// настройки, появившиеся позже
+fn customize_more(config: &mut Config) {
+    config.remote_control = false;
+    config.line_height = 1.25;
+    config.ligatures = false;
+    config.copy_on_select = dimaster_config::CopyOnSelect::Clipboard;
+    config.scroll_multiplier = 5.0;
+    config.clipboard_write = false;
+    config.window.columns = Some(120);
+    config.window.rows = Some(40);
+    config.window.background_dir = Some("/w".into());
+    config.scrollbar = false;
+    config.smart.ok = String::new();
+    config.smart.long_command = 3.5;
+    config.smart.glow_color = 0x010203;
+    config.smart.double_alt_sudo = true;
+}
+
 fn custom() -> Config {
     let mut config = Config {
         font_family: Some("A \"B\" \\C".into()),
@@ -88,14 +106,7 @@ fn custom() -> Config {
     config.effects.cursor_trail = true;
     config.restore_session = true;
     config.session_history = 10;
-    config.remote_control = false;
-    config.line_height = 1.25;
-    config.ligatures = false;
-    config.copy_on_select = dimaster_config::CopyOnSelect::Clipboard;
-    config.scroll_multiplier = 5.0;
-    config.clipboard_write = false;
-    config.window.columns = Some(120);
-    config.window.rows = Some(40);
+    customize_more(&mut config);
     config
 }
 

@@ -7,6 +7,8 @@ use crate::{Cell, Flags, Placement};
 pub enum PromptMark {
     Prompt,
     Output,
+    /// Приглашение команды, завершившейся с ошибкой.
+    Failed,
 }
 
 /// Строка экрана или истории (в истории хвостовые пустые клетки обрезаны).

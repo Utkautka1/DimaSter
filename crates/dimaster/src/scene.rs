@@ -50,7 +50,7 @@ impl View {
 
     // цвета панелей выводятся из фона и текста темы: цвет выделения бывает
     // светлым, и светлый текст на нём не читается
-    fn label(&self, x: u32, y: u32, width: usize, text: String) -> Label {
+    pub(crate) fn label(&self, x: u32, y: u32, width: usize, text: String) -> Label {
         let theme = self.config.theme;
         let background = blend(theme.background, theme.foreground, 0.14);
         Label {
@@ -86,6 +86,7 @@ impl View {
     fn status_label(&self) -> Option<Label> {
         let text = match &self.mode {
             Mode::Search(search) => search.status(),
+            Mode::Hint(_) => " Метка — открыть, ЗАГЛАВНАЯ — копировать, Esc ".into(),
             Mode::Vi(_) => " VI: hjkl w b 0 $ g G · v V · y копировать · / поиск · q выход ".into(),
             _ => return None,
         };
@@ -149,6 +150,7 @@ impl View {
         let mut labels = self.title_labels();
         labels.extend(self.status_label());
         labels.extend(self.palette_labels());
+        labels.extend(self.mode_panels());
         (
             selection.map(|s| self.term.span(s)),
             self.highlights(),
@@ -163,6 +165,8 @@ impl View {
             .animator
             .tick(target.unwrap_or_default(), effects, self.focused, now);
         let (selection, highlights, labels) = self.decorations();
+        let mut rects = self.scrollbar_rects();
+        rects.extend(self.glow_rects());
         let view = Viewport {
             scroll: self.scroll,
             selection,
@@ -173,6 +177,7 @@ impl View {
             cursor: target.map(|_| pose.cursor),
             cursor_hidden: target.is_none() || pose.blink_hidden,
             trail: if target.is_some() { &pose.trail } else { &[] },
+            rects: &rects,
         };
         if !self.renderer.draw(&self.term, &mut self.fonts, view) {
             (self.wake)();

@@ -11,8 +11,10 @@ mod fetch;
 pub mod import;
 mod keys;
 mod load;
+mod load_smart;
 mod plugins;
 mod scaffold;
+mod smart;
 mod theme;
 mod window;
 
@@ -23,5 +25,6 @@ pub use keys::{Action, Binding, Mods};
 pub use load::{ConfigError, config_dir, load, parse};
 pub use plugins::{Effect, Plugins, Snapshot};
 pub use scaffold::{File, scaffold};
+pub use smart::Smart;
 pub use theme::{Theme, builtin_names};
 pub use window::{Decorations, Effects, WindowConfig};

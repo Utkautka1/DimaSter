@@ -213,6 +213,7 @@ impl State {
         std::mem::swap(&mut self.screen, &mut self.other);
         self.alternate = on;
         if on {
+            self.entered_full_screen();
             let count = self.screen.rows.len();
             self.erase_rows(0..count);
         }

@@ -90,6 +90,10 @@ cargo run --release -p dimaster -- --setup
 | Ctrl+Shift+Space | vi-режим: hjkl, w b, 0 $, g G, v V Ctrl+V, y, /, q |
 | Ctrl+Shift+P | палитра команд |
 | Ctrl+клик | открыть ссылку или файл |
+| Ctrl+Shift+U | метки на ссылках и путях |
+| Ctrl+Shift+H | история команд с их выводом |
+| Ctrl+Shift+S | добавить `sudo` |
+| Ctrl+Shift+Z | режим презентации |
 
 ## Плагины
 

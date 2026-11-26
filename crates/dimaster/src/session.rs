@@ -11,6 +11,7 @@ use std::thread;
 
 use dimaster_pty::{Pty, WindowSize};
 
+use crate::integration;
 use crate::restore::RESTORE_ENV;
 
 // столько порций может ждать отрисовки; дальше чтение тормозит программу
@@ -24,6 +25,8 @@ pub(crate) struct Launch<'a> {
     pub(crate) directory: Option<&'a Path>,
     // сокет управления этим окном
     pub(crate) socket: Option<&'a Path>,
+    /// Подключать ли интеграцию с shell.
+    pub(crate) integrate: bool,
 }
 
 /// Команда с окружением терминала.
@@ -42,6 +45,10 @@ pub(crate) fn command(launch: &Launch<'_>) -> Command {
         .env_remove(RESTORE_ENV);
     if let Some(socket) = launch.socket {
         command.env("DIMASTER_SOCKET", socket);
+    }
+    if launch.integrate {
+        let injection = integration::inject(launch.args);
+        command.args(injection.args).envs(injection.env);
     }
     command
         .args(&launch.args[1..])

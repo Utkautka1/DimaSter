@@ -32,6 +32,7 @@ impl State {
             "9" => self.notify("DimaSter", value),
             "777" => self.notify_titled(value),
             "133" => self.mark_prompt(value),
+            "633" => self.command_line(value),
             _ => log::debug!("неподдерживаемый OSC {code}"),
         }
     }
@@ -71,7 +72,22 @@ impl State {
         }
     }
 
+    // OSC 633;E;<текст> — какую команду сейчас запустят
+    fn command_line(&mut self, value: &str) {
+        if let Some(text) = value.strip_prefix("E;") {
+            self.command_typed(text);
+        }
+    }
+
     fn mark_prompt(&mut self, value: &str) {
+        match value.chars().next() {
+            Some('C') => self.command_started(),
+            Some('D') => {
+                let code = value.split(';').nth(1).and_then(|c| c.parse().ok());
+                return self.command_finished(code.unwrap_or(0));
+            }
+            _ => {}
+        }
         let mark = match value.chars().next() {
             Some('A') => PromptMark::Prompt,
             Some('C') => PromptMark::Output,

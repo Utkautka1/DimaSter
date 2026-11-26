@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use crate::keys::default_bindings;
-use crate::{Binding, Effects, Theme, WindowConfig};
+use crate::{Binding, Effects, Smart, Theme, WindowConfig};
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum CursorStyle {
@@ -100,9 +100,14 @@ pub struct Config {
     pub scroll_multiplier: f32,
     /// Разрешить программам писать в буфер обмена (OSC 52).
     pub clipboard_write: bool,
+    pub smart: Smart,
+    /// Полоса прокрутки с метками команд.
+    pub scrollbar: bool,
 }
 
 impl Default for Config {
+    // плоское перечисление значений без логики
+    #[allow(clippy::too_many_lines)]
     fn default() -> Self {
         Self {
             font_family: None,
@@ -127,6 +132,8 @@ impl Default for Config {
             copy_on_select: CopyOnSelect::Primary,
             scroll_multiplier: 3.0,
             clipboard_write: true,
+            smart: Smart::default(),
+            scrollbar: true,
         }
     }
 }

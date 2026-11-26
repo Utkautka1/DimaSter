@@ -5,7 +5,8 @@ use winit::keyboard::Key;
 use winit::window::Fullscreen;
 
 use crate::clipboard::Target;
-use crate::modes::{Mode, Press, palette, press, search, vi};
+use crate::desktop;
+use crate::modes::{Mode, Press, hint, history, palette, press, search, vi};
 use crate::view::View;
 
 impl View {
@@ -63,6 +64,8 @@ impl View {
                 }
             }
             Mode::Vi(state) => self.vi_press(state, press),
+            Mode::Hint(state) => self.hint_press(state, press),
+            Mode::History(state) => self.history_press(state, press),
             Mode::Palette(mut state) => match state.press(press) {
                 palette::Outcome::Stay => self.mode = Mode::Palette(state),
                 palette::Outcome::Run(action) => self.perform(action),
@@ -85,6 +88,41 @@ impl View {
             }
             vi::Outcome::Search => self.open_search(),
             vi::Outcome::Exit => self.scroll = 0,
+        }
+    }
+
+    pub(crate) fn open_hints(&mut self) {
+        let hints = hint::Hints::collect(&self.term, self.scroll);
+        if !hints.targets.is_empty() {
+            self.mode = Mode::Hint(hints);
+            self.window.request_redraw();
+        }
+    }
+
+    pub(crate) fn open_history(&mut self) {
+        let entries = self.term.commands().rev().cloned().collect();
+        self.mode = Mode::History(history::History {
+            entries,
+            selected: 0,
+        });
+        self.window.request_redraw();
+    }
+
+    fn hint_press(&mut self, mut state: hint::Hints, press: Press) {
+        match state.press(press) {
+            hint::Outcome::Stay => self.mode = Mode::Hint(state),
+            hint::Outcome::Open(link) => desktop::open(&link, self.term.cwd()),
+            hint::Outcome::Copy(text) => self.clipboard.set(Target::Clipboard, text),
+            hint::Outcome::Close => {}
+        }
+    }
+
+    fn history_press(&mut self, mut state: history::History, press: Press) {
+        match state.press(press) {
+            history::Outcome::Stay => self.mode = Mode::History(state),
+            history::Outcome::Insert(command) => self.type_bytes(command.into_bytes()),
+            history::Outcome::CopyOutput(text) => self.clipboard.set(Target::Clipboard, text),
+            history::Outcome::Close => {}
         }
     }
 

@@ -7,6 +7,7 @@
 mod cell;
 mod charset;
 mod colors;
+mod command;
 mod cursor;
 mod dispatch;
 mod edit;
@@ -26,6 +27,7 @@ mod terminal;
 
 pub use cell::{Cell, Color, Flags, Style};
 pub use colors::{ColorOverrides, DefaultColors};
+pub use command::{Finished, SmartOptions, describe_exit};
 pub use cursor::Cursor;
 pub use graphics::{MAX_IMAGE_ROWS, Picture, Placement};
 pub use modes::{CursorShape, Modes};

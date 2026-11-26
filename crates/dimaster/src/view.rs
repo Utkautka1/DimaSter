@@ -22,6 +22,7 @@ use crate::pointer::Pointer;
 use crate::select::Selecting;
 use crate::session::{Launch, Session};
 use crate::settings;
+use crate::smart::Assist;
 
 // столько порций разбираем за раз, чтобы поток вывода не блокировал ввод
 const BATCH: usize = 32;
@@ -64,6 +65,9 @@ pub(crate) struct View {
     pub(crate) hover_link: Option<Match>,
     /// Нажата кнопка закрытия своей рамки.
     pub(crate) closing: bool,
+    pub(crate) assist: Assist,
+    // обычные настройки, пока включена презентация
+    pub(crate) normal_config: Option<Config>,
     pub(crate) plugins: Option<Plugins>,
     pub(crate) plugin_depth: u8,
     pub(crate) socket: Option<PathBuf>,
@@ -146,6 +150,8 @@ impl View {
             focused: true,
             hover_link: None,
             closing: false,
+            assist: Assist::default(),
+            normal_config: None,
             plugins: None,
             plugin_depth: 0,
             socket: None,
@@ -177,6 +183,7 @@ impl View {
         let size = self.grid_size();
         let wake = self.wake.clone();
         let launch = Launch {
+            integrate: self.config.smart.integration,
             args: &self.args,
             term_name: &self.config.term,
             directory: self.start_directory.as_deref(),
@@ -212,6 +219,7 @@ impl View {
         }
         self.report_directory(directory);
         self.after_output();
+        self.check_commands();
         self.refresh();
         true
     }
@@ -291,10 +299,14 @@ impl View {
             .renderer
             .next_frame()
             .map(|w| now + w.max(Duration::from_millis(16)));
+        let glow = self
+            .assist
+            .glow_since
+            .map(|_| now + Duration::from_millis(40));
         let motion = self
             .animator
             .next_frame(self.config.effects, self.focused, now);
-        self.animate_at = [picture, motion].into_iter().flatten().min();
+        self.animate_at = [picture, motion, glow].into_iter().flatten().min();
     }
 
     // номера строк изменились: поиск повторяется, vi-курсор теряет смысл
@@ -303,7 +315,8 @@ impl View {
         match &mut self.mode {
             Mode::Search(search) => search.update(&self.term),
             Mode::Vi(_) => self.mode = Mode::Normal,
-            Mode::Normal | Mode::Palette(_) => {}
+            Mode::Hint(_) => self.mode = Mode::Normal,
+            Mode::Normal | Mode::Palette(_) | Mode::History(_) => {}
         }
     }
 
@@ -384,6 +397,9 @@ impl View {
     pub(crate) fn focus(&mut self, focused: bool) {
         self.emit("focus", if focused { "true" } else { "false" });
         self.focused = focused;
+        if focused {
+            self.assist.glow_since = None;
+        }
         self.animator.restart_blink(Instant::now());
         self.window.request_redraw();
         if self.term.modes().focus_events {

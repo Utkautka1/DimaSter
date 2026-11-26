@@ -1,5 +1,7 @@
 //! Режимы, в которых клавиатура принадлежит терминалу, а не программе.
 
+pub(crate) mod hint;
+pub(crate) mod history;
 pub(crate) mod palette;
 pub(crate) mod search;
 pub(crate) mod vi;
@@ -60,4 +62,6 @@ pub(crate) enum Mode {
     Search(search::Search),
     Vi(vi::Vi),
     Palette(palette::Palette),
+    Hint(hint::Hints),
+    History(history::History),
 }

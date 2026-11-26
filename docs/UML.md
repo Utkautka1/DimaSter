@@ -112,6 +112,18 @@ classDiagram
     class Saved { cwd; lines }
     class Launch { args; term_name; directory; socket }
     View *-- Plugins
+    class Commands { options; running; history }
+    class Finished { command; exit; duration; output }
+    class SmartOptions { ok; empty; errors; search_tools }
+    class Assist { glow_since; typed }
+    class Rect { x; y; width; height; color }
+    class Hints { targets; typed }
+    class History { entries; selected }
+    State *-- Commands
+    Commands *-- Finished
+    Commands *-- SmartOptions
+    View *-- Assist
+    View ..> Rect
     class Layout { lines; logo; image; logo_width }
     class ColorOverrides { palette; foreground; background; cursor }
     State *-- ColorOverrides
@@ -190,4 +202,20 @@ sequenceDiagram
     S->>V: Wake::Remote(Request)
     V-->>S: результат
     S-->>C: ok / err и текст
+```
+
+## Интеграция с shell
+
+```mermaid
+sequenceDiagram
+    participant S as zsh / bash / fish
+    participant T as Terminal
+    participant V as View
+    S->>T: OSC 133;A (приглашение)
+    S->>T: OSC 633;E;команда, 133;C
+    S->>T: вывод
+    S->>T: OSC 133;D;код
+    T->>T: подсказка, снимок вывода
+    V->>T: completed_commands()
+    V->>V: свечение, уведомление, событие плагинам
 ```

@@ -8,7 +8,7 @@ use crate::appearance::Appearance;
 use crate::atlas::{Atlas, Slot};
 use crate::bidi;
 use crate::images::Images;
-use crate::overlay::Label;
+use crate::overlay::{Label, Rect};
 use crate::palette::{self, Rgb};
 use crate::text::Run;
 
@@ -67,6 +67,8 @@ pub struct Viewport<'a> {
     pub cursor_hidden: bool,
     /// Прошлые положения курсора для «хвоста».
     pub trail: &'a [(f32, f32)],
+    /// Полоса прокрутки, свечение рамки.
+    pub rects: &'a [Rect],
 }
 
 /// Всё, что нужно для сборки кадра.
@@ -99,8 +101,9 @@ impl Builder<'_> {
     }
 
     /// Панели и заголовок идут отдельным слоем поверх картинок.
-    pub(crate) fn overlay(&mut self, labels: &[Label]) {
+    pub(crate) fn overlay(&mut self, rects: &[Rect], labels: &[Label]) {
         self.quads.clear();
+        rects.iter().for_each(|rect| self.rect(rect));
         labels.iter().for_each(|label| self.label(label));
     }
 

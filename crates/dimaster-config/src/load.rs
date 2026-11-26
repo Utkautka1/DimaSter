@@ -5,12 +5,12 @@ use std::path::{Path, PathBuf};
 
 use mlua::{Lua, Table, Value};
 
-use crate::context;
 use crate::theme::builtin_source;
 use crate::{
     Action, Binding, Config, CopyOnSelect, CursorStyle, Decorations, Effects, Mods, Theme,
     WindowConfig, parse_color,
 };
+use crate::{context, load_smart};
 
 /// Понятное человеку описание того, что не так в конфиге.
 #[derive(Debug)]
@@ -27,6 +27,12 @@ impl std::error::Error for ConfigError {}
 impl From<mlua::Error> for ConfigError {
     fn from(error: mlua::Error) -> Self {
         Self(error.to_string())
+    }
+}
+
+impl ConfigError {
+    pub(crate) fn new(key: &str, value: &str) -> Self {
+        invalid(key, value)
     }
 }
 
@@ -222,6 +228,7 @@ fn apply_window(table: &Table, window: &mut WindowConfig) -> Result<(), ConfigEr
     let side = |value: Option<u32>| value.map(|v| v.clamp(10, 1000));
     window.columns = side(table.get("columns")?);
     window.rows = side(table.get("rows")?);
+    window.background_dir = table.get::<Option<String>>("background_dir")?.map(expand);
     window.background_image = table.get::<Option<String>>("background_image")?.map(expand);
     Ok(())
 }
@@ -242,6 +249,10 @@ fn apply_sections(table: &Table, config: &mut Config) -> Result<(), ConfigError>
         apply_effects(&effects, &mut config.effects)?;
     }
     apply_interaction(table, config)?;
+    if let Some(smart) = table.get::<Option<Table>>("smart")? {
+        load_smart::apply(&smart, &mut config.smart)?;
+    }
+    flag(table, "scrollbar", &mut config.scrollbar)?;
     flag(table, "remote_control", &mut config.remote_control)?;
     if let Some(session) = table.get::<Option<Table>>("session")? {
         flag(&session, "restore", &mut config.restore_session)?;

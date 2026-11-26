@@ -4,7 +4,11 @@ use dimaster_config::Action;
 
 use super::Press;
 
-const COMMANDS: [(&str, Action); 15] = [
+const COMMANDS: [(&str, Action); 19] = [
+    ("Метки на ссылках", Action::HintMode),
+    ("История команд", Action::CommandHistory),
+    ("Добавить sudo", Action::SudoFix),
+    ("Режим презентации", Action::Presentation),
     ("Новое окно", Action::NewWindow),
     ("Полный экран", Action::ToggleFullscreen),
     ("Предыдущее приглашение", Action::PromptPrevious),

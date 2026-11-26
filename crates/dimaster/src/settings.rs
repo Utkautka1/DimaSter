@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::Instant;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use dimaster_config::{Config, CursorStyle, Decorations, config_dir, load};
 use dimaster_font::{FontError, FontSystem};
@@ -100,11 +100,38 @@ pub(crate) fn appearance(config: &Config, cell_height: u32) -> Appearance {
     }
 }
 
+// из каталога берётся случайная картинка, иначе — заданный файл
+fn background_path(config: &Config) -> Option<PathBuf> {
+    let Some(directory) = &config.window.background_dir else {
+        return config.window.background_image.clone();
+    };
+    let pictures: Vec<PathBuf> = std::fs::read_dir(directory)
+        .inspect_err(|e| log::warn!("Каталог фонов {}: {e}", directory.display()))
+        .ok()?
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| is_picture(p))
+        .collect();
+    // для выбора обоев хватает младших разрядов времени
+    let seed = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |d| d.subsec_nanos());
+    pictures.get(seed as usize % pictures.len().max(1)).cloned()
+}
+
+fn is_picture(path: &Path) -> bool {
+    let extension = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or_default();
+    ["png", "jpg", "jpeg", "gif", "webp"].contains(&extension.to_ascii_lowercase().as_str())
+}
+
 /// Декодирует фоновую картинку; ошибка не мешает работе терминала.
 pub(crate) fn wallpaper(config: &Config) -> Option<(Arc<Picture>, f32)> {
     // номера с конца диапазона не пересекаются с картинками программ
     static NEXT: AtomicU64 = AtomicU64::new(u64::MAX);
-    let path = config.window.background_image.as_ref()?;
+    let path = &background_path(config)?;
     let data = std::fs::read(path)
         .inspect_err(|e| log::warn!("Фон {}: {e}", path.display()))
         .ok()?;

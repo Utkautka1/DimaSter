@@ -3,7 +3,7 @@
 use dimaster_font::Metrics;
 use dimaster_grid::{Flags, Size, Terminal};
 
-use crate::frame::{Builder, Quad};
+use crate::frame::{Builder, Quad, TRANSLUCENT};
 use crate::palette::Rgb;
 use crate::text::Run;
 
@@ -19,7 +19,32 @@ pub struct Label {
     pub background: Rgb,
 }
 
+/// Прямоугольник интерфейса в пикселях окна.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Rect {
+    pub x: u32,
+    pub y: u32,
+    pub width: u32,
+    pub height: u32,
+    pub color: Rgb,
+    pub translucent: bool,
+}
+
 impl Builder<'_> {
+    pub(crate) fn rect(&mut self, rect: &Rect) {
+        let color = if rect.translucent {
+            rect.color | TRANSLUCENT
+        } else {
+            rect.color
+        };
+        let position = [rect.x as f32, rect.y as f32];
+        self.quads.push(Quad::solid(
+            position,
+            [rect.width as f32, rect.height as f32],
+            color,
+        ));
+    }
+
     pub(crate) fn label(&mut self, label: &Label) {
         let Metrics {
             cell_width,

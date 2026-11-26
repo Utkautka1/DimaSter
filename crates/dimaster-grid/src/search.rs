@@ -114,6 +114,27 @@ impl Terminal {
         line
     }
 
+    /// Все ссылки и пути в логических строках, задевающих `lines`.
+    pub fn links_in(&self, lines: std::ops::Range<u64>) -> Vec<(Match, String)> {
+        let Ok(pattern) = Regex::new(LINK) else {
+            return Vec::new();
+        };
+        let mut found = Vec::new();
+        let mut line = self.logical_start(lines.start);
+        while line < lines.end.min(self.line_range().end) {
+            let (logical, next) = self.logical(line);
+            found.extend(pattern.find_iter(&logical.text).filter_map(|hit| {
+                let text = hit.as_str().trim_end_matches(TRAILING);
+                let range = logical.matched(hit.start(), hit.start() + text.len())?;
+                lines
+                    .contains(&range.start.line)
+                    .then(|| (range, text.to_owned()))
+            }));
+            line = next.max(line + 1);
+        }
+        found
+    }
+
     /// Адрес или путь под указанной клеткой.
     pub fn link_at(&self, point: Point) -> Option<(Match, String)> {
         let pattern = Regex::new(LINK).ok()?;

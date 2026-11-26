@@ -1,0 +1,22 @@
+# Подключает интеграцию DimaSter, не меняя ваши файлы: сначала возвращается
+# настоящий ZDOTDIR и читается ваш .zshenv, затем добавляются хуки.
+if [[ -n "${DIMASTER_ZDOTDIR+x}" ]]; then
+  export ZDOTDIR="$DIMASTER_ZDOTDIR"
+  unset DIMASTER_ZDOTDIR
+else
+  unset ZDOTDIR
+fi
+[[ -f "${ZDOTDIR:-$HOME}/.zshenv" ]] && source "${ZDOTDIR:-$HOME}/.zshenv"
+
+if [[ -o interactive ]]; then
+  __dimaster_precmd() {
+    local code=$?
+    printf '\e]133;D;%s\a\e]7;file://%s%s\a\e]133;A\a' "$code" "$HOST" "${PWD//\%/%25}"
+  }
+  __dimaster_preexec() {
+    printf '\e]633;E;%s\a\e]133;C\a' "${1//[[:cntrl:]]/ }"
+  }
+  autoload -Uz add-zsh-hook
+  add-zsh-hook precmd __dimaster_precmd
+  add-zsh-hook preexec __dimaster_preexec
+fi

@@ -97,11 +97,15 @@ pub(super) fn window(config: &Config) -> String {
     format!(
         "-- Окно. decorations: own (своя рамка), system, none.\nreturn {{\n  window = {{\n    \
          decorations = {},\n    opacity = {},\n    blur = {},\n    {image}\n    \
-         background_opacity = {},\n    {}\n    {}\n  }},\n}}\n",
+         background_opacity = {},\n    {}\n    {}\n    {}\n  }},\n}}\n",
         quote(window.decorations.name()),
         window.opacity,
         window.blur,
         window.background_opacity,
+        match &window.background_dir {
+            Some(dir) => format!("background_dir = {},", path(dir)),
+            None => "-- background_dir = \"~/Pictures/walls\",".to_owned(),
+        },
         optional("columns", window.columns, 100),
         optional("rows", window.rows, 30),
     )
@@ -113,6 +117,27 @@ pub(super) fn effects(config: &Config) -> String {
         "-- Анимации.\nreturn {{\n  effects = {{\n    cursor_blink = {},\n    \
          cursor_animation = {},\n    cursor_trail = {},\n    smooth_scroll = {},\n  }},\n}}\n",
         effects.cursor_blink, effects.cursor_animation, effects.cursor_trail, effects.smooth_scroll,
+    )
+}
+
+// умная оболочка: подсказки под командами и реакция на долгие
+fn smart(config: &Config) -> String {
+    let s = &config.smart;
+    format!(
+        "  scrollbar = {},\n  smart = {{\n    integration = {},\n    ok = {},\n    empty = {},\n    \
+         errors = {},\n    search_tools = {},\n    long_command = {},\n    glow = {},\n    \
+         glow_color = {},\n    notify = {},\n    double_alt_sudo = {},\n  }},\n",
+        config.scrollbar,
+        s.integration,
+        quote(&s.ok),
+        quote(&s.empty),
+        s.errors,
+        list(&s.search_tools, |t| quote(t)),
+        s.long_command,
+        s.glow,
+        quote(&format_color(s.glow_color)),
+        s.notify,
+        s.double_alt_sudo,
     )
 }
 
@@ -142,7 +167,7 @@ pub(super) fn behavior(config: &Config) -> String {
         config.images_scroll,
         config.rtl,
         quote(&config.term),
-        interaction(config),
+        interaction(config) + &smart(config),
         config.remote_control,
         config.restore_session,
         config.session_history,

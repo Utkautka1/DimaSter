@@ -218,7 +218,7 @@ impl Renderer {
         builder.build(term, view);
         let wallpaper = builder.wallpaper(window);
         builder.quads = &mut self.overlay;
-        builder.overlay(view.labels);
+        builder.overlay(view.rects, view.labels);
         self.wallpaper = usize::from(wallpaper.is_some());
         if let Some(wallpaper) = wallpaper {
             self.images.quads.insert(0, wallpaper);

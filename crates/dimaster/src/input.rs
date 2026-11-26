@@ -1,6 +1,8 @@
 //! Клавиатура: сочетания терминала и передача нажатий программе.
 
 use dimaster_config::{Action, Binding, Mods};
+use std::time::Instant;
+
 use winit::event::KeyEvent;
 use winit::keyboard::{Key, KeyCode, ModifiersState, NamedKey, PhysicalKey};
 use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
@@ -49,6 +51,9 @@ fn find_action(bindings: &[Binding], key: &Key, state: ModifiersState) -> Option
 
 impl View {
     pub(crate) fn key(&mut self, event: &KeyEvent) {
+        if !matches!(event.logical_key, Key::Named(NamedKey::Alt)) {
+            self.assist.other_key();
+        }
         // без модификаторов: Ctrl+C должен работать и на русской раскладке
         let key = self.layout_independent(event);
         let text = event.text.as_deref();
@@ -64,7 +69,14 @@ impl View {
         };
         let text = event.text.as_deref();
         if let Some(bytes) = keys::encode(&key, text, self.modifiers, modes) {
+            // Enter начинает новую строку, остальное — набранный текст
+            self.assist.typed = !matches!(key, Key::Named(NamedKey::Enter));
             self.type_bytes(bytes);
+        } else if self.config.smart.double_alt_sudo
+            && matches!(key, Key::Named(NamedKey::Alt))
+            && self.assist.alt_tap(Instant::now())
+        {
+            self.sudo_fix();
         }
     }
 
@@ -78,6 +90,17 @@ impl View {
         match event.physical_key {
             PhysicalKey::Code(code) => latin_letter(code).map_or(key, |c| Key::Character(c.into())),
             PhysicalKey::Unidentified(_) => key,
+        }
+    }
+
+    // подсказки, история и прочие помощники
+    fn perform_assist(&mut self, action: Action) {
+        match action {
+            Action::HintMode => self.open_hints(),
+            Action::CommandHistory => self.open_history(),
+            Action::SudoFix => self.sudo_fix(),
+            Action::Presentation => self.toggle_presentation(),
+            other => log::debug!("действие без обработчика: {other:?}"),
         }
     }
 
@@ -105,6 +128,7 @@ impl View {
             Action::PromptPrevious => self.jump_prompt(false),
             Action::PromptNext => self.jump_prompt(true),
             Action::None => {}
+            other => self.perform_assist(other),
         }
     }
 }

@@ -4,10 +4,12 @@ use dimaster_vt::Parser;
 use unicode_width::UnicodeWidthChar;
 
 use crate::colors::ColorOverrides;
+use crate::command::Commands;
 use crate::graphics::Store;
 use crate::keyboard::KeyboardStack;
 use crate::reflow::Position;
 use crate::{Cell, Cursor, CursorShape, DefaultColors, Flags, Modes, PromptMark, Screen};
+use crate::{Finished, SmartOptions};
 
 /// Размер сетки в ячейках.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -58,6 +60,7 @@ pub(crate) struct State {
     pub(crate) cell_pixels: (usize, usize),
     pub(crate) colors: DefaultColors,
     pub(crate) overrides: ColorOverrides,
+    pub(crate) commands: Commands,
     // стек заголовков окна (CSI 22/23 t)
     pub(crate) titles: Vec<String>,
     // запросы записи в буфер обмена: (primary, текст)
@@ -159,13 +162,26 @@ impl Terminal {
     pub fn prompt_line(&self, line: u64, forward: bool) -> Option<u64> {
         let range = self.line_range();
         let is_prompt = |at: &u64| {
-            self.line(*at)
-                .is_some_and(|r| r.mark == Some(PromptMark::Prompt))
+            let mark = self.line(*at).and_then(|r| r.mark);
+            matches!(mark, Some(PromptMark::Prompt | PromptMark::Failed))
         };
         match forward {
             true => (line + 1..range.end).find(is_prompt),
             false => (range.start..line).rev().find(is_prompt),
         }
+    }
+
+    pub fn set_smart_options(&mut self, options: SmartOptions) {
+        self.state.commands.options = options;
+    }
+
+    /// Завершившиеся команды, от старых к новым.
+    pub fn commands(&self) -> impl DoubleEndedIterator<Item = &Finished> {
+        self.state.commands.history.iter()
+    }
+
+    pub fn completed_commands(&self) -> u64 {
+        self.state.commands.completed
     }
 
     pub fn title(&self) -> &str {
@@ -224,6 +240,7 @@ impl State {
             cell_pixels: (0, 0),
             colors: DefaultColors::default(),
             overrides: ColorOverrides::default(),
+            commands: Commands::default(),
             titles: Vec::new(),
             clipboard: Vec::new(),
             default_cursor: CursorShape::Block,

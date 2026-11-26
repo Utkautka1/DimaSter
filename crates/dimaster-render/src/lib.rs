@@ -20,6 +20,6 @@ mod textures;
 pub use appearance::Appearance;
 pub use frame::Viewport;
 pub use gpu::{RenderError, Renderer};
-pub use overlay::Label;
+pub use overlay::{Label, Rect};
 // приложению нужно создать поверхность окна той же версией wgpu
 pub use wgpu;
