@@ -93,6 +93,9 @@ impl State {
         self.split_wide(row, start, end);
         let fill = self.blank();
         self.screen.rows[row].cells[start..end].fill(fill);
+        if end == self.screen.cols() {
+            self.screen.rows[row].wrapped = false;
+        }
         self.cursor.pending_wrap = false;
     }
 

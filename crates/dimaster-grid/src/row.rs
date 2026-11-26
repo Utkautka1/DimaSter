@@ -43,20 +43,34 @@ impl Row {
         self.mark = None;
     }
 
+    pub(crate) fn is_blank(&self) -> bool {
+        !self.wrapped && self.cells.iter().all(|c| *c == Cell::default())
+    }
+
+    pub(crate) fn starts_wide(&self) -> bool {
+        self.cells
+            .first()
+            .is_some_and(|c| c.style.flags.contains(Flags::WIDE))
+    }
+
     /// Текст строки без хвостовых пробелов и вторых половин широких символов.
     pub fn text(&self) -> String {
+        let mut out = self.slice_text(0, usize::MAX);
+        out.truncate(out.trim_end().len());
+        out
+    }
+
+    /// Текст колонок `first..=last` как есть.
+    pub(crate) fn slice_text(&self, first: usize, last: usize) -> String {
+        let count = last.saturating_sub(first).saturating_add(1);
         let mut out = String::new();
-        for cell in self
-            .cells
-            .iter()
-            .filter(|c| !c.style.flags.contains(Flags::WIDE_TAIL))
-        {
+        let cells = self.cells.iter().skip(first).take(count);
+        for cell in cells.filter(|c| !c.style.flags.contains(Flags::WIDE_TAIL)) {
             out.push(cell.ch);
             if let Some(extra) = &cell.extra {
                 out.push_str(extra);
             }
         }
-        out.truncate(out.trim_end().len());
         out
     }
 

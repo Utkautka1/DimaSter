@@ -4,6 +4,7 @@ use dimaster_vt::Parser;
 use unicode_width::UnicodeWidthChar;
 
 use crate::keyboard::KeyboardStack;
+use crate::reflow::Position;
 use crate::{Cell, Cursor, DefaultColors, Flags, Modes, Screen};
 
 /// Размер сетки в ячейках.
@@ -124,6 +125,13 @@ impl Terminal {
     }
 }
 
+// col == cols означает «следующий символ перенесётся»
+fn place(cursor: &mut Cursor, position: Position, size: Size) {
+    cursor.row = position.row;
+    cursor.col = position.col.min(size.cols - 1);
+    cursor.pending_wrap = position.col >= size.cols;
+}
+
 fn default_tabs(cols: usize) -> Vec<bool> {
     (0..cols).map(|c| c % 8 == 0).collect()
 }
@@ -148,15 +156,39 @@ impl State {
         }
     }
 
+    // переразбивается только основной экран, даже если он сейчас спрятан
     fn resize(&mut self, size: Size) {
-        let shift = self.screen.resize(size, self.cursor.row);
-        // под альтернативным экраном основной тоже должен сохранить строку курсора
-        let hidden_row = if self.alternate { self.saved[0].row } else { 0 };
-        let hidden_shift = self.other.resize(size, hidden_row);
-        self.saved[0].row = self.saved[0].row.saturating_sub(hidden_shift);
         self.tabs = default_tabs(size.cols);
-        self.cursor.row -= shift;
+        if self.alternate {
+            self.other_resize(size);
+        } else {
+            let col = self.cursor.col + usize::from(self.cursor.pending_wrap);
+            let position = self.screen.reflow(
+                size,
+                Position {
+                    row: self.cursor.row,
+                    col,
+                },
+            );
+            self.other.resize(size);
+            place(&mut self.cursor, position, size);
+        }
+        self.cursor.row = self.cursor.row.min(size.rows - 1);
         self.cursor.col = self.cursor.col.min(size.cols - 1);
+    }
+
+    fn other_resize(&mut self, size: Size) {
+        let saved = self.saved[0];
+        let col = saved.col + usize::from(saved.pending_wrap);
+        let position = self.other.reflow(
+            size,
+            Position {
+                row: saved.row,
+                col,
+            },
+        );
+        place(&mut self.saved[0], position, size);
+        self.screen.resize(size);
         self.cursor.pending_wrap = false;
     }
 
@@ -195,6 +227,9 @@ impl State {
     fn write_cell(&mut self, ch: char, width: usize) {
         let (row, col) = (self.cursor.row, self.cursor.col);
         self.split_wide(row, col, col + width);
+        if col + width == self.screen.cols() {
+            self.screen.rows[row].wrapped = false;
+        }
         let mut style = self.cursor.style;
         style.flags.set(Flags::WIDE, width == 2);
         let cells = &mut self.screen.rows[row].cells;

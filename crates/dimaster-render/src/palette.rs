@@ -7,6 +7,7 @@ pub(crate) type Rgb = u32;
 
 pub(crate) const FOREGROUND: Rgb = 0xd8dee9;
 pub(crate) const BACKGROUND: Rgb = 0x11131a;
+pub(crate) const SELECTION: Rgb = 0x3b4261;
 pub(crate) const CURSOR: Rgb = 0xe5e9f0;
 
 const ANSI: [Rgb; 16] = [

@@ -10,6 +10,8 @@ pub struct Screen {
     pub(crate) rows: Vec<Row>,
     /// Строки, ушедшие вверх; у альтернативного экрана всегда пусто.
     pub(crate) history: VecDeque<Row>,
+    // сколько строк уже вытеснено из истории: делает номера строк постоянными
+    pub(crate) evicted: u64,
     // максимум строк истории; 0 отключает её
     limit: usize,
     // область прокрутки, обе границы включительно
@@ -20,9 +22,11 @@ pub struct Screen {
 impl Screen {
     pub(crate) fn new(size: Size, limit: usize) -> Self {
         let rows = vec![Row::new(size.cols, &Cell::default()); size.rows];
+        let history = VecDeque::new();
         Self {
             rows,
-            history: VecDeque::new(),
+            history,
+            evicted: 0,
             limit,
             top: 0,
             bottom: size.rows - 1,
@@ -69,24 +73,21 @@ impl Screen {
     }
 
     // В истории храним только занятую часть строки — это в разы меньше памяти
-    fn remember(&mut self, row: &mut Row) {
+    pub(crate) fn remember(&mut self, row: &mut Row) {
         if self.limit == 0 {
             return;
         }
-        let mut cells = match self.history.len() == self.limit {
-            true => self
-                .history
-                .pop_front()
-                .map(|old| old.cells)
-                .unwrap_or_default(),
-            false => Vec::new(),
-        };
+        let mut cells = self.recycle_oldest();
         let blank = Cell::default();
-        let used = row
-            .cells
-            .iter()
-            .rposition(|c| *c != blank)
-            .map_or(0, |i| i + 1);
+        // у перенесённой строки хвостовые пробелы — часть текста
+        let used = match row.wrapped {
+            true => row.cells.len(),
+            false => row
+                .cells
+                .iter()
+                .rposition(|c| *c != blank)
+                .map_or(0, |i| i + 1),
+        };
         cells.clear();
         cells.extend(row.cells.drain(..used));
         self.history.push_back(Row {
@@ -96,21 +97,25 @@ impl Screen {
         });
     }
 
-    /// Меняет размер без переразбиения строк (reflow появится позже).
-    /// Возвращает, на сколько строк сместилось содержимое вверх.
-    pub(crate) fn resize(&mut self, size: Size, cursor_row: usize) -> usize {
-        // при уменьшении высоты уводим верх в историю, чтобы курсор остался виден
-        // сохранённый курсор мог остаться ниже экрана после прошлых resize
-        let cursor_row = cursor_row.min(self.rows.len() - 1);
-        let shift = (cursor_row + 1).saturating_sub(size.rows);
-        for mut row in self.rows.drain(..shift).collect::<Vec<_>>() {
-            self.remember(&mut row);
+    // заполненная история отдаёт буфер самой старой строки новой
+    fn recycle_oldest(&mut self) -> Vec<Cell> {
+        if self.history.len() < self.limit {
+            return Vec::new();
         }
+        self.evicted += 1;
+        self.history
+            .pop_front()
+            .map(|old| old.cells)
+            .unwrap_or_default()
+    }
+
+    /// Меняет размер без переразбиения: так ведёт себя альтернативный экран,
+    /// который программа всё равно перерисует сама.
+    pub(crate) fn resize(&mut self, size: Size) {
         self.rows
             .resize(size.rows, Row::new(size.cols, &Cell::default()));
         self.rows.iter_mut().for_each(|r| r.resize(size.cols));
         self.top = 0;
         self.bottom = size.rows - 1;
-        shift
     }
 }

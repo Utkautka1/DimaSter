@@ -6,7 +6,7 @@ use dimaster_font::FontSystem;
 use dimaster_grid::Terminal;
 
 use crate::atlas::Atlas;
-use crate::frame::{Builder, Quad};
+use crate::frame::{Builder, Quad, Viewport};
 use crate::palette;
 use crate::pipeline::Pipeline;
 
@@ -99,7 +99,7 @@ impl Renderer {
     }
 
     /// Рисует кадр. `false` — кадр пропущен и его нужно запросить снова.
-    pub fn draw(&mut self, term: &Terminal, fonts: &mut FontSystem, scroll: usize) -> bool {
+    pub fn draw(&mut self, term: &Terminal, fonts: &mut FontSystem, view: Viewport) -> bool {
         use wgpu::CurrentSurfaceTexture as Current;
         let frame = match self.surface.get_current_texture() {
             Current::Success(frame) | Current::Suboptimal(frame) => frame,
@@ -110,18 +110,18 @@ impl Renderer {
             // свёрнутое окно придёт в себя по событию от оконной системы
             _ => return true,
         };
-        self.prepare(term, fonts, scroll);
+        self.prepare(term, fonts, view);
         self.submit(&frame.texture.create_view(&Default::default()));
         self.queue.present(frame);
         true
     }
 
-    fn prepare(&mut self, term: &Terminal, fonts: &mut FontSystem, scroll: usize) {
-        self.build(term, fonts, scroll);
+    fn prepare(&mut self, term: &Terminal, fonts: &mut FontSystem, view: Viewport) {
+        self.build(term, fonts, view);
         if self.atlas.full {
             log::warn!("Атлас глифов переполнен — очищаем");
             self.atlas.clear();
-            self.build(term, fonts, scroll);
+            self.build(term, fonts, view);
         }
         for upload in self.atlas.uploads.drain(..) {
             self.pipeline.upload(&self.queue, &upload);
@@ -141,13 +141,13 @@ impl Renderer {
             .write_buffer(&self.instances, 0, bytemuck::cast_slice(&self.quads));
     }
 
-    fn build(&mut self, term: &Terminal, fonts: &mut FontSystem, scroll: usize) {
+    fn build(&mut self, term: &Terminal, fonts: &mut FontSystem, view: Viewport) {
         Builder {
             fonts,
             atlas: &mut self.atlas,
             quads: &mut self.quads,
         }
-        .build(term, scroll);
+        .build(term, view);
     }
 
     fn submit(&self, view: &wgpu::TextureView) {

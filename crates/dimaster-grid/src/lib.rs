@@ -12,9 +12,11 @@ mod edit;
 mod keyboard;
 mod modes;
 mod osc;
+mod reflow;
 mod report;
 mod row;
 mod screen;
+mod selection;
 mod sgr;
 mod terminal;
 
@@ -24,4 +26,5 @@ pub use modes::{CursorShape, Modes};
 pub use report::DefaultColors;
 pub use row::{PromptMark, Row};
 pub use screen::Screen;
+pub use selection::{Point, Selection, SelectionKind, Span};
 pub use terminal::{Size, Terminal};

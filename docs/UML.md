@@ -44,6 +44,17 @@ classDiagram
     class Cursor { row; col; style }
     class Modes { mouse; synchronized; cursor_shape }
     class KeyboardStack { +current(alternate) }
+    class Selection { kind; anchor; head }
+    class Span { +contains(line, col) }
+    class Selecting { selection; clicks }
+    class Clipboard { +set(target, text) +get(target) }
+    class Viewport { scroll; selection }
+    View *-- Selecting
+    View *-- Clipboard
+    Selecting o-- Selection
+    Terminal ..> Span : span(selection)
+    Renderer ..> Viewport
+    Viewport o-- Span
     class DefaultColors { foreground; background }
     class Pointer { cell; held }
     State *-- KeyboardStack

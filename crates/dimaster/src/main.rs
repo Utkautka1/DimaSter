@@ -1,10 +1,12 @@
 //! DimaSter: без аргументов открывает окно с shell пользователя.
 
 mod app;
+mod clipboard;
 mod headless;
 mod keys;
 mod mouse;
 mod pointer;
+mod select;
 mod session;
 mod terminfo;
 mod view;

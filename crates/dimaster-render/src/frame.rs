@@ -2,7 +2,7 @@
 
 use bytemuck::{Pod, Zeroable};
 use dimaster_font::{FontSystem, GlyphKey, Metrics};
-use dimaster_grid::{Cell, CursorShape, Flags, Row, Terminal};
+use dimaster_grid::{Cell, CursorShape, Flags, Row, Span, Terminal};
 
 use crate::atlas::Atlas;
 use crate::palette::{self, Rgb};
@@ -32,6 +32,14 @@ impl Quad {
     }
 }
 
+/// Что именно показать из состояния терминала.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct Viewport {
+    /// На сколько строк пользователь отмотал историю назад.
+    pub scroll: usize,
+    pub selection: Option<Span>,
+}
+
 /// Всё, что нужно для сборки кадра.
 pub(crate) struct Builder<'a> {
     pub(crate) fonts: &'a mut FontSystem,
@@ -40,19 +48,16 @@ pub(crate) struct Builder<'a> {
 }
 
 impl Builder<'_> {
-    /// `scroll` — на сколько строк пользователь отмотал историю назад.
-    pub(crate) fn build(&mut self, term: &Terminal, scroll: usize) {
+    pub(crate) fn build(&mut self, term: &Terminal, view: Viewport) {
         self.quads.clear();
-        let screen = term.screen();
-        let scroll = scroll.min(screen.history().count());
-        let history = screen.history().rev().take(scroll).collect::<Vec<_>>();
-        let visible = history
-            .into_iter()
-            .rev()
-            .chain(screen.rows())
-            .take(screen.rows().len());
-        for (index, row) in visible.enumerate() {
-            self.row(index, row);
+        let scroll = view.scroll.min(term.screen().history().count());
+        let first = term.visible_line(scroll);
+        for index in 0..term.screen().rows().len() {
+            let line = first + index as u64;
+            let Some(row) = term.line(line) else { break };
+            self.row(index, row, |col| {
+                view.selection.is_some_and(|s| s.contains(line, col))
+            });
         }
         if scroll == 0 && term.modes().cursor_visible {
             self.cursor(term);
@@ -67,13 +72,16 @@ impl Builder<'_> {
         ]
     }
 
-    fn row(&mut self, index: usize, row: &Row) {
+    fn row(&mut self, index: usize, row: &Row, selected: impl Fn(usize) -> bool) {
         for (col, cell) in row.cells.iter().enumerate() {
             if cell.style.flags.contains(Flags::WIDE_TAIL) {
                 continue;
             }
             let origin = self.origin(index, col);
-            let (fg, bg) = colors(cell);
+            let (fg, mut bg) = colors(cell);
+            if selected(col) {
+                bg = palette::SELECTION;
+            }
             self.background(origin, cell, bg);
             if !cell.style.flags.contains(Flags::HIDDEN) {
                 self.glyphs(origin, cell, fg);
@@ -188,7 +196,7 @@ fn colors(cell: &Cell) -> (Rgb, Rgb) {
 
 #[cfg(test)]
 mod tests {
-    use dimaster_grid::Size;
+    use dimaster_grid::{Point, Selection, SelectionKind, Size};
 
     use super::*;
 
@@ -202,7 +210,13 @@ mod tests {
             atlas: &mut atlas,
             quads: &mut quads,
         };
-        builder.build(&term, scroll);
+        builder.build(
+            &term,
+            Viewport {
+                scroll,
+                selection: None,
+            },
+        );
         quads
     }
 
@@ -222,5 +236,34 @@ mod tests {
         assert_eq!(quads("a\r\n\r\n", 0).len(), 1);
         assert_eq!(quads("a\r\n\r\n", 5).len(), 1);
         assert_eq!(quads("a\r\n\r\n", 5)[0].color, palette::FOREGROUND);
+    }
+
+    #[test]
+    fn selection_paints_background() {
+        let mut fonts = FontSystem::new(16.0).expect("в системе есть шрифт");
+        let (mut atlas, mut quads) = (Atlas::default(), Vec::new());
+        let mut term = Terminal::new(Size { rows: 2, cols: 8 });
+        term.advance(b"\x1b[?25lab");
+        let point = |col| Point { line: 0, col };
+        let kind = SelectionKind::Simple;
+        let span = term.span(Selection {
+            kind,
+            anchor: point(0),
+            head: point(1),
+        });
+        let mut builder = Builder {
+            fonts: &mut fonts,
+            atlas: &mut atlas,
+            quads: &mut quads,
+        };
+        builder.build(
+            &term,
+            Viewport {
+                scroll: 0,
+                selection: Some(span),
+            },
+        );
+        let painted = quads.iter().filter(|q| q.color == palette::SELECTION);
+        assert_eq!(painted.count(), 2);
     }
 }

@@ -27,5 +27,23 @@ fn throughput(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, throughput);
+/// Reflow полной истории: срабатывает на каждом шаге перетаскивания края окна.
+fn reflow(c: &mut Criterion) {
+    let mut term = Terminal::new(Size {
+        rows: 50,
+        cols: 200,
+    });
+    let line = "The quick brown fox jumps over the lazy dog\r\n";
+    term.advance(line.repeat(10_100).as_bytes());
+    let mut narrow = false;
+    c.bench_function("reflow_10k_lines", |b| {
+        b.iter(|| {
+            narrow = !narrow;
+            let cols = if narrow { 199 } else { 200 };
+            term.resize(Size { rows: 50, cols });
+        });
+    });
+}
+
+criterion_group!(benches, throughput, reflow);
 criterion_main!(benches);

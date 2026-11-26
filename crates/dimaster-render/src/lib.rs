@@ -10,7 +10,7 @@ mod gpu;
 mod palette;
 mod pipeline;
 
-pub use frame::PADDING;
+pub use frame::{PADDING, Viewport};
 pub use gpu::{RenderError, Renderer};
 // приложению нужно создать поверхность окна той же версией wgpu
 pub use wgpu;

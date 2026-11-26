@@ -7,15 +7,17 @@ use std::time::{Duration, Instant};
 use dimaster_font::FontSystem;
 use dimaster_grid::{Size, Terminal};
 use dimaster_pty::WindowSize;
-use dimaster_render::{PADDING, Renderer};
+use dimaster_render::{PADDING, Renderer, Viewport};
 use winit::event::KeyEvent;
 use winit::keyboard::{Key, KeyCode, ModifiersState, NamedKey, PhysicalKey};
 use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
 use winit::window::Window;
 
 use crate::app::is_command;
+use crate::clipboard::{Clipboard, Target};
 use crate::keys;
 use crate::pointer::Pointer;
+use crate::select::Selecting;
 use crate::session::Session;
 
 // 12 pt при 96 DPI; настройка появится в Lua-конфиге
@@ -43,7 +45,7 @@ pub(crate) fn font_pixels(scale: f64) -> f32 {
 
 /// Окно, эмулятор и shell.
 pub(crate) struct View {
-    window: Arc<Window>,
+    pub(crate) window: Arc<Window>,
     renderer: Renderer,
     fonts: FontSystem,
     pub(crate) term: Terminal,
@@ -53,11 +55,12 @@ pub(crate) struct View {
     start_at: Instant,
     pub(crate) modifiers: ModifiersState,
     // на сколько строк отмотана история
-    scroll: usize,
+    pub(crate) scroll: usize,
     pub(crate) pointer: Pointer,
     // когда программа включила синхронизированный вывод
     sync_since: Option<Instant>,
-    clipboard: Option<arboard::Clipboard>,
+    pub(crate) clipboard: Clipboard,
+    pub(crate) selecting: Selecting,
     wake: Arc<dyn Fn() + Send + Sync>,
 }
 
@@ -87,9 +90,6 @@ impl View {
         args: &[String],
         wake: impl Fn() + Send + Sync + 'static,
     ) -> Self {
-        let clipboard = arboard::Clipboard::new()
-            .inspect_err(|e| log::warn!("Буфер обмена недоступен: {e}"))
-            .ok();
         let term = Terminal::new(grid_size(&window, &fonts));
         window.request_redraw();
         Self {
@@ -104,7 +104,8 @@ impl View {
             scroll: 0,
             pointer: Pointer::default(),
             sync_since: None,
-            clipboard,
+            clipboard: Clipboard::new(),
+            selecting: Selecting::default(),
             wake: Arc::new(wake),
         }
     }
@@ -144,7 +145,11 @@ impl View {
             if bytes.is_empty() {
                 return false;
             }
+            let alternate = self.term.is_alternate();
             self.term.advance(&bytes);
+            if alternate != self.term.is_alternate() {
+                self.selecting.clear();
+            }
             let reply = self.term.take_reply();
             self.send(reply);
         }
@@ -178,7 +183,12 @@ impl View {
     }
 
     pub(crate) fn draw(&mut self) {
-        if !self.renderer.draw(&self.term, &mut self.fonts, self.scroll) {
+        let selection = self.selecting.selection.map(|s| self.term.span(s));
+        let view = Viewport {
+            scroll: self.scroll,
+            selection,
+        };
+        if !self.renderer.draw(&self.term, &mut self.fonts, view) {
             (self.wake)();
         }
     }
@@ -187,6 +197,9 @@ impl View {
         self.renderer.resize(width, height);
         let size = grid_size(&self.window, &self.fonts);
         self.term.resize(size);
+        // после переразбиения номера строк другие
+        self.selecting.clear();
+        self.scroll = 0;
         let metrics = self.fonts.metrics();
         self.term
             .set_cell_pixels(metrics.cell_width as usize, metrics.cell_height as usize);
@@ -232,10 +245,14 @@ impl View {
         }
     }
 
-    // сочетания самого терминала: вставка и прокрутка истории
+    // сочетания самого терминала: копирование, вставка и прокрутка истории
     fn shortcut(&mut self, event: &KeyEvent) -> bool {
-        if is_command(self.modifiers) && event.physical_key == PhysicalKey::Code(KeyCode::KeyV) {
-            self.paste();
+        if is_command(self.modifiers) {
+            match event.physical_key {
+                PhysicalKey::Code(KeyCode::KeyC) => self.copy(Target::Clipboard),
+                PhysicalKey::Code(KeyCode::KeyV) => self.paste(Target::Clipboard),
+                _ => return false,
+            }
             return true;
         }
         let page = self.term.screen().rows().len() as isize;
@@ -247,22 +264,10 @@ impl View {
         true
     }
 
-    fn paste(&mut self) {
-        let Some(clipboard) = &mut self.clipboard else {
-            return;
-        };
-        match clipboard.get_text() {
-            Ok(text) => {
-                let bytes = keys::paste(&text, self.term.modes().bracketed_paste);
-                self.type_bytes(bytes);
-            }
-            Err(e) => log::debug!("в буфере обмена нет текста: {e}"),
-        }
-    }
-
     /// Ввод пользователя всегда возвращает вид к последней строке.
     pub(crate) fn type_bytes(&mut self, bytes: Vec<u8>) {
         self.scroll = 0;
+        self.selecting.clear();
         self.send(bytes);
         self.window.request_redraw();
     }

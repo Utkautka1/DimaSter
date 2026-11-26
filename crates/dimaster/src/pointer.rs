@@ -2,13 +2,14 @@
 
 use winit::event::{ElementState, MouseButton};
 
+use crate::clipboard::Target;
 use crate::mouse::{self, Action, Button, MouseEvent};
 use crate::view::View;
 
 /// Положение и состояние указателя.
 #[derive(Debug, Default)]
 pub(crate) struct Pointer {
-    cell: (usize, usize),
+    pub(crate) cell: (usize, usize),
     held: Option<Button>,
     // накопленная дробная часть прокрутки тачпада
     wheel_rest: f64,
@@ -22,7 +23,9 @@ impl View {
         }
         self.pointer.cell = cell;
         let button = self.pointer.held.unwrap_or(Button::None);
-        self.report(button, Action::Motion);
+        if !self.report(button, Action::Motion) {
+            self.select_drag();
+        }
     }
 
     pub(crate) fn pointer_button(&mut self, state: ElementState, button: MouseButton) {
@@ -34,14 +37,24 @@ impl View {
         };
         let pressed = state.is_pressed();
         self.pointer.held = pressed.then_some(button);
-        self.report(
-            button,
-            if pressed {
-                Action::Press
-            } else {
-                Action::Release
-            },
-        );
+        let action = if pressed {
+            Action::Press
+        } else {
+            Action::Release
+        };
+        if !self.report(button, action) {
+            self.local_button(button, action);
+        }
+    }
+
+    // мышь не нужна программе — значит, это выделение или вставка
+    fn local_button(&mut self, button: Button, action: Action) {
+        match (button, action) {
+            (Button::Left, Action::Press) => self.select_press(),
+            (Button::Left, Action::Release) => self.select_release(),
+            (Button::Middle, Action::Press) => self.paste(Target::Primary),
+            _ => {}
+        }
     }
 
     // Shift оставляет мышь терминалу, даже если программа её захватила
@@ -76,7 +89,9 @@ impl View {
         };
         for _ in 0..steps.unsigned_abs() {
             if !self.report(button, Action::Press) {
-                return self.scroll_or_arrows(steps);
+                self.scroll_or_arrows(steps);
+                // выделение тянется вслед за прокруткой
+                return self.select_drag();
             }
         }
     }
