@@ -9,6 +9,7 @@ mod charset;
 mod cursor;
 mod dispatch;
 mod edit;
+mod graphics;
 mod keyboard;
 mod modes;
 mod osc;
@@ -22,6 +23,7 @@ mod terminal;
 
 pub use cell::{Cell, Color, Flags, Style};
 pub use cursor::Cursor;
+pub use graphics::{MAX_IMAGE_ROWS, Picture, Placement};
 pub use modes::{CursorShape, Modes};
 pub use report::DefaultColors;
 pub use row::{PromptMark, Row};

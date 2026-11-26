@@ -1,6 +1,6 @@
 //! Строка сетки вместе с метаданными переноса и shell-интеграции.
 
-use crate::{Cell, Flags};
+use crate::{Cell, Flags, Placement};
 
 /// Метки OSC 133: по ним будет работать переход между командами.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -16,6 +16,8 @@ pub struct Row {
     /// Строка продолжается на следующей (мягкий перенос).
     pub wrapped: bool,
     pub mark: Option<PromptMark>,
+    /// Картинки, начинающиеся на этой строке.
+    pub images: Vec<Placement>,
 }
 
 impl Row {
@@ -24,6 +26,7 @@ impl Row {
             cells: vec![fill.clone(); cols],
             wrapped: false,
             mark: None,
+            images: Vec::new(),
         }
     }
 
@@ -33,6 +36,7 @@ impl Row {
             cells: Vec::new(),
             wrapped: false,
             mark: None,
+            images: Vec::new(),
         }
     }
 
@@ -41,10 +45,11 @@ impl Row {
         self.cells.resize(cols, fill.clone());
         self.wrapped = false;
         self.mark = None;
+        self.images.clear();
     }
 
     pub(crate) fn is_blank(&self) -> bool {
-        !self.wrapped && self.cells.iter().all(|c| *c == Cell::default())
+        !self.wrapped && self.images.is_empty() && self.cells.iter().all(|c| *c == Cell::default())
     }
 
     pub(crate) fn starts_wide(&self) -> bool {

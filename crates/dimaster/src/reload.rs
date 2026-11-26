@@ -59,6 +59,7 @@ impl View {
         self.term
             .set_default_cursor(settings::cursor_shape(self.config.cursor));
         self.term.set_history_limit(self.config.scrollback);
+        self.term.set_images_scroll(self.config.images_scroll);
     }
 
     fn rebuild_fonts(&mut self) {

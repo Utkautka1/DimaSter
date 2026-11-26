@@ -1,6 +1,6 @@
 # DimaSter
 
-Терминал для Linux на Rust. Готовы этапы 1 (ядро), 2 (окно, GPU, ввод) 3 (совместимость) и 4 (лигатуры, цветные эмодзи, CJK, RTL, IME) и 5 (настройки на Lua).
+Терминал для Linux на Rust. Готовы этапы 1 (ядро), 2 (окно, GPU, ввод) 3 (совместимость) и 4 (лигатуры, цветные эмодзи, CJK, RTL, IME) 5 (настройки на Lua) и 6 (графика).
 
 ## Запуск
 
@@ -63,6 +63,26 @@ return {
 
 По умолчанию кегль меняется через Ctrl `=` / `-` / `0`, конфиг перечитывается через Ctrl+Shift+`,`.
 
+## Картинки
+
+Поддерживаются протоколы Kitty, Sixel, iTerm2 и собственный. PNG, GIF и Sixel декодируются своим кодом, остальное через `ffmpeg`.
+
+Внутри DimaSter (картинки, анимации и видео без звука):
+
+```bash
+cargo run --release -p dimaster -- icat picture.png movie.mp4
+```
+
+Сведения о системе, `--logo` заменяет текстовый логотип картинкой:
+
+```bash
+cargo run --release -p dimaster -- fetch --logo picture.png
+```
+
+Собственный протокол: `ESC _ D a=show,c=<колонки>,r=<строки>,C=1;<base64 файла> ESC \`. Параметры `c`, `r`, `C` необязательны; `C=1` не двигает курсор.
+
+`images_scroll = false` в конфиге убирает картинки, ушедшие в историю.
+
 ## Проверки
 
 ```bash
@@ -86,7 +106,7 @@ cargo bench -p dimaster-grid
 | `dimaster-pty` | запуск shell |
 | `dimaster-font` | поиск шрифтов, свой растеризатор |
 | `dimaster-render` | отрисовка на wgpu |
-| `dimaster-image` | свои декодеры картинок (пока PNG) |
+| `dimaster-image` | декодеры PNG, GIF, Sixel; остальное через ffmpeg |
 | `dimaster-config` | Lua-конфиг, темы, импорт |
 | `dimaster` | приложение |
 

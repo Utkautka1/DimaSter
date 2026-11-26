@@ -49,6 +49,8 @@ pub struct Config {
     pub scrollback: usize,
     /// Команда вместо `$SHELL`.
     pub shell: Vec<String>,
+    /// Уезжают ли картинки в историю вместе с текстом.
+    pub images_scroll: bool,
     /// Переставлять ли RTL-текст при отрисовке.
     pub rtl: bool,
     /// Значение `TERM`.
@@ -67,6 +69,7 @@ impl Default for Config {
             cursor: CursorStyle::Block,
             scrollback: 10_000,
             shell: Vec::new(),
+            images_scroll: true,
             rtl: true,
             term: "xterm-256color".to_owned(),
             keys: default_bindings(),

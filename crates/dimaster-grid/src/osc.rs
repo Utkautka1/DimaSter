@@ -5,6 +5,10 @@ use crate::terminal::State;
 
 impl State {
     pub(crate) fn handle_osc(&mut self, data: &[u8]) {
+        // картинки идут мегабайтами base64 — не перекодируем их в строку
+        if let Some(payload) = data.strip_prefix(b"1337;") {
+            return self.iterm(payload);
+        }
         let text = String::from_utf8_lossy(data);
         let Some((code, value)) = text.split_once(';') else {
             return log::debug!("OSC без аргументов: {text}");

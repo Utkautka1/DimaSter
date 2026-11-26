@@ -93,6 +93,9 @@ impl State {
         self.split_wide(row, start, end);
         let fill = self.blank();
         self.screen.rows[row].cells[start..end].fill(fill);
+        self.screen.rows[row]
+            .images
+            .retain(|p| !(start..end).contains(&p.col));
         if end == self.screen.cols() {
             self.screen.rows[row].wrapped = false;
         }
@@ -127,7 +130,10 @@ impl State {
                 self.erase_line(1);
                 self.erase_rows(0..row);
             }
-            2 => self.erase_rows(0..count),
+            2 => {
+                self.erase_rows(0..count);
+                self.remove_overhanging_images();
+            }
             3 => self.screen.history.clear(),
             _ => {}
         }

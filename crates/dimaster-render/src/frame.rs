@@ -7,6 +7,7 @@ use dimaster_grid::{Cell, CursorShape, Flags, Row, Span, Terminal};
 use crate::appearance::Appearance;
 use crate::atlas::{Atlas, Slot};
 use crate::bidi;
+use crate::images::Images;
 use crate::palette::{self, Rgb};
 use crate::text::Run;
 
@@ -59,11 +60,13 @@ pub(crate) struct Builder<'a> {
     pub(crate) atlas: &'a mut Atlas,
     pub(crate) quads: &'a mut Vec<Quad>,
     pub(crate) look: &'a Appearance,
+    pub(crate) pictures: &'a mut Images,
 }
 
 impl Builder<'_> {
     pub(crate) fn build(&mut self, term: &Terminal, view: Viewport<'_>) {
         self.quads.clear();
+        self.pictures.clear();
         let scroll = view.scroll.min(term.screen().history().count());
         let first = term.visible_line(scroll);
         for index in 0..term.screen().rows().len() {
@@ -73,6 +76,7 @@ impl Builder<'_> {
                 view.selection.is_some_and(|s| s.contains(line, col))
             });
         }
+        self.images(term, first);
         if scroll == 0 && !view.preedit.is_empty() {
             self.preedit(term, view.preedit);
         } else if scroll == 0 && term.modes().cursor_visible {
@@ -213,6 +217,7 @@ mod tests {
             atlas: &mut atlas,
             quads: &mut quads,
             look: &Appearance::default(),
+            pictures: &mut Images::default(),
         };
         builder.build(
             &term,
@@ -257,6 +262,7 @@ mod tests {
             atlas: &mut atlas,
             quads: &mut quads,
             look: &look,
+            pictures: &mut Images::default(),
         };
         builder.build(&term, view);
         quads

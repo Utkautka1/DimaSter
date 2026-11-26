@@ -9,10 +9,12 @@ mod atlas;
 mod bidi;
 mod frame;
 mod gpu;
+mod images;
 mod palette;
 mod pipeline;
 mod preedit;
 mod text;
+mod textures;
 
 pub use appearance::Appearance;
 pub use frame::Viewport;

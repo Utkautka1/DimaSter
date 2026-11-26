@@ -654,6 +654,7 @@ dependencies = [
  "dimaster-config",
  "dimaster-font",
  "dimaster-grid",
+ "dimaster-image",
  "dimaster-pty",
  "dimaster-render",
  "env_logger",
@@ -688,6 +689,7 @@ name = "dimaster-grid"
 version = "0.1.0"
 dependencies = [
  "criterion",
+ "dimaster-image",
  "dimaster-vt",
  "log",
  "proptest",

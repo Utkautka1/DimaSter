@@ -14,6 +14,8 @@ pub struct Screen {
     pub(crate) evicted: u64,
     // максимум строк истории; 0 отключает её
     pub(crate) limit: usize,
+    // false — картинки не переживают уход строки в историю
+    pub(crate) keep_images: bool,
     // область прокрутки, обе границы включительно
     pub(crate) top: usize,
     pub(crate) bottom: usize,
@@ -28,6 +30,7 @@ impl Screen {
             history,
             evicted: 0,
             limit,
+            keep_images: true,
             top: 0,
             bottom: size.rows - 1,
         }
@@ -90,10 +93,15 @@ impl Screen {
         };
         cells.clear();
         cells.extend(row.cells.drain(..used));
+        let images = match self.keep_images {
+            true => std::mem::take(&mut row.images),
+            false => Vec::new(),
+        };
         self.history.push_back(Row {
             cells,
             wrapped: row.wrapped,
             mark: row.mark,
+            images,
         });
     }
 

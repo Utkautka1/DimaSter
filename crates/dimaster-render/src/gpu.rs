@@ -8,7 +8,9 @@ use dimaster_grid::Terminal;
 use crate::appearance::Appearance;
 use crate::atlas::Atlas;
 use crate::frame::{Builder, Quad, Viewport};
+use crate::images::Images;
 use crate::pipeline::Pipeline;
+use crate::textures::Textures;
 
 /// Ошибка инициализации графики.
 #[derive(Debug)]
@@ -36,6 +38,8 @@ pub struct Renderer {
     atlas: Atlas,
     look: Appearance,
     quads: Vec<Quad>,
+    images: Images,
+    textures: Textures,
     instances: wgpu::Buffer,
 }
 
@@ -83,6 +87,8 @@ impl Renderer {
             atlas,
             look: Appearance::default(),
             quads,
+            images: Images::default(),
+            textures: Textures::default(),
             instances,
         }
     }
@@ -102,6 +108,11 @@ impl Renderer {
     /// Сбрасывает глифы после смены кегля.
     pub fn reset_glyphs(&mut self) {
         self.atlas.clear();
+    }
+
+    /// Через сколько перерисовать из-за анимации; `None` — анимаций не видно.
+    pub fn next_frame(&self) -> Option<std::time::Duration> {
+        self.images.next_frame
     }
 
     /// Рисует кадр. `false` — кадр пропущен и его нужно запросить снова.
@@ -140,11 +151,32 @@ impl Renderer {
         ];
         self.queue
             .write_buffer(&self.pipeline.screen, 0, bytemuck::cast_slice(&screen));
-        if self.instances.size() < size_of_val(self.quads.as_slice()) as u64 {
-            self.instances = instance_buffer(&self.device, self.quads.len().next_power_of_two());
+        self.write_instances();
+        let (device, queue) = (&self.device, &self.queue);
+        self.textures
+            .prepare(device, queue, &self.pipeline, &self.images.quads);
+    }
+
+    // сначала текст, следом картинки: у каждой свой вызов отрисовки
+    fn write_instances(&mut self) {
+        let images = self.images.quads.iter().map(|i| i.quad);
+        let all: Vec<Quad> = self.quads.iter().copied().chain(images).collect();
+        if self.instances.size() < size_of_val(all.as_slice()) as u64 {
+            self.instances = instance_buffer(&self.device, all.len().next_power_of_two());
         }
         self.queue
-            .write_buffer(&self.instances, 0, bytemuck::cast_slice(&self.quads));
+            .write_buffer(&self.instances, 0, bytemuck::cast_slice(&all));
+    }
+
+    fn draw_images(&self, pass: &mut wgpu::RenderPass<'_>) {
+        let first = self.quads.len() as u32;
+        for (index, image) in self.images.quads.iter().enumerate() {
+            if let Some(bindings) = self.textures.get(image) {
+                let at = first + index as u32;
+                pass.set_bind_group(0, bindings, &[]);
+                pass.draw(0..4, at..at + 1);
+            }
+        }
     }
 
     fn build(&mut self, term: &Terminal, fonts: &mut FontSystem, view: Viewport<'_>) {
@@ -153,6 +185,7 @@ impl Renderer {
             atlas: &mut self.atlas,
             quads: &mut self.quads,
             look: &self.look,
+            pictures: &mut self.images,
         }
         .build(term, view);
     }
@@ -165,6 +198,7 @@ impl Renderer {
             pass.set_bind_group(0, &self.pipeline.bindings, &[]);
             pass.set_vertex_buffer(0, self.instances.slice(..));
             pass.draw(0..4, 0..self.quads.len() as u32);
+            self.draw_images(&mut pass);
         }
         self.queue.submit([encoder.finish()]);
     }

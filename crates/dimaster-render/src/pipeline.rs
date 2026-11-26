@@ -8,26 +8,33 @@ pub(crate) struct Pipeline {
     pub(crate) pipeline: wgpu::RenderPipeline,
     pub(crate) bindings: wgpu::BindGroup,
     pub(crate) screen: wgpu::Buffer,
+    sampler: wgpu::Sampler,
     atlas: wgpu::Texture,
 }
 
 impl Pipeline {
     pub(crate) fn new(device: &wgpu::Device, format: wgpu::TextureFormat) -> Self {
         let pipeline = create_pipeline(device, format);
-        let atlas = create_atlas(device);
-        let screen = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("screen"),
-            size: 16,
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-        let bindings = bind(device, &pipeline, &screen, &atlas);
+        let atlas_size = wgpu::Extent3d {
+            width: ATLAS_SIZE,
+            height: ATLAS_SIZE,
+            depth_or_array_layers: 1,
+        };
+        let atlas = create_texture(device, atlas_size);
+        let (screen, sampler) = (create_uniform(device), create_sampler(device));
+        let bindings = bind(device, &pipeline, &screen, &sampler, &atlas);
         Self {
             pipeline,
             bindings,
             screen,
+            sampler,
             atlas,
         }
+    }
+
+    /// Привязки с другой текстурой — для картинок.
+    pub(crate) fn bind(&self, device: &wgpu::Device, texture: &wgpu::Texture) -> wgpu::BindGroup {
+        bind(device, &self.pipeline, &self.screen, &self.sampler, texture)
     }
 
     pub(crate) fn upload(&self, queue: &wgpu::Queue, upload: &Upload) {
@@ -56,14 +63,29 @@ impl Pipeline {
     }
 }
 
-fn create_atlas(device: &wgpu::Device) -> wgpu::Texture {
+// размер окна для перевода пикселей в координаты видеокарты
+fn create_uniform(device: &wgpu::Device) -> wgpu::Buffer {
+    device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("screen"),
+        size: 16,
+        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    })
+}
+
+// картинки масштабируются под ячейки, поэтому нужна билинейная фильтрация
+fn create_sampler(device: &wgpu::Device) -> wgpu::Sampler {
+    device.create_sampler(&wgpu::SamplerDescriptor {
+        mag_filter: wgpu::FilterMode::Linear,
+        min_filter: wgpu::FilterMode::Linear,
+        ..Default::default()
+    })
+}
+
+pub(crate) fn create_texture(device: &wgpu::Device, size: wgpu::Extent3d) -> wgpu::Texture {
     device.create_texture(&wgpu::TextureDescriptor {
-        label: Some("atlas"),
-        size: wgpu::Extent3d {
-            width: ATLAS_SIZE,
-            height: ATLAS_SIZE,
-            depth_or_array_layers: 1,
-        },
+        label: Some("texture"),
+        size,
         mip_level_count: 1,
         sample_count: 1,
         dimension: wgpu::TextureDimension::D2,
@@ -77,9 +99,12 @@ fn bind(
     device: &wgpu::Device,
     pipeline: &wgpu::RenderPipeline,
     screen: &wgpu::Buffer,
-    atlas: &wgpu::Texture,
+    sampler: &wgpu::Sampler,
+    texture: &wgpu::Texture,
 ) -> wgpu::BindGroup {
-    let view = atlas.create_view(&Default::default());
+    let view = texture.create_view(&Default::default());
+    let texture = wgpu::BindingResource::TextureView(&view);
+    let sampler = wgpu::BindingResource::Sampler(sampler);
     device.create_bind_group(&wgpu::BindGroupDescriptor {
         label: Some("bindings"),
         layout: &pipeline.get_bind_group_layout(0),
@@ -90,7 +115,11 @@ fn bind(
             },
             wgpu::BindGroupEntry {
                 binding: 1,
-                resource: wgpu::BindingResource::TextureView(&view),
+                resource: texture,
+            },
+            wgpu::BindGroupEntry {
+                binding: 2,
+                resource: sampler,
             },
         ],
     })

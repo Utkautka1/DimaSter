@@ -3,6 +3,7 @@
 use dimaster_vt::Parser;
 use unicode_width::UnicodeWidthChar;
 
+use crate::graphics::Store;
 use crate::keyboard::KeyboardStack;
 use crate::reflow::Position;
 use crate::{Cell, Cursor, CursorShape, DefaultColors, Flags, Modes, Screen};
@@ -57,6 +58,7 @@ pub(crate) struct State {
     pub(crate) colors: DefaultColors,
     // форма, к которой возвращает DECSCUSR 0
     pub(crate) default_cursor: CursorShape,
+    pub(crate) graphics: Store,
 }
 
 impl Terminal {
@@ -121,6 +123,17 @@ impl Terminal {
         main.set_limit(lines);
     }
 
+    /// `false` — картинки исчезают, когда их строка уходит в историю.
+    pub fn set_images_scroll(&mut self, keep: bool) {
+        let state = &mut self.state;
+        let main = if state.alternate {
+            &mut state.other
+        } else {
+            &mut state.screen
+        };
+        main.keep_images = keep;
+    }
+
     pub fn title(&self) -> &str {
         &self.state.title
     }
@@ -177,6 +190,7 @@ impl State {
             cell_pixels: (0, 0),
             colors: DefaultColors::default(),
             default_cursor: CursorShape::Block,
+            graphics: Store::default(),
         }
     }
 

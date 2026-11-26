@@ -48,6 +48,17 @@ impl Perform for State {
         }
     }
 
+    fn apc(&mut self, data: &[u8]) {
+        self.handle_apc(data);
+    }
+
+    fn dcs(&mut self, seq: Sequence<'_>, data: &[u8]) {
+        match (seq.intermediates, seq.action) {
+            ([], b'q') => self.sixel(data),
+            _ => log::debug!("неподдерживаемый DCS: {seq:?}"),
+        }
+    }
+
     fn osc(&mut self, data: &[u8]) {
         self.handle_osc(data);
     }
@@ -91,10 +102,12 @@ impl State {
         let reply = std::mem::take(&mut self.reply);
         let (cell_pixels, colors) = (self.cell_pixels, self.colors);
         let (shape, limit) = (self.default_cursor, self.screen.limit);
+        let keep_images = self.screen.keep_images;
         *self = Self::new(size);
         (self.cell_pixels, self.colors) = (cell_pixels, colors);
         (self.default_cursor, self.modes.cursor_shape) = (shape, shape);
         self.screen.limit = limit;
+        self.screen.keep_images = keep_images;
         self.screen.history = history;
         self.reply = reply;
     }
@@ -176,7 +189,7 @@ impl State {
             }
             b's' => self.save_cursor(),
             b'u' => self.restore_cursor(),
-            b'c' => self.reply.extend_from_slice(b"\x1b[?62;22c"),
+            b'c' => self.reply.extend_from_slice(b"\x1b[?62;4;22c"),
             b'n' => self.status_report(seq.params.get_or(0, 0)),
             b't' => self.report_size(seq.params.get_or(0, 0)),
             _ => log::debug!("неизвестный CSI: {seq:?}"),
@@ -209,12 +222,24 @@ impl State {
     }
 
     fn private_csi(&mut self, seq: &Sequence<'_>) {
+        if seq.action == b'S' {
+            return self.graphics_limits(seq.params.get_or(0, 0));
+        }
         if !matches!(seq.action, b'h' | b'l') {
             return log::debug!("неизвестный приватный CSI: {seq:?}");
         }
         let on = seq.action == b'h';
         for mode in seq.params.groups().filter_map(|g| g.first().copied()) {
             self.set_private_mode(mode, on);
+        }
+    }
+
+    // XTSMGRAPHICS: программы спрашивают палитру и размер Sixel
+    fn graphics_limits(&mut self, item: u16) {
+        match item {
+            1 => self.answer("\x1b[?1;0;256S".to_owned()),
+            2 => self.answer("\x1b[?2;0;4096;4096S".to_owned()),
+            _ => {}
         }
     }
 

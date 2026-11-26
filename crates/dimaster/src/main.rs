@@ -2,7 +2,9 @@
 
 mod app;
 mod clipboard;
+mod fetch;
 mod headless;
+mod icat;
 mod input;
 mod keys;
 mod mouse;
@@ -20,7 +22,7 @@ use std::process::ExitCode;
 
 use dimaster_config::Config;
 
-const USAGE: &str = "использование: dimaster [-e команда...] [--headless команда...] [--setup]";
+const USAGE: &str = "использование: dimaster [-e команда...] [--headless команда...] [--setup] [icat файл...] [fetch [--logo картинка]]";
 
 fn main() -> ExitCode {
     // wgpu слишком подробен на info, поэтому по умолчанию только предупреждения
@@ -59,6 +61,8 @@ fn run(args: Vec<String>) -> Result<(), Box<dyn Error>> {
             Ok(())
         }
         Some((flag, then)) if flag == "--setup" => Ok(setup::run(then)?),
+        Some((word, files)) if word == "icat" && !files.is_empty() => Ok(icat::run(files)?),
+        Some((word, options)) if word == "fetch" => Ok(fetch::run(options)?),
         _ => Err(USAGE.into()),
     }
 }

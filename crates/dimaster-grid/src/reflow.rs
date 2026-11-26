@@ -6,7 +6,7 @@
 
 use std::collections::VecDeque;
 
-use crate::{Cell, Flags, PromptMark, Row, Screen, Size};
+use crate::{Cell, Flags, Placement, PromptMark, Row, Screen, Size};
 
 /// Положение курсора; `col` может равняться ширине при отложенном переносе.
 #[derive(Debug, Clone, Copy)]
@@ -19,6 +19,8 @@ pub(crate) struct Position {
 struct Line {
     cells: Vec<Cell>,
     mark: Option<PromptMark>,
+    // картинки со смещением внутри логической строки
+    images: Vec<(usize, Placement)>,
     // смещение курсора внутри логической строки
     cursor: Option<usize>,
 }
@@ -73,6 +75,9 @@ fn join(rows: Vec<Row>, cursor: Position) -> Vec<Line> {
             line.cursor = Some(line.cells.len() + cursor.col);
         }
         line.mark = line.mark.or(row.mark);
+        let offset = line.cells.len();
+        line.images
+            .extend(row.images.drain(..).map(|p| (offset + p.col, p)));
         if row.wrapped && rows.peek().is_some_and(|(_, next)| next.starts_wide()) {
             drop_spacer(&mut row.cells);
         }
@@ -81,7 +86,7 @@ fn join(rows: Vec<Row>, cursor: Position) -> Vec<Line> {
             lines.push(std::mem::take(&mut line));
         }
     }
-    if !line.cells.is_empty() || line.cursor.is_some() {
+    if !line.cells.is_empty() || line.cursor.is_some() || !line.images.is_empty() {
         lines.push(line);
     }
     lines
@@ -109,21 +114,40 @@ fn wrap_line(mut line: Line, cols: usize, rows: &mut Vec<Row>, cursor: &mut Posi
     loop {
         let end = chunk_end(&line.cells, start, cols);
         let last = end >= line.cells.len();
-        if let Some(offset) = line.cursor
-            && offset >= start
-            && (offset < end || last)
-        {
-            *cursor = Position {
-                row: rows.len(),
-                col: (offset - start).min(cols),
-            };
-        }
+        track_cursor(line.cursor, start..end, last, rows.len(), cols, cursor);
         let mark = line.mark.filter(|_| start == 0);
-        rows.push(chunk_row(&line.cells[start..end], cols, !last, mark));
+        let mut row = chunk_row(&line.cells[start..end], cols, !last, mark);
+        row.images = chunk_images(
+            &line.images,
+            start,
+            if last { usize::MAX } else { end },
+            cols,
+        );
+        rows.push(row);
         if last {
             return;
         }
         start = end;
+    }
+}
+
+// курсор попадает в тот кусок, где лежит его смещение
+fn track_cursor(
+    offset: Option<usize>,
+    chunk: std::ops::Range<usize>,
+    last: bool,
+    row: usize,
+    cols: usize,
+    cursor: &mut Position,
+) {
+    if let Some(offset) = offset
+        && offset >= chunk.start
+        && (offset < chunk.end || last)
+    {
+        *cursor = Position {
+            row,
+            col: (offset - chunk.start).min(cols),
+        };
     }
 }
 
@@ -140,7 +164,24 @@ fn chunk_row(chunk: &[Cell], cols: usize, wrapped: bool, mark: Option<PromptMark
         cells,
         wrapped,
         mark,
+        images: Vec::new(),
     }
+}
+
+fn chunk_images(
+    images: &[(usize, Placement)],
+    start: usize,
+    end: usize,
+    cols: usize,
+) -> Vec<Placement> {
+    images
+        .iter()
+        .filter(|(offset, _)| (start..end).contains(offset))
+        .map(|(offset, p)| Placement {
+            col: (offset - start).min(cols - 1),
+            ..p.clone()
+        })
+        .collect()
 }
 
 // широкий символ нельзя разрывать между строками

@@ -11,6 +11,9 @@ graph TD
     render --> font
     font --> image[dimaster-image]
     app --> config[dimaster-config]
+    grid --> image
+    app --> image
+    image -.-> ffmpeg
     app --> pty[dimaster-pty]
     grid --> vt[dimaster-vt]
 ```
@@ -74,6 +77,16 @@ classDiagram
     class ShapedGlyph { id; cluster; x; y }
     class Run { text; cells; color }
     class Image { width; height; pixels }
+    class Animation { width; height; frames; +frame_at(elapsed) }
+    class Store { +picture(animation) +keep(id, picture) }
+    class Picture { serial; animation; started }
+    class Placement { col; cols; rows; picture }
+    class Textures { +prepare(images) +get(image) }
+    State *-- Store
+    Row *-- Placement
+    Placement --> Picture
+    Picture *-- Animation
+    Renderer *-- Textures
     class Config { font; theme; padding; cursor; scrollback; shell; keys }
     class Theme { foreground; background; cursor; selection; ansi }
     class Binding { key; mods; action }

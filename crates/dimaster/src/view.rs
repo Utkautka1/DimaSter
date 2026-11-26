@@ -46,6 +46,8 @@ pub(crate) struct View {
     pub(crate) pointer: Pointer,
     // когда программа включила синхронизированный вывод
     sync_since: Option<Instant>,
+    // когда показать следующий кадр анимации
+    animate_at: Option<Instant>,
     pub(crate) clipboard: Clipboard,
     pub(crate) selecting: Selecting,
     // текст, который пользователь набирает в IME
@@ -97,6 +99,7 @@ impl View {
             scroll: 0,
             pointer: Pointer::default(),
             sync_since: None,
+            animate_at: None,
             clipboard: Clipboard::new(),
             selecting: Selecting::default(),
             preedit: String::new(),
@@ -175,10 +178,14 @@ impl View {
         None
     }
 
-    /// Срок принудительного кадра, пока идёт синхронизированный вывод.
+    /// Когда цикл событий должен проснуться сам: синхронный вывод или анимация.
     pub(crate) fn refresh_deadline(&mut self) -> Option<Instant> {
-        self.sync_since?;
-        self.refresh()
+        if self.animate_at.is_some_and(|at| at <= Instant::now()) {
+            self.animate_at = None;
+            self.window.request_redraw();
+        }
+        let sync = self.sync_since.and_then(|_| self.refresh());
+        [sync, self.animate_at].into_iter().flatten().min()
     }
 
     pub(crate) fn draw(&mut self) {
@@ -191,6 +198,12 @@ impl View {
         if !self.renderer.draw(&self.term, &mut self.fonts, view) {
             (self.wake)();
         }
+        // не чаще 60 кадров в секунду, даже если задержки в файле нулевые
+        let wait = self
+            .renderer
+            .next_frame()
+            .map(|w| w.max(Duration::from_millis(16)));
+        self.animate_at = wait.map(|w| Instant::now() + w);
     }
 
     pub(crate) fn set_preedit(&mut self, text: String) {

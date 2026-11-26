@@ -156,6 +156,8 @@ fn apply_general(table: &Table, config: &mut Config) -> Result<(), ConfigError> 
     config.shell = table
         .get::<Option<Vec<String>>>("shell")?
         .unwrap_or_default();
+    let scroll = table.get::<Option<bool>>("images_scroll")?;
+    config.images_scroll = scroll.unwrap_or(config.images_scroll);
     config.rtl = table.get::<Option<bool>>("rtl")?.unwrap_or(config.rtl);
     if let Some(term) = table.get::<Option<String>>("term")? {
         config.term = term;
