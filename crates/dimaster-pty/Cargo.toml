@@ -8,5 +8,6 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+dimaster-i18n.workspace = true
 libc.workspace = true
 log.workspace = true

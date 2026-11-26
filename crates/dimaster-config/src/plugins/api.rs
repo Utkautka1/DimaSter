@@ -1,5 +1,6 @@
 //! Функции таблицы `dimaster`, реализованные на стороне Rust.
 
+use dimaster_i18n::t;
 use std::rc::Rc;
 
 use mlua::{Lua, Table};
@@ -66,7 +67,7 @@ pub(super) fn install(lua: &Lua, shared: &Rc<Shared>) -> mlua::Result<()> {
     effects(lua, &api, shared)?;
     queries(lua, &api, shared)?;
     let log = lua.create_function(|_, message: String| {
-        log::warn!("плагин: {message}");
+        log::warn!("{}", t!("плагин: {message}", message = message));
         Ok(())
     })?;
     api.set("log", log)

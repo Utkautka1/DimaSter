@@ -3,7 +3,7 @@
 use dimaster_font::Metrics;
 use dimaster_grid::{Flags, Size, Terminal};
 
-use crate::frame::{Builder, Quad, TRANSLUCENT};
+use crate::frame::{Builder, LINE, Quad, RISING, TRANSLUCENT};
 use crate::palette::Rgb;
 use crate::text::Run;
 
@@ -19,6 +19,15 @@ pub struct Label {
     pub background: Rgb,
 }
 
+/// Отрезок вместо заливки: по диагонали своего прямоугольника.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Stroke {
+    // толщина в пикселях
+    pub width: f32,
+    /// Из левого нижнего угла в правый верхний, а не наоборот.
+    pub rising: bool,
+}
+
 /// Прямоугольник интерфейса в пикселях окна.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Rect {
@@ -31,20 +40,26 @@ pub struct Rect {
     // радиус углов в пикселях
     pub radius: u32,
     pub opacity: f32,
+    pub stroke: Option<Stroke>,
 }
 
 impl Builder<'_> {
     pub(crate) fn rect(&mut self, rect: &Rect) {
-        let color = if rect.translucent {
+        let mut color = if rect.translucent {
             rect.color | TRANSLUCENT
         } else {
             rect.color
         };
+        let mut shape = rect.radius as f32;
+        if let Some(stroke) = rect.stroke {
+            color |= LINE | if stroke.rising { RISING } else { 0 };
+            shape = stroke.width;
+        }
         let position = [rect.x as f32, rect.y as f32];
         let size = [rect.width as f32, rect.height as f32];
         let mut quad = Quad::solid(position, size, color);
-        // у заливки координаты атласа свободны: в них непрозрачность и радиус
-        quad.uv = [-rect.opacity.clamp(0.004, 1.0), rect.radius as f32];
+        // у заливки координаты атласа свободны: непрозрачность и радиус или толщина
+        quad.uv = [-rect.opacity.clamp(0.004, 1.0), shape];
         self.quads.push(quad);
     }
 

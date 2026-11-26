@@ -76,16 +76,7 @@ impl View {
             }
         }
         let width = (longest * 2 / 3).min(style.width);
-        Rect {
-            x: area.x,
-            y: area.y(first),
-            width,
-            height: 1,
-            color,
-            translucent: false,
-            radius: 0,
-            opacity: 1.0,
-        }
+        self.plain_rect(area.x, area.y(first), (width, 1), color)
     }
 
     // фон карты и рамка видимой части

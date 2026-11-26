@@ -1,5 +1,6 @@
 //! Загрузка конфига, слежение за файлом и перевод в типы крейтов.
 
+use dimaster_i18n::t;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -8,6 +9,7 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use dimaster_config::{Config, CursorStyle, Decorations, config_dir, load, translations};
 use dimaster_font::{FontError, FontSystem};
 use dimaster_grid::{CursorShape, DefaultColors, Picture};
+use dimaster_i18n::tr;
 use dimaster_image::decode;
 use dimaster_render::{Appearance, CursorLook};
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
@@ -38,7 +40,13 @@ pub(crate) fn read() -> Result<Config, String> {
 /// При ошибке в конфиге запускаемся с настройками по умолчанию.
 pub(crate) fn read_or_default() -> Config {
     read().unwrap_or_else(|e| {
-        log::error!("Ошибка конфига, используются значения по умолчанию: {e}");
+        log::error!(
+            "{}",
+            t!(
+                "Ошибка конфига, используются значения по умолчанию: {error}",
+                error = e
+            )
+        );
         Config::default()
     })
 }
@@ -47,7 +55,15 @@ pub(crate) fn read_or_default() -> Config {
 pub(crate) fn watch(changed: impl Fn() + Send + 'static) -> Option<RecommendedWatcher> {
     let directory = config_dir()?;
     start_watcher(&directory, changed)
-        .inspect_err(|e| log::warn!("Перезагрузка конфига на лету недоступна: {e}"))
+        .inspect_err(|e| {
+            log::warn!(
+                "{}",
+                t!(
+                    "Перезагрузка конфига на лету недоступна: {error}",
+                    error = e
+                )
+            )
+        })
         .ok()
 }
 
@@ -135,7 +151,16 @@ fn background_path(config: &Config) -> Option<PathBuf> {
         return config.window.background_image.clone();
     };
     let pictures: Vec<PathBuf> = std::fs::read_dir(directory)
-        .inspect_err(|e| log::warn!("Каталог фонов {}: {e}", directory.display()))
+        .inspect_err(|e| {
+            log::warn!(
+                "{}",
+                t!(
+                    "Каталог фонов {path}: {error}",
+                    path = directory.display(),
+                    error = e
+                )
+            )
+        })
         .ok()?
         .flatten()
         .map(|e| e.path())
@@ -162,7 +187,12 @@ pub(crate) fn wallpaper(config: &Config) -> Option<(Arc<Picture>, f32)> {
     static NEXT: AtomicU64 = AtomicU64::new(u64::MAX);
     let path = &background_path(config)?;
     let data = std::fs::read(path)
-        .inspect_err(|e| log::warn!("Фон {}: {e}", path.display()))
+        .inspect_err(|e| {
+            log::warn!(
+                "{}",
+                t!("Фон {path}: {error}", path = path.display(), error = e)
+            )
+        })
         .ok()?;
     let animation = decode(&data)?;
     let serial = NEXT.fetch_sub(1, Ordering::Relaxed);
@@ -189,6 +219,15 @@ pub(crate) fn cursor_shape(style: CursorStyle) -> CursorShape {
         CursorStyle::Underline => CursorShape::Underline,
         CursorStyle::Bar => CursorShape::Bar,
     }
+}
+
+/// Переменные для shell: из конфига и то, что нужно скриптам интеграции.
+pub(crate) fn shell_env(config: &Config) -> Vec<(String, String)> {
+    let mut env = config.env.clone();
+    if config.smart.not_found {
+        env.push(("DIMASTER_NOT_FOUND".to_owned(), tr("команда не найдена")));
+    }
+    env
 }
 
 /// Команда shell: из конфига, иначе `$SHELL`.

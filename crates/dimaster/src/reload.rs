@@ -1,6 +1,7 @@
 //! Применение настроек к открытому окну.
 
 use dimaster_config::{Config, Decorations};
+use dimaster_i18n::t;
 use dimaster_i18n::tr;
 
 use dimaster_grid::SmartOptions;
@@ -27,12 +28,12 @@ impl View {
                 self.normal_config = None;
                 self.config_error = false;
                 if config != self.config {
-                    log::info!("Конфиг перечитан");
+                    log::info!("{}", t!("Конфиг перечитан"));
                     self.apply(config);
                 }
             }
             Err(e) => {
-                log::error!("Ошибка конфига: {e}");
+                log::error!("{}", t!("Ошибка конфига: {error}", error = e));
                 self.config_error = true;
             }
         }

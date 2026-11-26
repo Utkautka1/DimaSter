@@ -66,6 +66,7 @@ impl View {
             translucent: false,
             radius: style.radius,
             opacity: style.opacity,
+            stroke: None,
         }
     }
 
@@ -87,15 +88,13 @@ impl View {
         };
         let metrics = self.fonts.metrics();
         let (left, body) = (segment.left_cap.width(), segment.text.width());
+        let x = place.x + (column + left) as u32 * metrics.cell_width;
+        let size = (body as u32 * metrics.cell_width, metrics.cell_height);
+        let rect = self.plain_rect(x, place.y, size, background);
         out.rects.push(Rect {
-            x: place.x + (column + left) as u32 * metrics.cell_width,
-            y: place.y,
-            width: body as u32 * metrics.cell_width,
-            height: metrics.cell_height,
-            color: background,
-            translucent: false,
             radius: segment.radius,
             opacity: segment.opacity,
+            ..rect
         });
         let caps = [
             (column, &segment.left_cap),

@@ -22,6 +22,6 @@ mod underline;
 pub use appearance::{Appearance, CursorLook};
 pub use frame::Viewport;
 pub use gpu::{RenderError, Renderer};
-pub use overlay::{Label, Rect};
+pub use overlay::{Label, Rect, Stroke};
 // приложению нужно создать поверхность окна той же версией wgpu
 pub use wgpu;

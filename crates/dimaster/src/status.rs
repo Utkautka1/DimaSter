@@ -4,7 +4,7 @@ use dimaster_i18n::tr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use dimaster_config::StatusBar;
+use dimaster_config::{Shape, StatusBar};
 use unicode_width::UnicodeWidthStr;
 
 use crate::bar;
@@ -19,6 +19,7 @@ pub(crate) struct Status {
     pub(crate) target: Arc<Mutex<Target>>,
     pub(crate) facts: Facts,
     pub(crate) bar: StatusBar,
+    pub(crate) canvas: Vec<Shape>,
 }
 
 fn mode_name(mode: &Mode) -> String {
@@ -87,16 +88,29 @@ impl View {
         }
     }
 
-    /// Строит бар заново: при новых данных и смене режима.
-    pub(crate) fn render_status(&mut self) {
-        if !self.config.widgets.statusbar {
-            return;
-        }
+    // данные датчиков вместе с тем, что знает само окно
+    pub(crate) fn interface_facts(&self) -> Vec<(String, String)> {
         let mut facts = self.status.facts.clone();
         let host = std::fs::read_to_string("/proc/sys/kernel/hostname").unwrap_or_default();
         facts.push(("host".into(), host.trim().to_owned()));
         facts.push(("user".into(), std::env::var("USER").unwrap_or_default()));
         facts.push(("mode".into(), mode_name(&self.mode)));
+        if let Some((table, _)) = self.keymap.tables.last() {
+            facts.push(("key_table".into(), table.clone()));
+        }
+        if !self.keymap.pending.is_empty() {
+            facts.push(("sequence".into(), self.keymap.pending.len().to_string()));
+        }
+        facts
+    }
+
+    /// Строит бар и фигуры заново: при новых данных и смене режима.
+    pub(crate) fn render_status(&mut self) {
+        let facts = self.interface_facts();
+        self.render_canvas(&facts);
+        if !self.config.widgets.statusbar {
+            return;
+        }
         let snapshot = self.plugin_snapshot();
         let bar = self
             .plugins

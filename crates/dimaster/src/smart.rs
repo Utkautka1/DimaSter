@@ -54,6 +54,7 @@ fn frame(width: u32, height: u32, thickness: u32, color: u32) -> [Rect; 4] {
         translucent: true,
         radius: 0,
         opacity: 1.0,
+        stroke: None,
     };
     [
         rect(0, 0, width, thickness),

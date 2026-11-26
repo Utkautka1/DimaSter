@@ -3,6 +3,7 @@
 //! Дочерний процесс должен получить новую сессию и управляющий терминал,
 //! иначе не будут работать Ctrl+C, job control и SIGWINCH.
 
+use dimaster_i18n::t;
 use std::fs::File;
 use std::io::{self, Read, Write};
 use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
@@ -45,7 +46,10 @@ impl Pty {
         // SAFETY: в pre_exec вызываются только async-signal-safe функции
         unsafe { command.pre_exec(make_controlling_tty) };
         let child = command.spawn()?;
-        log::info!("Запущен процесс pid={} в PTY", child.id());
+        log::info!(
+            "{}",
+            t!("Запущен процесс pid={pid} в PTY", pid = child.id())
+        );
         Ok(Self {
             master: File::from(master),
             child,

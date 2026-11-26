@@ -1,6 +1,7 @@
 //! Переключаемые режимы терминала (SM/RM и DECSET/DECRST).
 
 /// Форма курсора (DECSCUSR).
+use dimaster_i18n::t;
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum CursorShape {
     #[default]
@@ -83,7 +84,14 @@ impl Modes {
             1006 => self.sgr_mouse = on,
             2004 => self.bracketed_paste = on,
             2026 => self.synchronized = on,
-            _ => log::debug!("неподдерживаемый DEC-режим {mode}={on}"),
+            _ => log::debug!(
+                "{}",
+                t!(
+                    "неподдерживаемый DEC-режим {mode}={on}",
+                    mode = mode,
+                    on = on
+                )
+            ),
         }
     }
 }

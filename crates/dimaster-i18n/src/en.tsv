@@ -102,3 +102,165 @@ DimaSter — ошибка в init.lua	DimaSter — error in init.lua
 Настройки записаны в {path}	Settings written to {path}
 не задан HOME	HOME is not set
 Мастер настройки прерван: {error}	Setup wizard aborted: {error}
+неизвестный CSI: {seq}	unknown CSI: {seq}
+неподдерживаемый DCS: {seq}	unsupported DCS: {seq}
+неизвестный приватный CSI: {seq}	unknown private CSI: {seq}
+Запущен процесс pid={pid} в PTY	Started process pid={pid} in a PTY
+shell уже закрыт, ввод отброшен	the shell has exited, input dropped
+Не удалось изменить размер PTY: {error}	Cannot resize the PTY: {error}
+запись в PTY прекращена: {error}	writing to the PTY stopped: {error}
+Vulkan недоступен, пробуем OpenGL: {error}	Vulkan unavailable, trying OpenGL: {error}
+Не удалось открыть окно: {error}	Cannot open a window: {error}
+Не удалось запустить shell: {error}	Cannot start the shell: {error}
+Не удалось установить terminfo, используем {fallback}: {error}	Cannot install terminfo, using {fallback}: {error}
+Буфер обмена недоступен: {error}	Clipboard unavailable: {error}
+Не удалось скопировать в {target}: {error}	Cannot copy to {target}: {error}
+Ошибка конфига, используются значения по умолчанию: {error}	Config error, using defaults: {error}
+Каталог фонов {path}: {error}	Wallpaper directory {path}: {error}
+Фон {path}: {error}	Wallpaper {path}: {error}
+Перезагрузка конфига на лету недоступна: {error}	Live config reload unavailable: {error}
+Конфиг перечитан	Config reloaded
+Ошибка конфига: {error}	Config error: {error}
+Ссылка не открывается: {link}	This link is not opened: {link}
+сокет управления: {error}	control socket: {error}
+Сессия не сохранена: {error}	Session not saved: {error}
+Плагин не загружен: {error}	Plugin not loaded: {error}
+Плагины недоступны: {error}	Plugins unavailable: {error}
+Плагины вызывают друг друга по кругу	Plugins call each other in a loop
+Плагин: неизвестное действие {name}	Plugin: unknown action {name}
+Интеграция с shell отключена: {error}	Shell integration disabled: {error}
+Шрифт: {family}, {size} px, ячейка {metrics}	Font: {family}, {size} px, cell {metrics}
+Шрифт «{name}» не найден, используется системный моноширинный	Font “{name}” not found, using the system monospace
+Графический адаптер: {adapter}	Graphics adapter: {adapter}
+Атлас глифов переполнен — очищаем	Glyph atlas is full, clearing
+Картинка {width}x{height} слишком велика	Image {width}x{height} is too large
+Плагины: {error}	Plugins: {error}
+плагин: {message}	plugin: {message}
+dimaster.on: нужна функция	dimaster.on: a function is required
+dimaster.command: нужна функция	dimaster.command: a function is required
+dimaster.statusbar: нужна функция	dimaster.statusbar: a function is required
+dimaster.draw: нужна функция	dimaster.draw: a function is required
+событие 	event 
+команда 	command 
+.lua должен возвращать таблицу	.lua must return a table
+Вставить сегодняшнюю дату	Insert today's date
+неподдерживаемый DEC-режим {mode}={on}	unsupported DEC mode {mode}={on}
+неизвестный ESC: {seq}	unknown ESC: {seq}
+неизвестный ESC {action}	unknown ESC {action}
+OSC без аргументов: {text}	OSC without arguments: {text}
+неподдерживаемый OSC {code}	unsupported OSC {code}
+неподдерживаемый XTWINOPS {kind}	unsupported XTWINOPS {kind}
+неизвестный APC	unknown APC
+в {target} нет текста: {error}	no text in {target}: {error}
+действие без обработчика: {action}	action without a handler: {action}
+Не удалось запустить {program}: {error}	Cannot run {program}: {error}
+выше нет меток приглашения (OSC 133)	no prompt marks above (OSC 133)
+Управление из CLI недоступно: {error}	Remote control unavailable: {error}
+{key} = {value}: тема Ghostty не найдена	{key} = {value}: Ghostty theme not found
+alacritty.toml не разобран: {error}	cannot parse alacritty.toml: {error}
+-- Свободное рисование поверх окна. Функция вызывается при обновлении данных,	-- Free drawing over the window. The function is called when data,
+-- смене режима и размера окна и возвращает список фигур.	-- the mode or the window size change and returns a list of shapes.
+-- info: width, height, cell_width, cell_height и всё, что видит statusbar.lua.	-- info: width, height, cell_width, cell_height and everything statusbar.lua sees.
+-- Координаты в пикселях; отрицательные — от правого или нижнего края.	-- Coordinates are in pixels; negative ones count from the right or bottom edge.
+-- Фигуры:	-- Shapes:
+-- Помощники:	-- Helpers:
+-- Пример: уберите «--» перед строками ниже.	-- Example: remove «--» from the lines below.
+-- Вид всего, что рисуется поверх терминала. Здесь перечислены все ключи со	-- Looks of everything drawn over the terminal. All keys are listed here with
+-- значениями по умолчанию: уберите «--» перед нужной строкой и поменяйте.	-- their default values: remove «--» before a line and change it.
+-- Цвета — "#rrggbb"; не заданный цвет берётся из темы.	-- Colors are "#rrggbb"; an unset color comes from the theme.
+-- Строка статуса настраивается отдельно, в statusbar.lua.	-- The status bar is configured separately, in statusbar.lua.
+    -- prompt_position = "bottom", -- строка поиска и подсказки: top | bottom	    -- prompt_position = "bottom", -- search and mode hint line: top | bottom
+    panel = { -- палитра, история, поиск, монитор, адрес ссылки	    panel = { -- palette, history, search, monitor, link address
+    title = { -- своя полоса заголовка	    title = { -- own title bar
+      -- items = { { title = "Копировать", action = "copy" } }, -- свой список команд	      -- items = { { title = "Copy", action = "copy" } }, -- your own command list
+    marks = { -- метки на ссылках и подсветки	    marks = { -- link hints and highlights
+      -- waiting = " ожидание ",	      -- waiting = " waiting ",
+      -- vi = " VI: hjkl w b 0 $ g G · v V · y копировать · / поиск · q выход ",	      -- vi = " VI: hjkl w b 0 $ g G · v V · y copy · / search · q quit ",
+      -- hint = " Метка — открыть, ЗАГЛАВНАЯ — копировать, Esc ",	      -- hint = " Label to open, SHIFT+label to copy, Esc ",
+      -- minimap = " Карта: j/k прокрутка · g/G края · Enter здесь · Esc назад ",	      -- minimap = " Map: j/k scroll · g/G ends · Enter stay · Esc back ",
+      -- search = " Поиск: {query}_  {position}/{count}  [{kind}, Ctrl+R] ",	      -- search = " Search: {query}_  {position}/{count}  [{kind}, Ctrl+R] ",
+      -- search_plain = "текст",	      -- search_plain = "text",
+      -- history = " j/k выбор · Enter вставить · y вывод · q",	      -- history = " j/k select · Enter insert · y output · q",
+      -- history_output = "вывод",	      -- history_output = "output",
+      -- history_failed = "код {code}: {reason}",	      -- history_failed = "code {code}: {reason}",
+-- Строка статуса DimaSter. Данные собирает Rust, а что и как показывать,	-- DimaSter status bar. Rust collects the data; what to show and how
+-- решает эта функция. Она вызывается при каждом обновлении данных.	-- is decided by this function. It is called on every data update.
+--       process, cpu, memory, docker_running, docker_stopped. Нет данных — nil.	--       process, cpu, memory, docker_running, docker_stopped. No data: nil.
+-- Возврат: { left = {...}, center = {...}, right = {...} }, где элемент —	-- Returns { left = {...}, center = {...}, right = {...} }, an item being
+-- строка или таблица: text, color, background, rounded, left_cap, right_cap,	-- a string or a table: text, color, background, rounded, left_cap, right_cap,
+-- Форма всего бара (всё необязательно): position = "top" | "bottom",	-- Shape of the whole bar (all optional): position = "top" | "bottom",
+-- rows = { { left = ... }, { right = ... } } — несколько строк.	-- rows = { { left = ... }, { right = ... } }: several rows.
+-- палитра: тёмный текст на светлых «таблетках» и наоборот	-- palette: dark text on light pills and the other way round
+-- «таблетки» с зазором в один пробел	-- pills separated by one space
+  -- контейнеры показываются, только когда они есть	  -- containers are shown only when there are any
+-- Что и как показывает `dimaster fetch`. Данные о системе собирает Rust,	-- What `dimaster fetch` shows and how. Rust collects system data,
+-- а оформление целиком здесь: меняйте порядок, названия, цвета и логотип.	-- the layout lives here: change order, titles, colors and the logo.
+--       terminal, cpu, gpu, memory, disk. Чего узнать не удалось — nil.	--       terminal, cpu, gpu, memory, disk. Unknown values are nil.
+-- tr(текст): перевод на язык терминала.	-- tr(text): translation into the terminal language.
+-- color(имя, текст): black red green yellow blue magenta cyan white, bold.	-- color(name, text): black red green yellow blue magenta cyan white, bold.
+-- Результат: { lines = {...}, logo = {...}, image = "путь", logo_width = 22 }	-- Result: { lines = {...}, logo = {...}, image = "path", logo_width = 22 }
+-- какие строки показывать и в каком порядке	-- which rows to show and in what order
+  { "ОС", "os" },	  { "OS", "os" },
+  { "Ядро", "kernel" },	  { "Kernel", "kernel" },
+  { "Аптайм", "uptime" },	  { "Uptime", "uptime" },
+  { "Пакеты", "packages" },	  { "Packages", "packages" },
+  { "Окружение", "desktop" },	  { "Desktop", "desktop" },
+  { "Терминал", "terminal" },	  { "Terminal", "terminal" },
+  { "Процессор", "cpu" },	  { "CPU", "cpu" },
+  { "Видеокарта", "gpu" },	  { "GPU", "gpu" },
+  { "Память", "memory" },	  { "Memory", "memory" },
+  { "Диск /", "disk" },	  { "Disk /", "disk" },
+  -- image = "~/Pictures/logo.png", -- картинка вместо текстового логотипа	  -- image = "~/Pictures/logo.png", -- a picture instead of the text logo
+-- Пример плагина DimaSter. Каждый файл plugins/*.lua загружается при старте	-- Example DimaSter plugin. Every plugins/*.lua file is loaded at start
+-- и после изменения настроек.	-- and after the settings change.
+-- События:  dimaster.on("startup" | "title" | "cwd" | "focus" | "notification", function(value) end)	-- Events:   dimaster.on("startup" | "title" | "cwd" | "focus" | "notification", function(value) end)
+-- Команды:  dimaster.command(имя, название_в_палитре, function() end)	-- Commands: dimaster.command(name, palette_title, function() end)
+--           клавиша: { key = "d", mods = "ctrl+shift", action = "plugin:insert_date" }	--           key: { key = "d", mods = "ctrl+shift", action = "plugin:insert_date" }
+-- Действия: dimaster.send(текст), dimaster.action(имя), dimaster.notify(заголовок, текст),	-- Actions:  dimaster.send(text), dimaster.action(name), dimaster.notify(title, text),
+--           dimaster.log(текст)	--           dimaster.log(text)
+-- Чтение:   dimaster.title(), dimaster.cwd(), dimaster.selection(), dimaster.screen_text()	-- Reading:  dimaster.title(), dimaster.cwd(), dimaster.selection(), dimaster.screen_text()
+dimaster.command("insert_date", dimaster.tr("Вставить сегодняшнюю дату"), function()	dimaster.command("insert_date", dimaster.tr("Insert today's date"), function()
+-- Точка входа настроек DimaSter. Обычно менять этот файл не нужно.	-- DimaSter settings entry point. You normally do not need to change it.
+-- Настройки складываются из слоёв: каждый следующий перекрывает предыдущий.	-- Settings are built from layers: each next one overrides the previous.
+-- Порядок слоёв описан в lib/layers.lua, правила объединения — в lib/merge.lua.	-- Layer order is in lib/layers.lua, merge rules are in lib/merge.lua.
+-- Какие файлы и в каком порядке участвуют в настройках.	-- Which files take part in the settings and in what order.
+-- Отсутствующий файл просто пропускается, ошибка внутри файла — показывается.	-- A missing file is skipped, an error inside a file is reported.
+-- Глобальная таблица dimaster даёт контекст: hostname, desktop, session,	-- The global dimaster table gives context: hostname, desktop, session,
+-- базовые настройки, по одному файлу на тему	-- base settings, one file per topic
+  -- вид интерфейса: профили, хост и local.lua могут его перекрыть	  -- interface looks: profiles, host and local.lua may override them
+  -- окружение: композитор, дисплейный сервер, удалённая сессия	  -- environment: compositor, display server, remote session
+  -- явный выбор: DIMASTER_PROFILE=presentation dimaster	  -- explicit choice: DIMASTER_PROFILE=presentation dimaster
+  -- конкретная машина и личные правки — самые сильные	  -- this machine and personal edits win
+  assert(type(layer) == "table", name .. dimaster.tr(".lua должен возвращать таблицу"))	  assert(type(layer) == "table", name .. dimaster.tr(".lua must return a table"))
+-- Объединение слоёв настроек.	-- Merging of settings layers.
+-- Таблицы-словари объединяются рекурсивно, списки заменяются целиком.	-- Dictionaries are merged recursively, lists are replaced as a whole.
+-- Исключение — keys: сочетания из всех слоёв складываются, и более поздний	-- The exception is keys: bindings of all layers are appended, and a later
+-- слой переназначает те же клавиши.	-- layer rebinds the same keys.
+-- Личные правки: этот слой применяется последним, и мастер его не трогает.	-- Personal edits: this layer is applied last and the wizard leaves it alone.
+-- Примеры:	-- Examples:
+--   return { language = "en" } -- auto | ru | en | свой lang/<код>.lua	--   return { language = "en" } -- auto | ru | en | your lang/<code>.lua
+-- Профиль для показа экрана: DIMASTER_PROFILE=presentation dimaster	-- Screen sharing profile: DIMASTER_PROFILE=presentation dimaster
+-- Применяется, когда DimaSter запущен внутри SSH-сессии (проброс X11/Wayland).	-- Used when DimaSter runs inside an SSH session (X11/Wayland forwarding).
+-- Эффекты по сети дороги, поэтому выключаются.	-- Effects are expensive over the network, so they are turned off.
+-- Настройки только для Hyprland. Размытие там задаётся правилами композитора:	-- Hyprland only. Blur is configured there with compositor rules:
+-- Цвета, отступы и курсор.	-- Colors, padding and cursor.
+  -- theme = "nord", -- или catppuccin-mocha, gruvbox-dark, themes/<имя>.lua	  -- theme = "nord", -- or catppuccin-mocha, gruvbox-dark, themes/<name>.lua
+-- Шрифт. size — в пунктах, dirs — свои каталоги со шрифтами.	-- Font. size is in points, dirs are your own font directories.
+-- Окно. decorations: own (своя рамка), system, none.	-- Window. decorations: own (own frame), system, none.
+-- Анимации.	-- Animations.
+-- Поведение терминала.	-- Terminal behaviour.
+  -- shell = { "/usr/bin/fish" }, -- по умолчанию $SHELL	  -- shell = { "/usr/bin/fish" }, -- $SHELL by default
+  -- выделенное мышью: primary, clipboard или off	  -- mouse selection goes to: primary, clipboard or off
+  -- программы могут писать в буфер обмена (OSC 52)	  -- programs may write to the clipboard (OSC 52)
+    empty = "∅ Ничего не найдено",	    empty = "∅ Nothing found",
+  -- строка статуса настраивается в statusbar.lua	  -- the status bar is configured in statusbar.lua
+    -- git status в чужом репозитории может выполнить его код	    -- git status in a foreign repository may run its code
+  -- dimaster ctl: управление окнами из командной строки	  -- dimaster ctl: controlling windows from the command line
+  -- восстановление пишет вывод терминала на диск, поэтому включается явно	  -- restore writes terminal output to disk, so it is opt-in
+-- Сочетания клавиш. Список дополняет стандартные и переназначает совпадающие.	-- Key bindings. The list adds to the defaults and rebinds matching keys.
+-- Действия: copy, paste, paste_primary, scroll_page_up, scroll_page_down,	-- Actions: copy, paste, paste_primary, scroll_page_up, scroll_page_down,
+-- reload_config, search, vi_mode, command_palette, none (отдать программе).	-- reload_config, search, vi_mode, command_palette, none (send to the program).
+-- Стандартные: Ctrl+Shift+C/V, Ctrl+Shift+F (поиск), Ctrl+Shift+Space (vi),	-- Defaults: Ctrl+Shift+C/V, Ctrl+Shift+F (search), Ctrl+Shift+Space (vi),
+-- Ctrl+Shift+P (палитра), Ctrl =/-/0 (кегль), Shift+PageUp/PageDown.	-- Ctrl+Shift+P (palette), Ctrl =/-/0 (font size), Shift+PageUp/PageDown.
+-- Цвета, перенесённые из другого терминала.	-- Colors imported from another terminal.
+-- Цепочки, таблицы и приставки: docs/lua/settings/keys.md.	-- Sequences, tables and prefixes: docs/lua/settings/keys.md.

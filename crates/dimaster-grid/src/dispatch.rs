@@ -1,5 +1,6 @@
 //! Связывает команды парсера с операциями над экраном.
 
+use dimaster_i18n::t;
 use dimaster_vt::{Perform, Sequence};
 
 use crate::terminal::{Size, State};
@@ -34,7 +35,10 @@ impl Perform for State {
             }
             ([b'#'], b'8') => self.alignment_test(),
             ([], action) => self.plain_esc(action),
-            _ => log::debug!("неизвестный ESC: {seq:?}"),
+            _ => log::debug!(
+                "{}",
+                t!("неизвестный ESC: {seq}", seq = format!("{:?}", seq))
+            ),
         }
     }
 
@@ -49,7 +53,10 @@ impl Perform for State {
             ([b' '], b'q') => self.cursor_style(seq.params.get_or(0, 0)),
             ([b'?', b'$'], b'p') => self.report_mode(&seq),
             ([b'!'], b'p') => self.soft_reset(),
-            _ => log::debug!("неизвестный CSI: {seq:?}"),
+            _ => log::debug!(
+                "{}",
+                t!("неизвестный CSI: {seq}", seq = format!("{:?}", seq))
+            ),
         }
     }
 
@@ -62,7 +69,10 @@ impl Perform for State {
             ([], b'q') => self.sixel(data),
             ([b'$'], b'q') => self.setting_report(data),
             ([b'+'], b'q') => self.capability_report(data),
-            _ => log::debug!("неподдерживаемый DCS: {seq:?}"),
+            _ => log::debug!(
+                "{}",
+                t!("неподдерживаемый DCS: {seq}", seq = format!("{:?}", seq))
+            ),
         }
     }
 
@@ -94,7 +104,10 @@ impl State {
             b'c' => self.reset(),
             b'=' => self.modes.app_keypad = true,
             b'>' => self.modes.app_keypad = false,
-            _ => log::debug!("неизвестный ESC {action:#x}"),
+            _ => log::debug!(
+                "{}",
+                t!("неизвестный ESC {action}", action = format!("{action:#x}"))
+            ),
         }
     }
 
@@ -199,7 +212,10 @@ impl State {
             b'c' => self.reply.extend_from_slice(b"\x1b[?62;4;22c"),
             b'n' => self.status_report(seq.params.get_or(0, 0)),
             b't' => self.window_op(seq.params.get_or(0, 0)),
-            _ => log::debug!("неизвестный CSI: {seq:?}"),
+            _ => log::debug!(
+                "{}",
+                t!("неизвестный CSI: {seq}", seq = format!("{:?}", seq))
+            ),
         }
     }
 
@@ -246,7 +262,13 @@ impl State {
             return self.graphics_limits(seq.params.get_or(0, 0));
         }
         if !matches!(seq.action, b'h' | b'l') {
-            return log::debug!("неизвестный приватный CSI: {seq:?}");
+            return log::debug!(
+                "{}",
+                t!(
+                    "неизвестный приватный CSI: {seq}",
+                    seq = format!("{:?}", seq)
+                )
+            );
         }
         let on = seq.action == b'h';
         for mode in seq.params.groups().filter_map(|g| g.first().copied()) {

@@ -1,5 +1,6 @@
 //! OSC: заголовок окна, рабочий каталог и shell-интеграция.
 
+use dimaster_i18n::t;
 use dimaster_image::decode_base64;
 
 use crate::PromptMark;
@@ -20,7 +21,7 @@ impl State {
             // сбросы цветов приходят без аргументов
             return match text.as_ref() {
                 code @ ("104" | "110" | "111" | "112") => self.reset_colors(code, ""),
-                _ => log::debug!("OSC без аргументов: {text}"),
+                _ => log::debug!("{}", t!("OSC без аргументов: {text}", text = text)),
             };
         };
         match code {
@@ -35,7 +36,7 @@ impl State {
             "777" => self.notify_titled(value),
             "133" => self.mark_prompt(value),
             "633" => self.command_line(value),
-            _ => log::debug!("неподдерживаемый OSC {code}"),
+            _ => log::debug!("{}", t!("неподдерживаемый OSC {code}", code = code)),
         }
     }
 

@@ -34,9 +34,9 @@ fn reads_settings_and_overrides_theme_colors() {
     let copy: Vec<_> = config
         .keys
         .iter()
-        .filter(|b| b.key == "c" && b.mods == mods)
+        .filter(|b| b.chords[0].key == "c" && b.chords[0].mods == mods)
         .collect();
-    assert_eq!((copy.len(), copy[0].action.clone()), (1, Action::None));
+    assert_eq!((copy.len(), copy[0].actions[0].clone()), (1, Action::None));
 }
 
 #[test]
@@ -141,7 +141,7 @@ fn later_layers_win_and_keys_accumulate() {
     );
     let config = load(&directory.join("init.lua")).unwrap();
     assert_eq!((config.font_size, config.font_dirs.len()), (20.0, 0));
-    let has = |key: &str| config.keys.iter().any(|b| b.key == key);
+    let has = |key: &str| config.keys.iter().any(|b| b.chords[0].key == key);
     assert!(has("a") && has("b"));
     write("local.lua", "return 5");
     assert!(load(&directory.join("init.lua")).is_err());

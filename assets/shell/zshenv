@@ -20,3 +20,11 @@ if [[ -o interactive ]]; then
   add-zsh-hook precmd __dimaster_precmd
   add-zsh-hook preexec __dimaster_preexec
 fi
+
+# «команда не найдена» на языке терминала; ваш обработчик из .zshrc заменит этот
+if [[ -o interactive && -n "$DIMASTER_NOT_FOUND" ]] && (( ! $+functions[command_not_found_handler] )); then
+  command_not_found_handler() {
+    print -r -u2 -- "$1: $DIMASTER_NOT_FOUND"
+    return 127
+  }
+fi

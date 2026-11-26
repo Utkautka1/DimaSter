@@ -1,5 +1,6 @@
 //! Поверхность окна, устройство и вывод кадра.
 
+use dimaster_i18n::t;
 use dimaster_i18n::{tr, trf};
 use std::fmt;
 
@@ -67,7 +68,13 @@ impl Renderer {
             ..Default::default()
         }))
         .map_err(fail)?;
-        log::info!("Графический адаптер: {:?}", adapter.get_info());
+        log::info!(
+            "{}",
+            t!(
+                "Графический адаптер: {adapter}",
+                adapter = format!("{:?}", adapter.get_info())
+            )
+        );
         let descriptor = wgpu::DeviceDescriptor {
             required_limits: wgpu::Limits::downlevel_defaults().using_resolution(adapter.limits()),
             ..Default::default()
@@ -132,7 +139,7 @@ impl Renderer {
     pub fn prepare(&mut self, term: &Terminal, fonts: &mut FontSystem, view: Viewport<'_>) {
         self.build(term, fonts, view);
         if self.atlas.full {
-            log::warn!("Атлас глифов переполнен — очищаем");
+            log::warn!("{}", t!("Атлас глифов переполнен — очищаем"));
             self.atlas.clear();
             self.build(term, fonts, view);
         }

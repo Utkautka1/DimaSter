@@ -155,10 +155,9 @@ impl Default for Config {
 }
 
 impl Config {
-    /// Новое сочетание заменяет старое с теми же клавишами.
+    /// Новое сочетание заменяет прежние с тем же началом.
     pub fn bind(&mut self, binding: Binding) {
-        self.keys
-            .retain(|b| (&b.key, b.mods) != (&binding.key, binding.mods));
+        self.keys.retain(|old| !binding.overrides(old));
         self.keys.push(binding);
     }
 }

@@ -2,10 +2,14 @@
 
 use std::path::Path;
 
-// строковый литерал сразу после `tr(` или `trf(`
+// строковый литерал сразу после `tr(`, `trf(` или `t!(`
 fn keys(source: &str) -> Vec<String> {
     let code = source.split("#[cfg(test)]").next().unwrap_or_default();
-    let calls = code.match_indices("tr(").chain(code.match_indices("trf("));
+    let calls = ["tr(", "trf(", "t!("]
+        .into_iter()
+        .flat_map(|c| code.match_indices(c))
+        // `t!(` входит и в `format!(`: нужен отдельный вызов
+        .filter(|(at, _)| !code[..*at].ends_with(|c: char| c.is_alphanumeric() || c == '_'));
     let literals = calls.filter_map(|(at, call)| {
         let rest = code[at + call.len()..].trim_start().strip_prefix('"')?;
         Some(rest[..rest.find('"')?].to_owned())

@@ -17,6 +17,7 @@ use winit::window::Window;
 use crate::animate::Animator;
 use crate::clipboard::{Clipboard, Target};
 use crate::desktop;
+use crate::keymap::KeyState;
 use crate::modes::Mode;
 use crate::pointer::Pointer;
 use crate::select::Selecting;
@@ -77,6 +78,7 @@ pub(crate) struct View {
     pub(crate) hover_uri: Option<String>,
     /// Нажата кнопка закрытия своей рамки.
     pub(crate) closing: bool,
+    pub(crate) keymap: KeyState,
     pub(crate) assist: Assist,
     pub(crate) status: Status,
     // обычные настройки, пока включена презентация
@@ -165,6 +167,7 @@ impl View {
             hover_link: None,
             hover_uri: None,
             closing: false,
+            keymap: KeyState::default(),
             assist: Assist::default(),
             status: Status::default(),
             normal_config: None,
@@ -210,7 +213,7 @@ impl View {
         };
         let launch = Launch {
             integrate: self.config.smart.integration,
-            env: &self.config.env,
+            env: &settings::shell_env(&self.config),
             args: &self.args,
             term_name: &self.config.term,
             directory: self.start_directory.as_deref(),
@@ -373,6 +376,7 @@ impl View {
             Some(session) => session.resize(window_size(size)),
             None => self.start_at = Instant::now() + SETTLE,
         }
+        self.redraw_canvas();
         self.window.request_redraw();
     }
 

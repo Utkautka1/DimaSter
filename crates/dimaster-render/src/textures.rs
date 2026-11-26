@@ -1,5 +1,6 @@
 //! Текстуры картинок: загружаются при первом показе, живут пока видимы.
 
+use dimaster_i18n::t;
 use std::collections::{HashMap, HashSet};
 
 use dimaster_grid::Picture;
@@ -60,7 +61,14 @@ fn extent(device: &wgpu::Device, picture: &Picture) -> Option<wgpu::Extent3d> {
     let (width, height) = (picture.animation.width, picture.animation.height);
     let limit = device.limits().max_texture_dimension_2d as usize;
     if width > limit || height > limit {
-        log::warn!("Картинка {width}x{height} слишком велика");
+        log::warn!(
+            "{}",
+            t!(
+                "Картинка {width}x{height} слишком велика",
+                width = width,
+                height = height
+            )
+        );
         return None;
     }
     Some(wgpu::Extent3d {

@@ -64,6 +64,7 @@ impl View {
             translucent: false,
             radius: 0,
             opacity: 1.0,
+            stroke: None,
         }
     }
 

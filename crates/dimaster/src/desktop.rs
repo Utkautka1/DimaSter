@@ -1,5 +1,6 @@
 //! Связь с рабочим столом: открытие ссылок и уведомления.
 
+use dimaster_i18n::t;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -14,7 +15,14 @@ fn spawn(mut command: Command) {
     match command.spawn() {
         // дожидаемся в фоне, чтобы не копить зомби-процессы
         Ok(mut child) => drop(thread::spawn(move || child.wait())),
-        Err(e) => log::warn!("Не удалось запустить {:?}: {e}", command.get_program()),
+        Err(e) => log::warn!(
+            "{}",
+            t!(
+                "Не удалось запустить {program}: {error}",
+                program = format!("{:?}", command.get_program()),
+                error = e
+            )
+        ),
     }
 }
 
@@ -52,7 +60,7 @@ pub(crate) fn open(link: &str, cwd: Option<&str>) {
             command.arg(target);
             spawn(command);
         }
-        None => log::info!("Ссылка не открывается: {link}"),
+        None => log::info!("{}", t!("Ссылка не открывается: {link}", link = link)),
     }
 }
 

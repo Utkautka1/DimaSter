@@ -204,10 +204,7 @@ impl Plugins {
     /// `None`, если функция не зарегистрирована или завершилась ошибкой.
     pub fn status(&self, facts: &[(String, String)], snapshot: Snapshot) -> Option<StatusBar> {
         self.prepare_call(snapshot);
-        let info = self.lua.create_table().ok()?;
-        for (name, value) in facts {
-            info.set(name.as_str(), value.as_str()).ok()?;
-        }
+        let info = self.info(facts).ok()?;
         let render: Function = self.registry.get("status").ok()?;
         let table: Table = render
             .call::<Option<Table>>(info)

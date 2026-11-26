@@ -2,6 +2,8 @@
 
 use std::path::Path;
 
+use dimaster_i18n::tr;
+
 use mlua::{Lua, Table};
 
 // имя становится частью пути модуля, поэтому допускаются только простые символы
@@ -31,6 +33,8 @@ fn build(lua: &Lua, directory: &Path) -> mlua::Result<Table> {
     table.set("ssh", !env("SSH_CONNECTION").is_empty())?;
     table.set("profile", slug(&env("DIMASTER_PROFILE")))?;
     table.set("config_dir", directory.to_string_lossy().into_owned())?;
+    let translate = lua.create_function(|_, text: String| Ok(tr(&text)))?;
+    table.set("tr", translate)?;
     Ok(table)
 }
 

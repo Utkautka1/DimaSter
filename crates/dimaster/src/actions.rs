@@ -1,6 +1,7 @@
 //! Входы в режимы и обработка клавиш внутри них.
 
 use dimaster_grid::Point;
+use dimaster_i18n::t;
 use winit::keyboard::Key;
 use winit::window::Fullscreen;
 
@@ -187,7 +188,7 @@ impl View {
                 self.window.request_redraw();
             }
             None if forward => self.scroll_by(isize::MIN),
-            None => log::debug!("выше нет меток приглашения (OSC 133)"),
+            None => log::debug!("{}", t!("выше нет меток приглашения (OSC 133)")),
         }
     }
 }

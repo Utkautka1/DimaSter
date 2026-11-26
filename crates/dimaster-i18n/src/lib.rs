@@ -71,6 +71,14 @@ pub fn trf(text: &str, values: &[(&str, &str)]) -> String {
     })
 }
 
+/// `t!("Фон {path}: {error}", path = p, error = e)` — перевод с подстановкой.
+#[macro_export]
+macro_rules! t {
+    ($text:literal $(, $name:ident = $value:expr)* $(,)?) => {
+        $crate::trf($text, &[$((stringify!($name), &*$value.to_string())),*])
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

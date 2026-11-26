@@ -8,11 +8,8 @@ use mlua::{Lua, Table, Value};
 
 use crate::import::ghostty_theme;
 use crate::theme::builtin_source;
-use crate::{
-    Action, Binding, Config, CopyOnSelect, Decorations, Effects, Mods, Theme, WindowConfig,
-    parse_color,
-};
-use crate::{context, cursor, load_smart, load_ui, widgets};
+use crate::{Config, CopyOnSelect, Decorations, Effects, Theme, WindowConfig, parse_color};
+use crate::{context, cursor, load_keys, load_smart, load_ui, widgets};
 
 /// Понятное человеку описание того, что не так в конфиге.
 #[derive(Debug)]
@@ -93,7 +90,7 @@ pub fn parse(source: &str, directory: Option<&Path>) -> Result<Config, ConfigErr
     apply_language(&table, &mut config)?;
     apply_font(&table, &mut config)?;
     apply_general(&table, &mut config)?;
-    apply_keys(&table, &mut config)?;
+    load_keys::apply(&table, &mut config)?;
     apply_sections(&table, &mut config)?;
     Ok(config)
 }
@@ -211,23 +208,6 @@ fn apply_general(table: &Table, config: &mut Config) -> Result<(), ConfigError> 
     config.rtl = table.get::<Option<bool>>("rtl")?.unwrap_or(config.rtl);
     if let Some(term) = table.get::<Option<String>>("term")? {
         config.term = term;
-    }
-    Ok(())
-}
-
-fn apply_keys(table: &Table, config: &mut Config) -> Result<(), ConfigError> {
-    let Some(keys) = table.get::<Option<Vec<Table>>>("keys")? else {
-        return Ok(());
-    };
-    for entry in keys {
-        let key: String = entry.get("key")?;
-        let mods: String = entry.get::<Option<String>>("mods")?.unwrap_or_default();
-        let action: String = entry.get("action")?;
-        config.bind(Binding {
-            key: key.to_lowercase(),
-            mods: Mods::parse(&mods).ok_or_else(|| invalid("mods", &mods))?,
-            action: Action::parse(&action).ok_or_else(|| invalid("action", &action))?,
-        });
     }
     Ok(())
 }

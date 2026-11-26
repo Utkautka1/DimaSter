@@ -1,5 +1,6 @@
 //! Связь открытого окна с хранилищем сессий.
 
+use dimaster_i18n::t;
 use dimaster_i18n::tr;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
@@ -45,7 +46,7 @@ pub(crate) fn open_window(cwd: Option<PathBuf>, restore: Option<PathBuf>) {
     }
     match command.spawn() {
         Ok(mut child) => drop(std::thread::spawn(move || child.wait())),
-        Err(e) => log::warn!("Не удалось открыть окно: {e}"),
+        Err(e) => log::warn!("{}", t!("Не удалось открыть окно: {error}", error = e)),
     }
 }
 
@@ -97,7 +98,7 @@ impl View {
             return;
         };
         if let Err(e) = store::save(&directory, &self.snapshot_session()) {
-            log::warn!("Сессия не сохранена: {e}");
+            log::warn!("{}", t!("Сессия не сохранена: {error}", error = e));
         }
     }
 

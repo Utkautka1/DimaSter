@@ -4,6 +4,7 @@
 //! в личном каталоге `$XDG_RUNTIME_DIR` с правами 0700. Запрос — аргументы
 //! через NUL, ответ — строка `ok`/`err` и текст.
 
+use dimaster_i18n::t;
 use dimaster_i18n::tr;
 use std::io::{self, Read, Write};
 use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
@@ -99,12 +100,12 @@ fn serve(mut stream: UnixStream, deliver: &impl Fn(Request)) -> io::Result<()> {
 /// `deliver` передаёт запрос в цикл событий окна.
 pub(crate) fn listen(deliver: impl Fn(Request) + Send + 'static) -> Option<Server> {
     let (listener, path) = bind()
-        .inspect_err(|e| log::warn!("Управление из CLI недоступно: {e}"))
+        .inspect_err(|e| log::warn!("{}", t!("Управление из CLI недоступно: {error}", error = e)))
         .ok()?;
     thread::spawn(move || {
         for stream in listener.incoming().flatten() {
             if let Err(e) = serve(stream, &deliver) {
-                log::debug!("сокет управления: {e}");
+                log::debug!("{}", t!("сокет управления: {error}", error = e));
             }
         }
     });

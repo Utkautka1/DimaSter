@@ -5,6 +5,8 @@
 
 mod render;
 
+use dimaster_i18n::tr;
+
 use crate::Config;
 
 /// Один файл дерева.
@@ -17,7 +19,8 @@ pub struct File {
     pub owned_by_user: bool,
 }
 
-const FIXED: [(&str, &str, bool); 11] = [
+const FIXED: [(&str, &str, bool); 12] = [
+    ("draw.lua", include_str!("files/draw.lua"), true),
     ("ui.lua", include_str!("files/ui.lua"), true),
     ("statusbar.lua", include_str!("files/statusbar.lua"), true),
     ("fetch.lua", include_str!("files/fetch.lua"), true),
@@ -51,6 +54,25 @@ fn managed(path: &'static str, content: String) -> File {
     }
 }
 
+// файлы со значениями из конфига
+fn generated(config: &Config) -> Vec<File> {
+    let mut files = vec![
+        managed("settings/appearance.lua", render::appearance(config)),
+        managed("settings/font.lua", render::font(config)),
+        managed("settings/window.lua", render::window(config)),
+        managed("settings/effects.lua", render::effects(config)),
+        managed("settings/behavior.lua", render::behavior(config)),
+        managed(
+            "settings/keys.lua",
+            include_str!("files/keys.lua").to_owned(),
+        ),
+    ];
+    if config.theme != crate::Theme::default() {
+        files.push(managed("themes/imported.lua", render::theme(&config.theme)));
+    }
+    files
+}
+
 /// Полное дерево настроек, равнозначное `config`.
 pub fn scaffold(config: &Config) -> Vec<File> {
     let mut files: Vec<File> = FIXED
@@ -61,19 +83,15 @@ pub fn scaffold(config: &Config) -> Vec<File> {
             owned_by_user,
         })
         .collect();
-    files.extend([
-        managed("settings/appearance.lua", render::appearance(config)),
-        managed("settings/font.lua", render::font(config)),
-        managed("settings/window.lua", render::window(config)),
-        managed("settings/effects.lua", render::effects(config)),
-        managed("settings/behavior.lua", render::behavior(config)),
-        managed(
-            "settings/keys.lua",
-            include_str!("files/keys.lua").to_owned(),
-        ),
-    ]);
-    if config.theme != crate::Theme::default() {
-        files.push(managed("themes/imported.lua", render::theme(&config.theme)));
+    files.extend(generated(config));
+    for file in &mut files {
+        file.content = translated(&file.content);
     }
     files
+}
+
+// строки с русскими комментариями заменяются переводом целиком
+fn translated(content: &str) -> String {
+    let lines: Vec<String> = content.lines().map(tr).collect();
+    lines.join("\n") + "\n"
 }

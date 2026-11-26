@@ -1,6 +1,7 @@
 //! Клавиатура: сочетания терминала и передача нажатий программе.
 
-use dimaster_config::{Action, Binding, Mods};
+use dimaster_config::{Action, Binding, Chord, Mods};
+use dimaster_i18n::t;
 use std::time::Instant;
 
 use winit::event::KeyEvent;
@@ -8,6 +9,7 @@ use winit::keyboard::{Key, KeyCode, ModifiersState, NamedKey, PhysicalKey};
 use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
 
 use crate::clipboard::Target;
+use crate::keymap::{Found, variants};
 use crate::keys;
 use crate::restore::open_window;
 use crate::view::View;
@@ -37,16 +39,26 @@ fn key_name(key: &Key) -> Option<String> {
     }
 }
 
-fn find_action(bindings: &[Binding], key: &Key, state: ModifiersState) -> Option<Action> {
-    let name = key_name(key)?;
-    let mods = Mods {
+fn mods(state: ModifiersState) -> Mods {
+    Mods {
         ctrl: state.control_key(),
         shift: state.shift_key(),
         alt: state.alt_key(),
         logo: state.super_key(),
-    };
-    let binding = bindings.iter().find(|b| b.mods == mods && b.key == name)?;
-    Some(binding.action.clone()).filter(|a| *a != Action::None)
+    }
+}
+
+// сами модификаторы не прерывают цепочку
+fn is_modifier(key: &Key) -> bool {
+    use NamedKey::{Alt, AltGraph, Control, Shift, Super};
+    matches!(key, Key::Named(Shift | Control | Alt | AltGraph | Super))
+}
+
+fn physical_name(key: PhysicalKey) -> String {
+    match key {
+        PhysicalKey::Code(code) => format!("{code:?}").to_lowercase(),
+        PhysicalKey::Unidentified(_) => String::new(),
+    }
 }
 
 impl View {
@@ -60,22 +72,99 @@ impl View {
         if self.mode_key(&key, text) {
             return;
         }
-        if let Some(action) = find_action(&self.config.keys, &key, self.modifiers) {
-            self.perform(action);
-            return self.render_status();
+        let bytes = self.encoded(&key, text);
+        let physical = physical_name(event.physical_key);
+        let name = key_name(&key).filter(|_| !is_modifier(&key));
+        if let Some(name) = name {
+            let pressed = variants(&physical, &name, mods(self.modifiers));
+            if self.bound_key(pressed, bytes.clone().unwrap_or_default()) {
+                return self.render_status();
+            }
         }
-        let modes = keys::KeyModes {
-            app_cursor: self.term.modes().app_cursor,
-            disambiguate: self.term.keyboard_flags() & 1 != 0,
-        };
-        let text = event.text.as_deref();
-        match keys::encode(&key, text, self.modifiers, modes) {
+        match bytes {
             Some(bytes) => {
                 // Enter начинает новую строку, остальное — набранный текст
                 self.assist.typed = !matches!(key, Key::Named(NamedKey::Enter));
                 self.type_bytes(bytes);
             }
             None => self.maybe_double_alt(&key),
+        }
+    }
+
+    // что получила бы программа без всяких привязок
+    fn encoded(&self, key: &Key, text: Option<&str>) -> Option<Vec<u8>> {
+        let modes = keys::KeyModes {
+            app_cursor: self.term.modes().app_cursor,
+            disambiguate: self.term.keyboard_flags() & 1 != 0,
+        };
+        keys::encode(key, text, self.modifiers, modes)
+    }
+
+    /// `true` — нажатие забрали привязки.
+    fn bound_key(&mut self, pressed: Vec<Chord>, bytes: Vec<u8>) -> bool {
+        match self.keymap.find(&self.config.keys, &pressed) {
+            Found::Prefix => {
+                self.keymap.pending.push((pressed, bytes));
+                true
+            }
+            Found::Binding(binding) => {
+                let binding = binding.clone();
+                self.run_binding(&binding)
+            }
+            Found::Nothing => {
+                // оборванная цепочка уходит программе, и клавиша следом
+                self.flush_sequence();
+                false
+            }
+        }
+    }
+
+    fn run_binding(&mut self, binding: &Binding) -> bool {
+        if binding.performable && !binding.actions.iter().all(|a| self.can_perform(a)) {
+            self.flush_sequence();
+            return false;
+        }
+        if binding.actions.contains(&Action::EndSequence) {
+            self.flush_sequence();
+        }
+        self.keymap.pending.clear();
+        self.keymap.used(binding);
+        for action in &binding.actions {
+            self.perform(action.clone());
+        }
+        !binding.unconsumed
+    }
+
+    fn flush_sequence(&mut self) {
+        let pending = std::mem::take(&mut self.keymap.pending);
+        let bytes: Vec<u8> = pending.into_iter().flat_map(|p| p.1).collect();
+        if !bytes.is_empty() {
+            self.type_bytes(bytes);
+        }
+    }
+
+    fn can_perform(&self, action: &Action) -> bool {
+        match action {
+            Action::Copy => self.selecting.selection.is_some(),
+            Action::ScrollPageUp | Action::ScrollTop => {
+                self.scroll < self.term.screen().history().count()
+            }
+            Action::ScrollPageDown | Action::ScrollBottom => self.scroll > 0,
+            Action::DeactivateTable | Action::DeactivateAllTables => !self.keymap.tables.is_empty(),
+            _ => true,
+        }
+    }
+
+    fn perform_keys(&mut self, action: Action) {
+        match action {
+            Action::ActivateTable { name, once } => self.keymap.activate(&name, once),
+            Action::DeactivateTable => {
+                self.keymap.tables.pop();
+            }
+            Action::DeactivateAllTables => self.keymap.tables.clear(),
+            // нажатие уже забрано привязкой, цепочка отправлена до действий
+            Action::Ignore | Action::EndSequence | Action::None => {}
+            other => self.perform_assist(other),
         }
     }
 
@@ -110,7 +199,13 @@ impl View {
             Action::Minimap => self.open_minimap(),
             Action::ToggleMonitor => self.toggle_widget(false),
             Action::ToggleStatusBar => self.toggle_widget(true),
-            other => log::debug!("действие без обработчика: {other:?}"),
+            other => log::debug!(
+                "{}",
+                t!(
+                    "действие без обработчика: {action}",
+                    action = format!("{:?}", other)
+                )
+            ),
         }
     }
 
@@ -137,8 +232,7 @@ impl View {
             Action::NewWindow => open_window(self.shell_directory(), None),
             Action::PromptPrevious => self.jump_prompt(false),
             Action::PromptNext => self.jump_prompt(true),
-            Action::None => {}
-            other => self.perform_assist(other),
+            other => self.perform_keys(other),
         }
     }
 }
@@ -148,18 +242,26 @@ mod tests {
     use dimaster_config::Config;
 
     use super::*;
+    use crate::keymap::KeyState;
 
     #[test]
     fn default_bindings_match_winit_names() {
-        let keys = Config::default().keys;
+        let config = Config::default();
         let command = ModifiersState::CONTROL | ModifiersState::SHIFT;
-        let c = Key::Character("c".into());
-        assert_eq!(find_action(&keys, &c, command), Some(Action::Copy));
-        assert_eq!(find_action(&keys, &c, ModifiersState::CONTROL), None);
+        let found = |key: Key, state| {
+            let pressed = variants("", &key_name(&key).unwrap(), mods(state));
+            match KeyState::default().find(&config.keys, &pressed) {
+                Found::Binding(binding) => Some(binding.actions.clone()),
+                _ => None,
+            }
+        };
+        let c = || Key::Character("c".into());
+        assert_eq!(found(c(), command), Some(vec![Action::Copy]));
+        assert_eq!(found(c(), ModifiersState::CONTROL), None);
         let page = Key::Named(NamedKey::PageUp);
         assert_eq!(
-            find_action(&keys, &page, ModifiersState::SHIFT),
-            Some(Action::ScrollPageUp)
+            found(page, ModifiersState::SHIFT),
+            Some(vec![Action::ScrollPageUp])
         );
     }
 }

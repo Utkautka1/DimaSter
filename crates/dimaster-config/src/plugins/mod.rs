@@ -5,8 +5,10 @@
 //! Зависший плагин прерывается по времени, чтобы не заморозить окно.
 
 mod api;
+mod draw;
 mod status;
 
+use dimaster_i18n::t;
 use dimaster_i18n::tr;
 use std::cell::{Cell, RefCell};
 use std::path::Path;
@@ -17,6 +19,7 @@ use mlua::{Function, HookTriggers, Lua, Table, VmState};
 
 use crate::context;
 
+pub use draw::{Paint, Shape};
 pub use status::{BarStyle, Segment, StatusBar, StatusLine};
 
 // дольше этого один вызов плагина выполняться не должен
@@ -105,7 +108,28 @@ fn run_statusbar(lua: &Lua, directory: &Path) -> Result<(), String> {
         .map_err(|e| format!("{}: {e}", path.display()))
 }
 
+// без файла рисовать нечего
+fn run_draw(lua: &Lua, directory: &Path) -> Result<(), String> {
+    let path = directory.join("draw.lua");
+    let Ok(source) = std::fs::read_to_string(&path) else {
+        return Ok(());
+    };
+    lua.load(source)
+        .set_name("draw.lua")
+        .exec()
+        .map_err(|e| format!("{}: {e}", path.display()))
+}
+
 impl Plugins {
+    // таблица `info` для statusbar.lua и draw.lua
+    fn info(&self, facts: &[(String, String)]) -> mlua::Result<Table> {
+        let info = self.lua.create_table()?;
+        for (name, value) in facts {
+            info.set(name.as_str(), value.as_str())?;
+        }
+        Ok(info)
+    }
+
     /// Возвращает плагины и сообщения о тех, что не загрузились.
     pub fn load(directory: &Path) -> mlua::Result<(Self, Vec<String>)> {
         let lua = Lua::new();
@@ -121,6 +145,7 @@ impl Plugins {
         let mut errors = run_scripts(&lua, directory, &deadline);
         deadline.set(Instant::now() + BUDGET);
         errors.extend(run_statusbar(&lua, directory).err());
+        errors.extend(run_draw(&lua, directory).err());
         Ok((
             Self {
                 registry,
@@ -145,7 +170,7 @@ impl Plugins {
             .get::<Function>(method)
             .and_then(|f| f.call::<()>(arguments));
         if let Err(e) = result {
-            log::warn!("Плагины: {e}");
+            log::warn!("{}", t!("Плагины: {error}", error = e));
         }
     }
 

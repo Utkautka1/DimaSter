@@ -4,6 +4,7 @@
 //! из третьего: ни поток вывода, ни программа, переставшая читать ввод, не
 //! замораживают окно.
 
+use dimaster_i18n::t;
 use std::io::{self, Read, Write};
 use std::path::Path;
 use std::process::Command;
@@ -93,13 +94,16 @@ impl Session {
 
     pub(crate) fn send(&self, bytes: Vec<u8>) {
         if !bytes.is_empty() && self.input.send(bytes).is_err() {
-            log::debug!("shell уже закрыт, ввод отброшен");
+            log::debug!("{}", t!("shell уже закрыт, ввод отброшен"));
         }
     }
 
     pub(crate) fn resize(&self, size: WindowSize) {
         if let Err(e) = self.pty.resize(size) {
-            log::error!("Не удалось изменить размер PTY: {e}");
+            log::error!(
+                "{}",
+                t!("Не удалось изменить размер PTY: {error}", error = e)
+            );
         }
     }
 }
@@ -134,7 +138,7 @@ fn read_loop(mut reader: impl Read, output: &Output, replies: &Sender<Vec<u8>>) 
 fn write_loop(mut writer: impl Write, input: &Receiver<Vec<u8>>) {
     for bytes in input {
         if let Err(e) = writer.write_all(&bytes) {
-            log::debug!("запись в PTY прекращена: {e}");
+            log::debug!("{}", t!("запись в PTY прекращена: {error}", error = e));
             return;
         }
     }

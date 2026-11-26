@@ -8,6 +8,6 @@
 --           dimaster.log(текст)
 -- Чтение:   dimaster.title(), dimaster.cwd(), dimaster.selection(), dimaster.screen_text()
 
-dimaster.command("insert_date", "Вставить сегодняшнюю дату", function()
+dimaster.command("insert_date", dimaster.tr("Вставить сегодняшнюю дату"), function()
   dimaster.send(os.date("%Y-%m-%d"))
 end)

@@ -4,6 +4,7 @@
 //! `xterm-dimaster` нет, и по SSH ломались бы программы. Своя запись включается
 //! `term = "xterm-dimaster"` в конфиге.
 
+use dimaster_i18n::t;
 use dimaster_i18n::{tr, trf};
 use std::io::{self, Write};
 use std::path::PathBuf;
@@ -24,7 +25,14 @@ pub(crate) fn select(configured: &str) -> (String, Option<PathBuf>) {
     match install() {
         Ok(directory) => (wanted, Some(directory)),
         Err(e) => {
-            log::warn!("Не удалось установить terminfo, используем {FALLBACK}: {e}");
+            log::warn!(
+                "{}",
+                t!(
+                    "Не удалось установить terminfo, используем {fallback}: {error}",
+                    fallback = FALLBACK,
+                    error = e
+                )
+            );
             (FALLBACK.to_owned(), None)
         }
     }

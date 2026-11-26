@@ -59,11 +59,27 @@ pub enum Action {
     Send(String),
     /// Команда плагина по имени.
     Plugin(String),
+    /// Проглотить нажатие: ни терминал, ни программа его не получают.
+    Ignore,
+    /// Включить таблицу привязок; `once` — до первой сработавшей.
+    ActivateTable {
+        name: String,
+        once: bool,
+    },
+    DeactivateTable,
+    DeactivateAllTables,
+    /// Отправить программе уже нажатое начало цепочки.
+    EndSequence,
     /// Отключить сочетание, чтобы оно уходило программе.
     None,
 }
 
-const ACTIONS: [(&str, Action); 26] = [
+const ACTIONS: [(&str, Action); 31] = [
+    ("ignore", Action::Ignore),
+    ("unbind", Action::None),
+    ("deactivate_key_table", Action::DeactivateTable),
+    ("deactivate_all_key_tables", Action::DeactivateAllTables),
+    ("end_key_sequence", Action::EndSequence),
     ("minimap", Action::Minimap),
     ("toggle_monitor", Action::ToggleMonitor),
     ("toggle_statusbar", Action::ToggleStatusBar),
@@ -98,12 +114,30 @@ impl Action {
         ACTIONS.iter().map(|(name, _)| *name)
     }
 
+    // действия вида `имя:параметр`
+    fn with_parameter(name: &str, value: &str) -> Option<Self> {
+        let value_owned = value.to_owned();
+        Some(match name {
+            "send" => Self::Send(value_owned),
+            "text" => Self::Send(unescape(value)?),
+            "csi" => Self::Send(format!("\x1b[{value}")),
+            "esc" => Self::Send(format!("\x1b{value}")),
+            "plugin" => Self::Plugin(value_owned),
+            "activate_key_table" => Self::ActivateTable {
+                name: value_owned,
+                once: false,
+            },
+            "activate_key_table_once" => Self::ActivateTable {
+                name: value_owned,
+                once: true,
+            },
+            _ => return None,
+        })
+    }
+
     pub fn parse(name: &str) -> Option<Self> {
-        if let Some(text) = name.strip_prefix("send:") {
-            return Some(Self::Send(text.to_owned()));
-        }
-        if let Some(command) = name.strip_prefix("plugin:") {
-            return Some(Self::Plugin(command.to_owned()));
+        if let Some((action, value)) = name.split_once(':') {
+            return Self::with_parameter(action, value);
         }
         ACTIONS
             .iter()
@@ -112,12 +146,99 @@ impl Action {
     }
 }
 
-/// Одно сочетание. `key` — строчный символ или имя (`pageup`, `f5`).
+// экранирование строк Zig, как в `text:` у Ghostty: \x15, \n, \e, \\
+fn unescape(text: &str) -> Option<String> {
+    let mut chars = text.chars();
+    let mut out = String::new();
+    while let Some(ch) = chars.next() {
+        if ch != '\\' {
+            out.push(ch);
+            continue;
+        }
+        out.push(match chars.next()? {
+            'n' => '\n',
+            'r' => '\r',
+            't' => '\t',
+            'e' => '\x1b',
+            'x' => hex_byte(chars.next()?, chars.next()?)?,
+            other => other,
+        });
+    }
+    Some(out)
+}
+
+// только ASCII: старший байт в строке стал бы двумя байтами UTF-8
+fn hex_byte(high: char, low: char) -> Option<char> {
+    let value = high.to_digit(16)? * 16 + low.to_digit(16)?;
+    char::from_u32(value).filter(char::is_ascii)
+}
+
+/// Одно нажатие: строчный символ или имя (`pageup`, `f5`, `keya`,
+/// `catch_all`) с модификаторами.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Binding {
+pub struct Chord {
     pub key: String,
     pub mods: Mods,
-    pub action: Action,
+}
+
+// `key_a` и `KeyA` — одна и та же физическая клавиша
+fn normalized(key: &str) -> String {
+    let key = key.trim().to_lowercase();
+    match key.strip_prefix("key_").map(|k| format!("key{k}")) {
+        Some(physical) => physical,
+        None => key.replace("digit_", "digit"),
+    }
+}
+
+impl Chord {
+    pub fn new(key: &str, mods: Mods) -> Self {
+        Self {
+            key: normalized(key),
+            mods,
+        }
+    }
+
+    /// `ctrl+shift+a`; сам знак `+` пишется последним: `ctrl++`.
+    pub fn parse(text: &str) -> Option<Self> {
+        let (mods, key) = match text.strip_suffix('+') {
+            Some(rest) => (rest.trim_end_matches('+'), "+"),
+            None => text.rsplit_once('+').unwrap_or(("", text)),
+        };
+        (!key.trim().is_empty()).then_some(())?;
+        Some(Self::new(key, Mods::parse(mods)?))
+    }
+}
+
+/// Привязка: цепочка нажатий и действия по порядку.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Binding {
+    pub chords: Vec<Chord>,
+    pub actions: Vec<Action>,
+    /// Нажатие после действий уходит и программе.
+    pub unconsumed: bool,
+    /// Забирать клавишу, только если действие сейчас возможно.
+    pub performable: bool,
+    /// Имя таблицы; пустое — основная.
+    pub table: String,
+}
+
+impl Binding {
+    pub fn new(chords: Vec<Chord>, actions: Vec<Action>) -> Self {
+        Self {
+            chords,
+            actions,
+            unconsumed: false,
+            performable: false,
+            table: String::new(),
+        }
+    }
+
+    /// Новая привязка вытесняет прежнюю с тем же началом: `ctrl+a` отменяет
+    /// все `ctrl+a>…` и наоборот.
+    pub fn overrides(&self, old: &Binding) -> bool {
+        let shared = self.chords.len().min(old.chords.len());
+        self.table == old.table && self.chords[..shared] == old.chords[..shared]
+    }
 }
 
 // сочетания по умолчанию совпадают с привычными по Ghostty и kitty
@@ -154,11 +275,8 @@ pub(crate) fn default_bindings() -> Vec<Binding> {
     DEFAULTS
         .iter()
         .filter_map(|(key, mods, action)| {
-            Some(Binding {
-                key: (*key).to_owned(),
-                mods: Mods::parse(mods)?,
-                action: action.clone(),
-            })
+            let chord = Chord::new(key, Mods::parse(mods)?);
+            Some(Binding::new(vec![chord], vec![action.clone()]))
         })
         .collect()
 }

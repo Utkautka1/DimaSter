@@ -3,6 +3,7 @@
 //! nvim, yazi и tmux спрашивают об этом при старте; без ответа они ждут
 //! таймаут или отключают часть функций.
 
+use dimaster_i18n::t;
 use dimaster_vt::Sequence;
 
 use crate::terminal::State;
@@ -46,7 +47,7 @@ impl State {
             14 => self.answer(format!("\x1b[4;{};{}t", rows * height, cols * width)),
             16 => self.answer(format!("\x1b[6;{height};{width}t")),
             18 => self.answer(format!("\x1b[8;{rows};{cols}t")),
-            _ => log::debug!("неподдерживаемый XTWINOPS {kind}"),
+            _ => log::debug!("{}", t!("неподдерживаемый XTWINOPS {kind}", kind = kind)),
         }
     }
 }

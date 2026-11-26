@@ -29,7 +29,7 @@ end
 local function optional(name)
   if not package.searchpath(name, package.path) then return nil end
   local layer = require(name)
-  assert(type(layer) == "table", name .. ".lua должен возвращать таблицу")
+  assert(type(layer) == "table", name .. dimaster.tr(".lua должен возвращать таблицу"))
   return layer
 end
 

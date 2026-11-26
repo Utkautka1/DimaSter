@@ -1,6 +1,7 @@
 //! Плагины и внешние команды внутри открытого окна.
 
 use dimaster_config::{Action, Effect, Plugins, Snapshot, config_dir};
+use dimaster_i18n::t;
 use dimaster_i18n::trf;
 
 use crate::desktop;
@@ -21,12 +22,12 @@ impl View {
             Ok((plugins, errors)) => {
                 errors
                     .iter()
-                    .for_each(|e| log::warn!("Плагин не загружен: {e}"));
+                    .for_each(|e| log::warn!("{}", t!("Плагин не загружен: {error}", error = e)));
                 self.plugins = Some(plugins);
                 self.emit("startup", "");
                 self.render_status();
             }
-            Err(e) => log::warn!("Плагины недоступны: {e}"),
+            Err(e) => log::warn!("{}", t!("Плагины недоступны: {error}", error = e)),
         }
     }
 
@@ -57,7 +58,7 @@ impl View {
 
     fn apply_effects(&mut self, effects: Vec<Effect>) {
         if self.plugin_depth >= MAX_DEPTH {
-            return log::warn!("Плагины вызывают друг друга по кругу");
+            return log::warn!("{}", t!("Плагины вызывают друг друга по кругу"));
         }
         self.plugin_depth += 1;
         for effect in effects {
@@ -66,7 +67,9 @@ impl View {
                 Effect::Notify { title, body } => desktop::notify(&title, &body),
                 Effect::Action(name) => match Action::parse(&name) {
                     Some(action) => self.perform(action),
-                    None => log::warn!("Плагин: неизвестное действие {name}"),
+                    None => {
+                        log::warn!("{}", t!("Плагин: неизвестное действие {name}", name = name))
+                    }
                 },
             }
         }

@@ -1,5 +1,6 @@
 //! Формат Ghostty: `ключ = значение`; темы — файлы того же формата.
 
+use dimaster_i18n::t;
 use std::path::Path;
 
 use crate::{Config, CursorStyle, Decorations, parse_color};
@@ -45,7 +46,14 @@ fn include_theme(key: &str, value: &str, directory: &Path, config: &mut Config, 
     .find_map(|p| std::fs::read_to_string(p).ok());
     match found {
         Some(theme) if depth > 0 => apply(&theme, directory, config, depth - 1),
-        _ => log::warn!("{key} = {value}: тема Ghostty не найдена"),
+        _ => log::warn!(
+            "{}",
+            t!(
+                "{key} = {value}: тема Ghostty не найдена",
+                key = key,
+                value = value
+            )
+        ),
     }
 }
 

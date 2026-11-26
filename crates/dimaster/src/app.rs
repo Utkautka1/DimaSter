@@ -1,5 +1,6 @@
 //! Окно: связывает события winit, сессию и рендер.
 
+use dimaster_i18n::t;
 use std::error::Error;
 use std::sync::Arc;
 
@@ -77,7 +78,10 @@ fn renderer(
     if std::env::var_os("WGPU_BACKEND").is_none() {
         match renderer_with(event_loop, window, wgpu::Backends::VULKAN) {
             Ok(renderer) => return Ok(renderer),
-            Err(e) => log::warn!("Vulkan недоступен, пробуем OpenGL: {e}"),
+            Err(e) => log::warn!(
+                "{}",
+                t!("Vulkan недоступен, пробуем OpenGL: {error}", error = e)
+            ),
         }
     }
     renderer_with(event_loop, window, wgpu::Backends::all())
@@ -169,7 +173,7 @@ impl ApplicationHandler<Wake> for App {
                 self.view = Some(view);
             }
             Err(e) => {
-                log::error!("Не удалось открыть окно: {e}");
+                log::error!("{}", t!("Не удалось открыть окно: {error}", error = e));
                 self.error = Some(e);
                 event_loop.exit();
             }
@@ -188,7 +192,7 @@ impl ApplicationHandler<Wake> for App {
                 event_loop.set_control_flow(flow.map_or(ControlFlow::Wait, ControlFlow::WaitUntil));
             }
             Err(e) => {
-                log::error!("Не удалось запустить shell: {e}");
+                log::error!("{}", t!("Не удалось запустить shell: {error}", error = e));
                 self.error = Some(e.into());
                 event_loop.exit();
             }

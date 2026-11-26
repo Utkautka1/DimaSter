@@ -10,6 +10,7 @@ mod kitty;
 mod place;
 mod store;
 
+use dimaster_i18n::t;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -51,7 +52,7 @@ impl State {
         match data.split_first() {
             Some((b'G', rest)) => self.kitty(rest),
             Some((b'D', rest)) => self.own_protocol(rest),
-            _ => log::debug!("неизвестный APC"),
+            _ => log::debug!("{}", t!("неизвестный APC")),
         }
     }
 

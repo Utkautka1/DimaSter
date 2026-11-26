@@ -1,5 +1,6 @@
 //! Формат Alacritty — TOML.
 
+use dimaster_i18n::t;
 use toml::{Table, Value};
 
 use crate::{Config, Theme, parse_color};
@@ -63,7 +64,7 @@ fn colors(table: &Table, config: &mut Config) {
 pub(crate) fn apply(text: &str, config: &mut Config) {
     let table: Table = match text.parse() {
         Ok(table) => table,
-        Err(e) => return log::warn!("alacritty.toml не разобран: {e}"),
+        Err(e) => return log::warn!("{}", t!("alacritty.toml не разобран: {error}", error = e)),
     };
     colors(&table, config);
     if let Some(family) = find(&table, &["font", "normal", "family"]).and_then(Value::as_str) {

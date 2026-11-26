@@ -1,5 +1,6 @@
 //! Загрузка шрифтов и кэш растров.
 
+use dimaster_i18n::t;
 use dimaster_i18n::tr;
 use std::collections::HashMap;
 use std::fmt;
@@ -78,7 +79,15 @@ impl FontSystem {
             })
             .flatten()
             .ok_or(FontError)?;
-        log::info!("Шрифт: {family}, {size} px, ячейка {metrics:?}");
+        log::info!(
+            "{}",
+            t!(
+                "Шрифт: {family}, {size} px, ячейка {metrics}",
+                family = family,
+                size = size,
+                metrics = format!("{:?}", metrics)
+            )
+        );
         Ok(Self::assemble(db, family, size, metrics))
     }
 
@@ -197,7 +206,13 @@ fn choose_family(db: &Database, wanted: Option<&str>) -> Option<String> {
         if installed {
             return Some(name.to_owned());
         }
-        log::warn!("Шрифт «{name}» не найден, используется системный моноширинный");
+        log::warn!(
+            "{}",
+            t!(
+                "Шрифт «{name}» не найден, используется системный моноширинный",
+                name = name
+            )
+        );
     }
     discover::default_family(db)
 }

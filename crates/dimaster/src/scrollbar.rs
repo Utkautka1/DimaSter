@@ -34,6 +34,7 @@ impl Track {
             translucent,
             radius: 0,
             opacity: 1.0,
+            stroke: None,
         }
     }
 

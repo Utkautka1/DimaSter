@@ -55,3 +55,67 @@ autoload -Uz add-zsh-hook
 dimaster_mark() { print -n "\e]133;A\a" }
 add-zsh-hook precmd dimaster_mark
 ```
+
+## Цепочки нажатий
+
+```lua
+keys = {
+  { key = "ctrl+a>n", action = "new_window" },       -- Ctrl+A, затем N
+  { key = "ctrl+a>ctrl+a", action = "text:\\x01" },   -- отдать сам Ctrl+A
+}
+```
+
+Следующую клавишу терминал ждёт сколько угодно. Если нажата непривязанная, программа получает всю цепочку и эту клавишу; если при этом есть `catch_all` с `ignore`, всё отбрасывается. Привязка на начало цепочки (`ctrl+a`) отменяет все цепочки с этим началом, и наоборот.
+
+`key` без `mods` может быть всем сочетанием: `"ctrl+shift+a"`; знак плюс пишется последним: `"ctrl++"`.
+
+## Несколько действий
+
+```lua
+{ key = "ctrl+shift+k", action = { "scroll_bottom", "text:clear\\n" } }
+```
+
+## Все действия с параметром
+
+| Действие | Что делает |
+|---|---|
+| `text:<текст>` | отправить текст; понимает `\x15`, `\n`, `\r`, `\t`, `\e`, `\\` |
+| `send:<текст>` | отправить как есть |
+| `csi:<хвост>`, `esc:<хвост>` | `ESC [` или `ESC` и хвост |
+| `plugin:<имя>` | команда плагина |
+| `activate_key_table:<имя>` | включить таблицу |
+| `activate_key_table_once:<имя>` | до первой сработавшей привязки (не `catch_all`) |
+| `deactivate_key_table`, `deactivate_all_key_tables` | выключить |
+| `end_key_sequence` | отправить программе начало цепочки |
+| `ignore` | проглотить нажатие |
+| `unbind`, `none` | снять сочетание |
+
+## Приставки
+
+| Приставка или ключ | Что делает |
+|---|---|
+| `unconsumed:` / `unconsumed = true` | после действия клавиша уходит и программе |
+| `performable:` / `performable = true` | забирать клавишу, только если действие возможно (например, `copy` при выделении) |
+
+`global:` и `all:` из Ghostty не поддерживаются: конфиг с ними сообщит об ошибке.
+
+## Таблицы привязок
+
+```lua
+keys = {
+  { key = "ctrl+shift+r", action = "activate_key_table:scroll" },
+  { table = "scroll", key = "k", action = "scroll_page_up" },
+  { table = "scroll", key = "j", action = "scroll_page_down" },
+  { table = "scroll", key = "escape", action = "deactivate_key_table" },
+  { table = "scroll", key = "catch_all", action = "ignore" },
+}
+```
+
+Поиск идёт от последней включённой таблицы к основной. В `statusbar.lua` имя таблицы — `info.key_table`, число нажатых клавиш цепочки — `info.sequence`.
+
+## Особые клавиши
+
+- `catch_all` — любая не привязанная иначе; можно с модификаторами: `"ctrl+catch_all"`.
+- `KeyA` или `key_a`, `Digit1` — физическая клавиша независимо от раскладки; она важнее символа.
+
+`clear_default_keys = true` убирает все сочетания по умолчанию.

@@ -15,3 +15,11 @@ __dimaster_preexec() {
 }
 PROMPT_COMMAND="__dimaster_precmd${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
 PS0='$(__dimaster_preexec)'"${PS0-}"
+
+# «команда не найдена» на языке терминала, если своего обработчика нет
+if [ -n "$DIMASTER_NOT_FOUND" ] && ! declare -F command_not_found_handle >/dev/null; then
+  command_not_found_handle() {
+    printf '%s: %s\n' "$1" "$DIMASTER_NOT_FOUND" >&2
+    return 127
+  }
+fi

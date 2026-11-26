@@ -157,6 +157,7 @@ impl View {
             rects: self.minimap_rects(),
             ..Drawn::default()
         };
+        out.merge(self.canvas_layer());
         out.merge(self.title_bar());
         out.merge(self.status_bar());
         out.rects.extend(self.scrollbar_rects());

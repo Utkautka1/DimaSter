@@ -9,3 +9,9 @@ end
 function __dimaster_prompt --on-event fish_prompt
     printf '\e]133;A\a'
 end
+# заменяется только штатный обработчик fish, не ваш и не дистрибутивный
+if set -q DIMASTER_NOT_FOUND; and string match -q '*/share/fish/*' -- (functions --details fish_command_not_found)
+    function fish_command_not_found
+        printf '%s: %s\n' $argv[1] "$DIMASTER_NOT_FOUND" >&2
+    end
+end

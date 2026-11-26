@@ -718,6 +718,7 @@ dependencies = [
 name = "dimaster-pty"
 version = "0.1.0"
 dependencies = [
+ "dimaster-i18n",
  "libc",
  "log",
 ]

@@ -4,6 +4,7 @@
 //! подключается, только когда запускается сам shell без аргументов: чужие
 //! команды (`-e`, свои флаги) не изменяются.
 
+use dimaster_i18n::t;
 use std::io;
 use std::path::{Path, PathBuf};
 
@@ -70,7 +71,7 @@ pub(crate) fn inject(args: &[String]) -> Injection {
         return Injection::default();
     };
     if let Err(e) = install(&directory) {
-        log::warn!("Интеграция с shell отключена: {e}");
+        log::warn!("{}", t!("Интеграция с shell отключена: {error}", error = e));
         return Injection::default();
     }
     plan(program, &directory, std::env::var("ZDOTDIR").ok())

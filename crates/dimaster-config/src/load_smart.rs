@@ -20,6 +20,7 @@ fn texts(table: &Table, smart: &mut Smart) -> mlua::Result<()> {
 
 fn reactions(table: &Table, smart: &mut Smart) -> mlua::Result<()> {
     set(table, "integration", &mut smart.integration)?;
+    set(table, "not_found", &mut smart.not_found)?;
     set(table, "long_command", &mut smart.long_command)?;
     set(table, "glow", &mut smart.glow)?;
     set(table, "notify", &mut smart.notify)?;
