@@ -37,22 +37,38 @@ fn data_directory() -> io::Result<PathBuf> {
     Ok(base.join("dimaster/terminfo"))
 }
 
+// выполняется на удалённой машине; ~/.terminfo ncurses находит сам
+const REMOTE_INSTALL: &str = "mkdir -p ~/.terminfo && tic -x -o ~/.terminfo -";
+
+/// `dimaster ssh-terminfo [опции ssh] хост`: один раз копирует запись на сервер,
+/// после чего там можно работать с `term = "xterm-dimaster"`.
+pub(crate) fn push_over_ssh(ssh_args: &[String]) -> io::Result<()> {
+    let mut command = Command::new("ssh");
+    command.args(ssh_args).arg(REMOTE_INSTALL);
+    feed(command)?;
+    println!("Запись {NAME} установлена на сервере.");
+    Ok(())
+}
+
+// передаёт описание на вход команды и проверяет код возврата
+fn feed(mut command: Command) -> io::Result<()> {
+    let mut child = command.stdin(Stdio::piped()).spawn()?;
+    if let Some(mut input) = child.stdin.take() {
+        input.write_all(SOURCE.as_bytes())?;
+    }
+    let status = child.wait()?;
+    if !status.success() {
+        return Err(io::Error::other(format!("команда завершилась с {status}")));
+    }
+    Ok(())
+}
+
 /// Компилирует запись через `tic`; повторный вызов просто перезаписывает её.
 fn install() -> io::Result<PathBuf> {
     let directory = data_directory()?;
     std::fs::create_dir_all(&directory)?;
-    let mut tic = Command::new("tic")
-        .args(["-x", "-o"])
-        .arg(&directory)
-        .arg("-")
-        .stdin(Stdio::piped())
-        .spawn()?;
-    if let Some(mut input) = tic.stdin.take() {
-        input.write_all(SOURCE.as_bytes())?;
-    }
-    let status = tic.wait()?;
-    if !status.success() {
-        return Err(io::Error::other(format!("tic завершился с {status}")));
-    }
+    let mut tic = Command::new("tic");
+    tic.args(["-x", "-o"]).arg(&directory).arg("-");
+    feed(tic)?;
     Ok(directory)
 }

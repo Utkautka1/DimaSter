@@ -138,3 +138,23 @@ fn keyboard_flags_stack_is_per_screen() {
     assert_eq!(reply("\x1b[>1u\x1b[?1049h\x1b[?u"), "\x1b[?0u");
     assert_eq!(reply("\x1b[>1u\x1b[<u\x1b[?u"), "\x1b[?0u");
 }
+
+/// Быстрый путь ASCII и посимвольная печать дают одинаковый экран.
+#[test]
+fn ascii_runs_match_single_characters() {
+    let text = "abcdefgh漢\rxy\x1b[41mlong line that wraps twice\x1b[0m\r\nz\x1b[1;5Hqq";
+    let whole = run(4, 7, text);
+    let mut single = Terminal::new(Size { rows: 4, cols: 7 });
+    for byte in text.bytes() {
+        single.advance(&[byte]);
+    }
+    let cells = |t: &Terminal| -> Vec<_> {
+        let rows = t.screen().history().chain(t.screen().rows());
+        rows.map(|r| (r.cells.clone(), r.wrapped)).collect()
+    };
+    assert_eq!(cells(&whole), cells(&single));
+    assert_eq!(
+        (whole.cursor().row, whole.cursor().col),
+        (single.cursor().row, single.cursor().col)
+    );
+}

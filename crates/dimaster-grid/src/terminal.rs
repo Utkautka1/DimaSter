@@ -258,6 +258,39 @@ impl State {
         self.last_char = Some(ch);
     }
 
+    /// Пишет серию ASCII сразу в строку. Редкие режимы (вставка, псевдографика,
+    /// без автопереноса) идут общим посимвольным путём.
+    pub(crate) fn put_ascii(&mut self, mut run: &[u8]) {
+        let charsets = self.cursor.charsets;
+        if self.modes.insert || !self.modes.autowrap || charsets.graphics[charsets.active] {
+            return run.iter().for_each(|&b| self.put(char::from(b)));
+        }
+        while !run.is_empty() {
+            self.make_room(1);
+            let (chunk, rest) = run.split_at(run.len().min(self.screen.cols() - self.cursor.col));
+            self.write_ascii(chunk);
+            run = rest;
+        }
+    }
+
+    // `chunk` помещается в строку курсора
+    fn write_ascii(&mut self, chunk: &[u8]) {
+        let (row, col) = (self.cursor.row, self.cursor.col);
+        let end = col + chunk.len();
+        self.split_wide(row, col, end);
+        if end == self.screen.cols() {
+            self.screen.rows[row].wrapped = false;
+        }
+        let style = self.cursor.style;
+        for (cell, &byte) in self.screen.rows[row].cells[col..end].iter_mut().zip(chunk) {
+            cell.ch = char::from(byte);
+            cell.extra = None;
+            cell.style = style;
+        }
+        self.last_char = chunk.last().map(|&b| char::from(b));
+        self.move_after_print(chunk.len());
+    }
+
     fn make_room(&mut self, width: usize) {
         let overflow = self.cursor.col + width > self.screen.cols();
         if (self.cursor.pending_wrap || overflow) && self.modes.autowrap {

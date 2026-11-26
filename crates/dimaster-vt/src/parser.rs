@@ -39,10 +39,35 @@ pub struct Parser {
 
 impl Parser {
     /// Разбирает очередную порцию байтов; порции можно резать где угодно.
-    pub fn advance<P: Perform>(&mut self, perform: &mut P, bytes: &[u8]) {
-        for &byte in bytes {
-            self.step(perform, byte);
+    pub fn advance<P: Perform>(&mut self, perform: &mut P, mut bytes: &[u8]) {
+        while let Some((&byte, rest)) = bytes.split_first() {
+            let used = self.fast(perform, bytes);
+            if used > 0 {
+                bytes = &bytes[used..];
+            } else {
+                self.step(perform, byte);
+                bytes = rest;
+            }
         }
+    }
+
+    // обычный текст идёт мимо автомата: сериями ASCII и целыми символами UTF-8
+    fn fast<P: Perform>(&mut self, p: &mut P, bytes: &[u8]) -> usize {
+        if self.state != State::Ground || self.utf8.is_pending() {
+            return 0;
+        }
+        let run = bytes
+            .iter()
+            .position(|b| !(0x20..=0x7E).contains(b))
+            .unwrap_or(bytes.len());
+        if run > 0 {
+            p.print_ascii(&bytes[..run]);
+            return run;
+        }
+        whole_char(bytes).map_or(0, |(ch, length)| {
+            p.print(ch);
+            length
+        })
     }
 
     fn step<P: Perform>(&mut self, p: &mut P, byte: u8) {
@@ -178,4 +203,16 @@ impl Parser {
             StringKind::Ignored => {}
         }
     }
+}
+
+// символ, целиком лежащий в начале порции; разорванные разбирает автомат
+fn whole_char(bytes: &[u8]) -> Option<(char, usize)> {
+    let length = match bytes.first()? {
+        0xC2..=0xDF => 2,
+        0xE0..=0xEF => 3,
+        0xF0..=0xF4 => 4,
+        _ => return None,
+    };
+    let text = std::str::from_utf8(bytes.get(..length)?).ok()?;
+    Some((text.chars().next()?, length))
 }

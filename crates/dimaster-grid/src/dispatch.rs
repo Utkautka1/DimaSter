@@ -10,6 +10,10 @@ impl Perform for State {
         self.put(ch);
     }
 
+    fn print_ascii(&mut self, run: &[u8]) {
+        self.put_ascii(run);
+    }
+
     fn execute(&mut self, byte: u8) {
         match byte {
             0x08 => self.set_col(self.cursor.col.saturating_sub(1)),

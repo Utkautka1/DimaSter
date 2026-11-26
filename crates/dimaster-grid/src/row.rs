@@ -40,6 +40,13 @@ impl Row {
         }
     }
 
+    // сбрасывает метаданные строки с уже пустыми клетками
+    pub(crate) fn recycle(&mut self) {
+        self.wrapped = false;
+        self.mark = None;
+        self.images.clear();
+    }
+
     pub(crate) fn reset(&mut self, cols: usize, fill: &Cell) {
         self.cells.clear();
         self.cells.resize(cols, fill.clone());

@@ -15,6 +15,11 @@ pub struct Sequence<'a> {
 /// Получатель команд парсера. Все методы по умолчанию пустые.
 pub trait Perform {
     fn print(&mut self, _ch: char) {}
+    /// Серия печатных ASCII-символов подряд — основной поток вывода,
+    /// получатель может записать её целиком.
+    fn print_ascii(&mut self, run: &[u8]) {
+        run.iter().for_each(|&b| self.print(char::from(b)));
+    }
     /// Управляющий байт C0 (`\n`, `\r`, BEL и т.п.).
     fn execute(&mut self, _byte: u8) {}
     fn esc(&mut self, _seq: Sequence<'_>) {}

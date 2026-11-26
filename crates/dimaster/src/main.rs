@@ -32,7 +32,7 @@ use std::process::ExitCode;
 
 use dimaster_config::Config;
 
-const USAGE: &str = "использование: dimaster [-e команда...] [--headless команда...] [--setup] [icat файл...] [fetch [--logo картинка]] [ctl команда]";
+const USAGE: &str = "использование: dimaster [-e команда...] [--headless команда...] [--setup] [icat файл...] [fetch [--logo картинка]] [ctl команда] [ssh-terminfo хост]";
 
 fn main() -> ExitCode {
     // wgpu слишком подробен на info, поэтому по умолчанию только предупреждения
@@ -72,6 +72,9 @@ fn run(args: Vec<String>) -> Result<(), Box<dyn Error>> {
         }
         Some((flag, then)) if flag == "--setup" => Ok(setup::run(then)?),
         Some((word, files)) if word == "icat" && !files.is_empty() => Ok(icat::run(files)?),
+        Some((word, host)) if word == "ssh-terminfo" && !host.is_empty() => {
+            Ok(terminfo::push_over_ssh(host)?)
+        }
         Some((word, request)) if word == "ctl" => Ok(remote::client(request)?),
         Some((word, options)) if word == "fetch" => Ok(fetch::run(options)?),
         _ => Err(USAGE.into()),

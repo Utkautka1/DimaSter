@@ -58,10 +58,17 @@ impl Screen {
         for _ in 0..count {
             self.rows[self.top..=self.bottom].rotate_left(1);
             let mut row = std::mem::replace(&mut self.rows[self.bottom], Row::empty());
+            // ушедшая в историю строка уже пуста — перезаписывать незачем
+            let emptied = self.top == 0 && self.limit > 0 && row.cells.len() == cols;
             if self.top == 0 {
                 self.remember(&mut row);
             }
-            row.reset(cols, fill);
+            if emptied && *fill == Cell::default() {
+                row.cells.resize(cols, Cell::default());
+                row.recycle();
+            } else {
+                row.reset(cols, fill);
+            }
             self.rows[self.bottom] = row;
         }
     }
@@ -92,7 +99,8 @@ impl Screen {
                 .map_or(0, |i| i + 1),
         };
         cells.clear();
-        cells.extend(row.cells.drain(..used));
+        // на месте забранных клеток остаются пустые
+        cells.extend(row.cells[..used].iter_mut().map(std::mem::take));
         let images = match self.keep_images {
             true => std::mem::take(&mut row.images),
             false => Vec::new(),

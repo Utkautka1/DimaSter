@@ -62,6 +62,36 @@ pub(crate) fn run(
     app.error.map_or(Ok(()), Err)
 }
 
+// OpenGL подгружается, только если Vulkan не нашёлся: оба сразу — это лишние
+// ~20 МБ памяти на каждое окно
+fn renderer(
+    event_loop: &ActiveEventLoop,
+    window: &Arc<Window>,
+) -> Result<Renderer, Box<dyn Error>> {
+    // явный выбор пользователя через WGPU_BACKEND не переопределяется
+    if std::env::var_os("WGPU_BACKEND").is_none() {
+        match renderer_with(event_loop, window, wgpu::Backends::VULKAN) {
+            Ok(renderer) => return Ok(renderer),
+            Err(e) => log::warn!("Vulkan недоступен, пробуем OpenGL: {e}"),
+        }
+    }
+    renderer_with(event_loop, window, wgpu::Backends::all())
+}
+
+fn renderer_with(
+    event_loop: &ActiveEventLoop,
+    window: &Arc<Window>,
+    backends: wgpu::Backends,
+) -> Result<Renderer, Box<dyn Error>> {
+    let display = Box::new(event_loop.owned_display_handle());
+    let mut descriptor = wgpu::InstanceDescriptor::new_with_display_handle_from_env(display);
+    descriptor.backends &= backends;
+    let instance = wgpu::Instance::new(descriptor);
+    let surface = instance.create_surface(window.clone())?;
+    let size = window.inner_size();
+    Ok(Renderer::new(instance, surface, (size.width, size.height))?)
+}
+
 struct App {
     args: Vec<String>,
     config: Config,
@@ -87,13 +117,7 @@ impl App {
             .with_name("dimaster", "dimaster");
         let window = Arc::new(event_loop.create_window(attributes)?);
         window.set_ime_allowed(true);
-        let display = Box::new(event_loop.owned_display_handle());
-        let instance = wgpu::Instance::new(
-            wgpu::InstanceDescriptor::new_with_display_handle_from_env(display),
-        );
-        let surface = instance.create_surface(window.clone())?;
-        let size = window.inner_size();
-        let renderer = Renderer::new(instance, surface, (size.width, size.height))?;
+        let renderer = renderer(event_loop, &window)?;
         let config = self.config.clone();
         let fonts = settings::fonts(&config, window.scale_factor())?;
         let proxy = self.proxy.clone();
