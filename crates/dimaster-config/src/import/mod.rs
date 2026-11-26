@@ -68,3 +68,20 @@ fn resolve(directory: &Path, value: &str) -> PathBuf {
         _ => directory.join(value),
     }
 }
+
+/// Тема Ghostty по имени: пользовательская или установленная с Ghostty.
+pub(crate) fn ghostty_theme(name: &str, config_home: Option<&Path>) -> Option<crate::Theme> {
+    // имя — это файл в каталоге тем, а не путь
+    if name.contains(['/', '\\']) || name.starts_with('.') {
+        return None;
+    }
+    let own = config_home.map(|home| home.join("ghostty/themes").join(name));
+    let system = Path::new("/usr/share/ghostty/themes").join(name);
+    let text = own
+        .into_iter()
+        .chain([system])
+        .find_map(|p| std::fs::read_to_string(p).ok())?;
+    let mut config = Config::default();
+    ghostty::apply(&text, Path::new("/"), &mut config, 0);
+    Some(config.theme)
+}

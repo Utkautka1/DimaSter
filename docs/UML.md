@@ -113,6 +113,8 @@ classDiagram
     class Launch { args; term_name; directory; socket }
     View *-- Plugins
     class Commands { options; running; history }
+    class Links { uris; +uri(number) }
+    State *-- Links
     class Finished { command; exit; duration; output }
     class SmartOptions { ok; empty; errors; search_tools }
     class Assist { glow_since; typed }

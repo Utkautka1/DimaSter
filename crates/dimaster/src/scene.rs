@@ -144,6 +144,19 @@ impl View {
         visible.then_some((cursor.row as f32, cursor.col as f32))
     }
 
+    // адрес ссылки под указателем при зажатом Ctrl
+    fn link_label(&self) -> Option<Label> {
+        let uri = self.hover_link.and(self.hover_uri.as_ref())?;
+        let metrics = self.fonts.metrics();
+        let size = self.window.inner_size();
+        let columns = (size.width / metrics.cell_width) as usize;
+        let width = (uri.chars().count() + 2).min(columns);
+        let y = size
+            .height
+            .saturating_sub(metrics.cell_height + self.status_height());
+        Some(self.label(0, y, width, format!(" {uri}")))
+    }
+
     // выделение и панели зависят от режима
     fn decorations(&self) -> (Option<Span>, Vec<(Span, u32)>, Vec<Label>) {
         let selection = match &self.mode {
@@ -155,6 +168,7 @@ impl View {
         labels.extend(self.status_label());
         labels.extend(self.palette_labels());
         labels.extend(self.mode_panels());
+        labels.extend(self.link_label());
         labels.extend(self.monitor_labels());
         (
             selection.map(|s| self.term.span(s)),

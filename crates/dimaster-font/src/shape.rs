@@ -6,13 +6,15 @@ use fontdb::ID;
 use rustybuzz::ttf_parser::Tag;
 use rustybuzz::{Face, Feature, GlyphBuffer, UnicodeBuffer};
 
-use crate::{FontSystem, discover};
+use crate::{FontSystem, discover, sprite};
 
 /// Конкретный глиф конкретного шрифта.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct GlyphId {
     pub(crate) face: ID,
     pub(crate) glyph: u16,
+    // значок: вписать в отведённые ячейки
+    pub(crate) fit: bool,
 }
 
 /// Глиф после шейпинга.
@@ -57,6 +59,10 @@ impl FontSystem {
         }
         let mut glyphs = Vec::new();
         for (face, start, end) in self.segments(text, bold, italic) {
+            if face == ID::dummy() {
+                sprites(&text[start..end], start, &mut glyphs);
+                continue;
+            }
             self.shape_segment(face, &text[start..end], start, &mut glyphs);
         }
         if self.shaped.len() >= CACHE_LIMIT {
@@ -69,7 +75,7 @@ impl FontSystem {
 
     // делит текст на куски, каждый из которых рисуется одним шрифтом
     fn segments(&mut self, text: &str, bold: bool, italic: bool) -> Vec<(ID, usize, usize)> {
-        let Some(primary) = discover::find_face(&self.db, &self.family, bold, italic) else {
+        let Some(primary) = self.face_of_style(bold, italic) else {
             return Vec::new();
         };
         let mut segments: Vec<(ID, usize, usize)> = Vec::new();
@@ -78,6 +84,7 @@ impl FontSystem {
             // U+FE0F после символа просит его цветное начертание
             let emoji = discover::is_emoji(ch) || text[end..].starts_with('\u{fe0f}');
             let face = match segments.last() {
+                _ if sprite::is_sprite(ch) => ID::dummy(),
                 Some(&(face, ..)) if joins_previous(ch) => face,
                 _ => self.face_for(primary, ch, emoji),
             };
@@ -116,9 +123,32 @@ impl FontSystem {
             };
             let shaped = rustybuzz::shape(&face, features, buffer);
             let scale = self.size / face.units_per_em() as f32;
+            let first = out.len();
             collect(id, &shaped, scale, offset, out);
+            for glyph in &mut out[first..] {
+                glyph.id.fit = text[glyph.cluster - offset..].starts_with(is_icon);
+            }
         });
     }
+}
+
+// свои символы: вместо номера глифа — код самого символа
+fn sprites(text: &str, offset: usize, out: &mut Vec<ShapedGlyph>) {
+    out.extend(text.char_indices().map(|(at, ch)| ShapedGlyph {
+        id: GlyphId {
+            face: ID::dummy(),
+            glyph: u32::from(ch) as u16,
+            fit: false,
+        },
+        cluster: offset + at,
+        x: 0.0,
+        y: 0.0,
+    }));
+}
+
+// значки из частной области (Nerd Fonts) часто шире ячейки
+fn is_icon(ch: char) -> bool {
+    matches!(ch, '\u{e000}'..='\u{f8ff}' | '\u{f0000}'..='\u{ffffd}')
 }
 
 // переводит позиции из единиц шрифта в пиксели относительно ячейки кластера
@@ -133,6 +163,7 @@ fn collect(id: ID, shaped: &GlyphBuffer, scale: f32, offset: usize, out: &mut Ve
             id: GlyphId {
                 face: id,
                 glyph: info.glyph_id as u16,
+                fit: false,
             },
             cluster: offset + info.cluster as usize,
             x: (pen + place.x_offset) as f32 * scale,

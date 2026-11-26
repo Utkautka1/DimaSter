@@ -64,6 +64,7 @@ pub(crate) struct View {
     pub(crate) focused: bool,
     // ссылка под указателем при зажатом Ctrl
     pub(crate) hover_link: Option<Match>,
+    pub(crate) hover_uri: Option<String>,
     /// Нажата кнопка закрытия своей рамки.
     pub(crate) closing: bool,
     pub(crate) assist: Assist,
@@ -151,6 +152,7 @@ impl View {
             animator: Animator::new(Instant::now()),
             focused: true,
             hover_link: None,
+            hover_uri: None,
             closing: false,
             assist: Assist::default(),
             status: Status::default(),

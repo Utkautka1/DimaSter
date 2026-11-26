@@ -71,6 +71,7 @@ pub(crate) fn fonts(config: &Config, scale: f64) -> Result<FontSystem, FontError
     let mut fonts =
         FontSystem::with_settings(config.font_family.as_deref(), size, &config.font_dirs)?;
     fonts.set_style(config.line_height, config.ligatures);
+    fonts.set_style_families(config.font_styles.clone());
     Ok(fonts)
 }
 

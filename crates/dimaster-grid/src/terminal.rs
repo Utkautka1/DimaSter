@@ -6,6 +6,7 @@ use unicode_width::UnicodeWidthChar;
 use crate::colors::ColorOverrides;
 use crate::command::Commands;
 use crate::graphics::Store;
+use crate::hyperlink::Links;
 use crate::keyboard::KeyboardStack;
 use crate::reflow::Position;
 use crate::{Cell, Cursor, CursorShape, DefaultColors, Flags, Modes, PromptMark, Screen};
@@ -61,6 +62,7 @@ pub(crate) struct State {
     pub(crate) colors: DefaultColors,
     pub(crate) overrides: ColorOverrides,
     pub(crate) commands: Commands,
+    pub(crate) links: Links,
     // стек заголовков окна (CSI 22/23 t)
     pub(crate) titles: Vec<String>,
     // запросы записи в буфер обмена: (primary, текст)
@@ -241,6 +243,7 @@ impl State {
             colors: DefaultColors::default(),
             overrides: ColorOverrides::default(),
             commands: Commands::default(),
+            links: Links::default(),
             titles: Vec::new(),
             clipboard: Vec::new(),
             default_cursor: CursorShape::Block,

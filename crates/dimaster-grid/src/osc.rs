@@ -25,6 +25,7 @@ impl State {
         };
         match code {
             "0" | "2" => self.title = clean(value),
+            "8" => self.hyperlink(value),
             "7" => self.cwd = parse_file_url(value).map(|path| clean(&path)),
             "4" => self.palette_osc(value),
             "10" | "11" | "12" => self.dynamic_color(code, value),

@@ -64,6 +64,18 @@ pub(super) fn appearance(config: &Config) -> String {
     )
 }
 
+// отдельные шрифты начертаний или пример в комментарии
+fn style_families(config: &Config) -> String {
+    let keys = ["bold", "italic", "bold_italic"];
+    keys.iter()
+        .zip(&config.font_styles)
+        .map(|(key, family)| match family {
+            Some(name) => format!("    {key} = {},\n", quote(name)),
+            None => format!("    -- {key} = \"Victor Mono\",\n"),
+        })
+        .collect()
+}
+
 pub(super) fn font(config: &Config) -> String {
     let family = match &config.font_family {
         Some(name) => format!("family = {},", quote(name)),
@@ -71,8 +83,9 @@ pub(super) fn font(config: &Config) -> String {
     };
     format!(
         "-- Шрифт. size — в пунктах, dirs — свои каталоги со шрифтами.\nreturn {{\n  font = {{\n    \
-         {family}\n    size = {},\n    line_height = {},\n    ligatures = {},\n    \
+         {family}\n{}    size = {},\n    line_height = {},\n    ligatures = {},\n    \
          dirs = {},\n  }},\n}}\n",
+        style_families(config),
         config.font_size,
         config.line_height,
         config.ligatures,

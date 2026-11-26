@@ -67,8 +67,10 @@ impl View {
             .modifiers
             .control_key()
             .then(|| self.term.link_at(Point { line, col }))
-            .flatten()
-            .map(|(range, _)| range);
+            .flatten();
+        // адрес гиперссылки может отличаться от видимого текста — показываем его
+        self.hover_uri = link.as_ref().map(|(_, uri)| uri.clone());
+        let link = link.map(|(range, _)| range);
         if link != self.hover_link {
             self.hover_link = link;
             self.window.request_redraw();

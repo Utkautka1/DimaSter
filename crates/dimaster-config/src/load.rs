@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 
 use mlua::{Lua, Table, Value};
 
+use crate::import::ghostty_theme;
 use crate::theme::builtin_source;
 use crate::{
     Action, Binding, Config, CopyOnSelect, CursorStyle, Decorations, Effects, Mods, Theme,
@@ -99,10 +100,13 @@ fn load_theme(
     let custom = directory
         .filter(|_| !name.contains(['/', '\\']))
         .and_then(|d| std::fs::read_to_string(d.join("themes").join(format!("{name}.lua"))).ok());
-    let source = custom
-        .or_else(|| builtin_source(name).map(str::to_owned))
-        .ok_or_else(|| invalid("theme", name))?;
-    apply_colors(&lua.load(source).eval()?, theme)
+    if let Some(source) = custom.or_else(|| builtin_source(name).map(str::to_owned)) {
+        return apply_colors(&lua.load(source).eval()?, theme);
+    }
+    // настройки DimaSter и Ghostty лежат в одном каталоге ~/.config
+    let config_home = directory.and_then(Path::parent);
+    *theme = ghostty_theme(name, config_home).ok_or_else(|| invalid("theme", name))?;
+    Ok(())
 }
 
 fn color(table: &Table, key: &str, target: &mut u32) -> Result<(), ConfigError> {
@@ -137,6 +141,13 @@ fn apply_font(table: &Table, config: &mut Config) -> Result<(), ConfigError> {
         return Ok(());
     };
     config.font_family = font.get("family")?;
+    for (slot, key) in config
+        .font_styles
+        .iter_mut()
+        .zip(["bold", "italic", "bold_italic"])
+    {
+        *slot = font.get(key)?;
+    }
     if let Some(size) = font.get::<Option<f32>>("size")? {
         if !(4.0..=200.0).contains(&size) {
             return Err(invalid("font.size", size));

@@ -89,7 +89,7 @@ cargo run --release -p dimaster -- --setup
 | Ctrl+Shift+F | поиск; Enter / Shift+Enter, Ctrl+R — regex, Esc |
 | Ctrl+Shift+Space | vi-режим: hjkl, w b, 0 $, g G, v V Ctrl+V, y, /, q |
 | Ctrl+Shift+P | палитра команд |
-| Ctrl+клик | открыть ссылку или файл |
+| Ctrl+клик | открыть ссылку или файл (в том числе OSC 8) |
 | Ctrl+Shift+U | метки на ссылках и путях |
 | Ctrl+Shift+H | история команд с их выводом |
 | Ctrl+Shift+S | добавить `sudo` |

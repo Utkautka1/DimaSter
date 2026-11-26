@@ -1,7 +1,7 @@
 //! Запросы настроек и возможностей (DECRQSS, XTGETTCAP) и мягкий сброс.
 
 use crate::terminal::State;
-use crate::{Color, CursorShape, Flags, Style};
+use crate::{Color, CursorShape, Flags, Style, Underline};
 
 // возможности, о которых спрашивают nvim и tmux
 const CAPABILITIES: [(&str, &str); 5] = [
@@ -38,7 +38,6 @@ fn sgr(style: Style) -> String {
         (Flags::BOLD, "1"),
         (Flags::DIM, "2"),
         (Flags::ITALIC, "3"),
-        (Flags::UNDERLINE, "4"),
         (Flags::BLINK, "5"),
         (Flags::INVERSE, "7"),
         (Flags::HIDDEN, "8"),
@@ -47,6 +46,9 @@ fn sgr(style: Style) -> String {
     let mut codes = vec!["0".to_owned()];
     let active = flags.iter().filter(|(f, _)| style.flags.contains(*f));
     codes.extend(active.map(|(_, code)| (*code).to_owned()));
+    if style.underline != Underline::None {
+        codes.push("4".to_owned());
+    }
     codes.extend(color_codes(style.fg, 30));
     codes.extend(color_codes(style.bg, 40));
     codes.join(";")

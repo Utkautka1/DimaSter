@@ -40,6 +40,7 @@ impl View {
 
     pub(crate) fn apply(&mut self, config: Config) {
         let style_before = (self.config.line_height, self.config.ligatures);
+        let styles_changed = config.font_styles != self.config.font_styles;
         let font_changed = (&config.font_family, &config.font_dirs, config.font_size)
             != (
                 &self.config.font_family,
@@ -47,7 +48,7 @@ impl View {
                 self.config.font_size,
             );
         self.config = config;
-        if font_changed {
+        if font_changed || styles_changed {
             self.zoom = 0.0;
             self.rebuild_fonts();
         }

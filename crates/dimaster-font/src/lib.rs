@@ -7,6 +7,7 @@ mod color;
 mod discover;
 mod raster;
 mod shape;
+mod sprite;
 mod system;
 
 pub use raster::Bitmap;

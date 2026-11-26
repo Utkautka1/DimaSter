@@ -119,24 +119,75 @@ impl Terminal {
         let Ok(pattern) = Regex::new(LINK) else {
             return Vec::new();
         };
-        let mut found = Vec::new();
+        let mut found = self.hyperlinks_in(lines.clone());
         let mut line = self.logical_start(lines.start);
         while line < lines.end.min(self.line_range().end) {
             let (logical, next) = self.logical(line);
             found.extend(pattern.find_iter(&logical.text).filter_map(|hit| {
                 let text = hit.as_str().trim_end_matches(TRAILING);
                 let range = logical.matched(hit.start(), hit.start() + text.len())?;
-                lines
-                    .contains(&range.start.line)
-                    .then(|| (range, text.to_owned()))
+                // текст внутри гиперссылки OSC 8 не повторяется отдельной целью
+                let fresh = self.link_number(range.start) == 0;
+                (fresh && lines.contains(&range.start.line)).then(|| (range, text.to_owned()))
             }));
             line = next.max(line + 1);
         }
         found
     }
 
+    fn link_number(&self, point: Point) -> u16 {
+        let cell = self.line(point.line).and_then(|r| r.cells.get(point.col));
+        cell.map_or(0, |c| c.style.link)
+    }
+
+    // гиперссылка OSC 8 под точкой: все соседние клетки с тем же номером
+    fn hyperlink_at(&self, point: Point) -> Option<(Match, String)> {
+        let number = self.link_number(point);
+        let uri = self.state.links.uri(number)?.to_owned();
+        let same = |col| self.link_number(Point { col, ..point }) == number;
+        let first = (0..point.col)
+            .rev()
+            .take_while(|&c| same(c))
+            .last()
+            .unwrap_or(point.col);
+        let last = (point.col + 1..)
+            .take_while(|&c| same(c))
+            .last()
+            .unwrap_or(point.col);
+        let at = |col| Point { col, ..point };
+        Some((
+            Match {
+                start: at(first),
+                end: at(last),
+            },
+            uri,
+        ))
+    }
+
+    // начала всех гиперссылок OSC 8 в строках
+    fn hyperlinks_in(&self, lines: std::ops::Range<u64>) -> Vec<(Match, String)> {
+        let mut found = Vec::new();
+        for line in lines {
+            let Some(row) = self.line(line) else { continue };
+            let mut col = 0;
+            while col < row.cells.len() {
+                match self.hyperlink_at(Point { line, col }) {
+                    Some(link) => {
+                        col = link.0.end.col + 1;
+                        found.push(link);
+                    }
+                    None => col += 1,
+                }
+            }
+        }
+        found
+    }
+
     /// Адрес или путь под указанной клеткой.
     pub fn link_at(&self, point: Point) -> Option<(Match, String)> {
+        if let Some(link) = self.hyperlink_at(point) {
+            return Some(link);
+        }
         let pattern = Regex::new(LINK).ok()?;
         let (logical, _) = self.logical(self.logical_start(point.line));
         pattern.find_iter(&logical.text).find_map(|found| {

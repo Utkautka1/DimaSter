@@ -24,12 +24,9 @@ impl Run {
             && self.italic == cell.style.flags.contains(Flags::ITALIC)
     }
 
-    fn push(&mut self, cell: &Cell, column: usize) {
-        let span = if cell.style.flags.contains(Flags::WIDE) {
-            2
-        } else {
-            1
-        };
+    fn push(&mut self, cell: &Cell, column: usize, roomy: bool) {
+        let wide = cell.style.flags.contains(Flags::WIDE) || roomy;
+        let span = if wide { 2 } else { 1 };
         let extra = cell.extra.iter().flat_map(|e| e.chars());
         for ch in std::iter::once(cell.ch).chain(extra) {
             self.cells.push((self.text.len(), column, span));
@@ -49,7 +46,15 @@ impl Run {
 
 impl Builder<'_> {
     /// Добавляет клетку в отрезок; пробел или смена стиля отрезок закрывает.
-    pub(crate) fn text_cell(&mut self, run: &mut Run, cell: &Cell, color: Rgb, at: (usize, usize)) {
+    /// `at` — строка и колонка; `roomy` — значок может занять и соседнюю.
+    pub(crate) fn text_cell(
+        &mut self,
+        run: &mut Run,
+        cell: &Cell,
+        color: Rgb,
+        at: (usize, usize),
+        roomy: bool,
+    ) {
         let blank = cell.ch == ' ' && cell.extra.is_none();
         if blank || !run.accepts(cell, color) {
             self.flush(run, at.0);
@@ -59,7 +64,7 @@ impl Builder<'_> {
             run.bold = flags.contains(Flags::BOLD);
             run.italic = flags.contains(Flags::ITALIC);
             run.color = color;
-            run.push(cell, at.1);
+            run.push(cell, at.1, roomy);
         }
     }
 

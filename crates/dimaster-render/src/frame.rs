@@ -2,7 +2,7 @@
 
 use bytemuck::{Pod, Zeroable};
 use dimaster_font::{FontSystem, Metrics};
-use dimaster_grid::{Cell, Color, CursorShape, Flags, Row, Span, Terminal};
+use dimaster_grid::{Cell, Color, CursorShape, Flags, Row, Span, Style, Terminal};
 
 use crate::appearance::Appearance;
 use crate::atlas::{Atlas, Slot};
@@ -181,7 +181,10 @@ impl Builder<'_> {
             }
             self.background(origin, cell, bg);
             if !cell.style.flags.contains(Flags::HIDDEN) {
-                self.text_cell(&mut run, cell, fg, (index, column));
+                // значку Nerd Font перед пробелом можно занять и его
+                let icon = matches!(cell.ch, '\u{e000}'..='\u{f8ff}' | '\u{f0000}'..='\u{ffffd}');
+                let roomy = icon && row.cells.get(col + 1).is_none_or(|next| next.ch == ' ');
+                self.text_cell(&mut run, cell, fg, (index, column), roomy);
                 self.lines(origin, cell, fg);
             }
         }
@@ -192,7 +195,7 @@ impl Builder<'_> {
         bidi::visual_columns(cells).filter(|_| self.look.rtl)
     }
 
-    fn cell_width(&self, cell: &Cell) -> f32 {
+    pub(crate) fn cell_width(&self, cell: &Cell) -> f32 {
         let span = if cell.style.flags.contains(Flags::WIDE) {
             2
         } else {
@@ -212,20 +215,10 @@ impl Builder<'_> {
         }
     }
 
-    fn lines(&mut self, origin: [f32; 2], cell: &Cell, color: Rgb) {
-        let Metrics {
-            baseline,
-            line_thickness,
-            ..
-        } = self.fonts.metrics();
-        let size = [self.cell_width(cell), line_thickness as f32];
-        let underline = (Flags::UNDERLINE, baseline + line_thickness as i32);
-        let strike = (Flags::STRIKE, baseline * 2 / 3);
-        for (flag, offset) in [underline, strike] {
-            if cell.style.flags.contains(flag) {
-                let position = [origin[0], origin[1] + offset as f32];
-                self.quads.push(Quad::solid(position, size, color));
-            }
+    pub(crate) fn underline_color(&self, style: Style, text: Rgb) -> Rgb {
+        match style.underline_color {
+            Color::Default => text,
+            color => resolve(color, text, self.look),
         }
     }
 
@@ -247,7 +240,13 @@ impl Builder<'_> {
         // под неподвижным блоком символ перерисовывается цветом фона
         if term.modes().cursor_shape == CursorShape::Block && (row, col) == resting {
             let mut run = Run::default();
-            self.text_cell(&mut run, cell, self.look.background, (cursor.row, column));
+            self.text_cell(
+                &mut run,
+                cell,
+                self.look.background,
+                (cursor.row, column),
+                false,
+            );
             self.flush(&mut run, cursor.row);
         }
     }

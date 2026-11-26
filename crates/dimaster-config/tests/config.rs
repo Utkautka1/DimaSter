@@ -93,6 +93,7 @@ fn customize_more(config: &mut Config) {
     config.widgets.statusbar = false;
     config.widgets.interval = 7.0;
     config.widgets.minimap = true;
+    config.font_styles = [Some("B".into()), None, Some("BI".into())];
     config.widgets.git_changes = true;
     config.env = vec![("A".into(), "1".into()), ("B".into(), "x y".into())];
 }
@@ -197,5 +198,26 @@ fn imports_ghostty_and_kitty_with_includes() {
         (kitty.theme.background, kitty.theme.ansi[2]),
         (0x111111, 0x00ff00)
     );
+    std::fs::remove_dir_all(home).unwrap();
+}
+
+// каталог рядом с настройками играет роль ~/.config/ghostty/themes
+#[test]
+fn ghostty_themes_are_found_by_name() {
+    let home = temporary("ghostty-theme");
+    let themes = home.join("ghostty/themes");
+    std::fs::create_dir_all(&themes).unwrap();
+    std::fs::write(
+        themes.join("My Theme"),
+        "background = #010203\npalette = 1=#0a0b0c\n",
+    )
+    .unwrap();
+    let directory = home.join("dimaster");
+    let config = parse("return { theme = 'My Theme' }", Some(&directory)).unwrap();
+    assert_eq!(
+        (config.theme.background, config.theme.ansi[1]),
+        (0x010203, 0x0a0b0c)
+    );
+    assert!(parse("return { theme = '../My Theme' }", Some(&directory)).is_err());
     std::fs::remove_dir_all(home).unwrap();
 }

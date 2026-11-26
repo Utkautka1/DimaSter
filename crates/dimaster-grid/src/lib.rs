@@ -12,6 +12,7 @@ mod cursor;
 mod dispatch;
 mod edit;
 mod graphics;
+mod hyperlink;
 mod keyboard;
 mod modes;
 mod osc;
@@ -26,7 +27,7 @@ mod sgr;
 mod terminal;
 mod untrusted;
 
-pub use cell::{Cell, Color, Flags, Style};
+pub use cell::{Cell, Color, Flags, Style, Underline};
 pub use colors::{ColorOverrides, DefaultColors};
 pub use command::{Finished, SmartOptions, describe_exit};
 pub use cursor::Cursor;

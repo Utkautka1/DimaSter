@@ -17,7 +17,6 @@ impl Flags {
     pub const BOLD: Self = Self(1);
     pub const DIM: Self = Self(1 << 1);
     pub const ITALIC: Self = Self(1 << 2);
-    pub const UNDERLINE: Self = Self(1 << 3);
     pub const BLINK: Self = Self(1 << 4);
     pub const INVERSE: Self = Self(1 << 5);
     pub const HIDDEN: Self = Self(1 << 6);
@@ -40,12 +39,29 @@ impl Flags {
     }
 }
 
+/// Вид подчёркивания (SGR 4:x).
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum Underline {
+    #[default]
+    None,
+    Single,
+    Double,
+    Curly,
+    Dotted,
+    Dashed,
+}
+
 /// Оформление, применяемое к печатаемым символам.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct Style {
     pub fg: Color,
     pub bg: Color,
     pub flags: Flags,
+    pub underline: Underline,
+    /// `Default` — цветом текста.
+    pub underline_color: Color,
+    // номер гиперссылки OSC 8, 0 — обычный текст
+    pub(crate) link: u16,
 }
 
 /// Одна клетка экрана.

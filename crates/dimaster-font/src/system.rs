@@ -9,7 +9,7 @@ use fontdb::{Database, ID};
 use rustybuzz::ttf_parser::{self, Face};
 
 use crate::raster::{Bitmap, Outline};
-use crate::{GlyphId, ShapedGlyph, color, discover};
+use crate::{GlyphId, ShapedGlyph, color, discover, sprite};
 
 /// Размеры ячейки в физических пикселях.
 #[derive(Debug, Clone, Copy)]
@@ -37,6 +37,8 @@ impl std::error::Error for FontError {}
 pub struct FontSystem {
     pub(crate) db: Database,
     pub(crate) family: String,
+    // свои семейства для жирного [0], курсива [1] и жирного курсива [2]
+    styles: [Option<String>; 3],
     // кегль в физических пикселях
     pub(crate) size: f32,
     // множитель высоты строки
@@ -74,19 +76,23 @@ impl FontSystem {
             .flatten()
             .ok_or(FontError)?;
         log::info!("Шрифт: {family}, {size} px, ячейка {metrics:?}");
+        Ok(Self::assemble(db, family, size, metrics))
+    }
+
+    fn assemble(db: Database, family: String, size: f32, metrics: Metrics) -> Self {
         let (fallbacks, shaped, glyphs) = Default::default();
-        let (line_height, ligatures) = (1.0, true);
-        Ok(Self {
+        Self {
             db,
             family,
+            styles: Default::default(),
             size,
-            line_height,
-            ligatures,
+            line_height: 1.0,
+            ligatures: true,
             metrics,
             fallbacks,
             shaped,
             glyphs,
-        })
+        }
     }
 
     pub fn metrics(&self) -> Metrics {
@@ -116,6 +122,25 @@ impl FontSystem {
         self.set_size(self.size);
     }
 
+    /// Отдельные семейства: жирный, курсив, жирный курсив. `None` — то же
+    /// семейство, что и у обычного текста.
+    pub fn set_style_families(&mut self, families: [Option<String>; 3]) {
+        self.styles = families;
+        self.glyphs.clear();
+        self.shaped.clear();
+    }
+
+    pub(crate) fn face_of_style(&self, bold: bool, italic: bool) -> Option<ID> {
+        let index = match (bold, italic) {
+            (true, false) => Some(0),
+            (false, true) => Some(1),
+            (true, true) => Some(2),
+            (false, false) => None,
+        };
+        let custom = index.and_then(|i| self.styles[i].as_deref());
+        discover::find_face(&self.db, custom.unwrap_or(&self.family), bold, italic)
+    }
+
     /// Растр глифа; `cells` нужен цветным эмодзи, чтобы вписаться в ячейки.
     pub fn glyph(&mut self, id: GlyphId, cells: u32) -> &Bitmap {
         if !self.glyphs.contains_key(&(id, cells)) {
@@ -126,17 +151,38 @@ impl FontSystem {
     }
 
     fn render(&self, id: GlyphId, cells: u32) -> Option<Bitmap> {
+        if id.face == ID::dummy() {
+            let ch = char::from_u32(u32::from(id.glyph))?;
+            return Some(sprite::draw(ch, self.metrics));
+        }
         self.db.with_face_data(id.face, |data, index| {
             let face = Face::parse(data, index).ok()?;
             let glyph = ttf_parser::GlyphId(id.glyph);
             if let Some(bitmap) = color::render(&face, glyph, cells, self.metrics) {
                 return Some(bitmap);
             }
-            let mut outline = Outline::new(self.size / f32::from(face.units_per_em()));
-            face.outline_glyph(glyph, &mut outline);
-            Some(outline.rasterize())
+            let scale = self.size / f32::from(face.units_per_em());
+            let bitmap = outline(&face, glyph, scale);
+            let room = (cells * self.metrics.cell_width) as usize;
+            if !id.fit || bitmap.width <= room + 1 {
+                return Some(bitmap);
+            }
+            let smaller = outline(&face, glyph, scale * room as f32 / bitmap.width as f32);
+            Some(centered(smaller, room))
         })?
     }
+}
+
+fn outline(face: &Face<'_>, glyph: ttf_parser::GlyphId, scale: f32) -> Bitmap {
+    let mut outline = Outline::new(scale);
+    face.outline_glyph(glyph, &mut outline);
+    outline.rasterize()
+}
+
+// уменьшенный значок ставится по центру отведённой ширины
+fn centered(mut bitmap: Bitmap, room: usize) -> Bitmap {
+    bitmap.left = (room.saturating_sub(bitmap.width) / 2) as i32;
+    bitmap
 }
 
 // опечатка в имени шрифта не должна оставлять терминал без текста

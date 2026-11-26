@@ -30,6 +30,7 @@ impl Builder<'_> {
                     cell,
                     self.look.foreground,
                     (cursor.row, start + col),
+                    false,
                 );
             }
         }

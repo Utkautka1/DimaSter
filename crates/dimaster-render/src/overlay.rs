@@ -65,7 +65,7 @@ impl Builder<'_> {
         let first = self.quads.len();
         for (col, cell) in grid.screen().rows()[0].cells.iter().take(limit).enumerate() {
             if !cell.style.flags.contains(Flags::WIDE_TAIL) {
-                self.text_cell(&mut run, cell, label.color, (0, col));
+                self.text_cell(&mut run, cell, label.color, (0, col), false);
             }
         }
         self.flush(&mut run, 0);

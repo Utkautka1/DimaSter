@@ -65,6 +65,8 @@ impl CopyOnSelect {
 pub struct Config {
     /// `None` — моноширинный шрифт из fontconfig.
     pub font_family: Option<String>,
+    /// Семейства для жирного, курсива и жирного курсива.
+    pub font_styles: [Option<String>; 3],
     // кегль в пунктах (1 pt = 4/3 пикселя при масштабе 1)
     pub font_size: f32,
     /// Дополнительные каталоги со шрифтами.
@@ -114,6 +116,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             font_family: None,
+            font_styles: Default::default(),
             font_size: 12.0,
             font_dirs: Vec::new(),
             theme: Theme::default(),

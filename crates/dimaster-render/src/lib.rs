@@ -16,6 +16,7 @@ mod pipeline;
 mod preedit;
 mod text;
 mod textures;
+mod underline;
 
 pub use appearance::Appearance;
 pub use frame::Viewport;

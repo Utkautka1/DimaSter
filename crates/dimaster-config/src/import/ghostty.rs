@@ -89,6 +89,9 @@ fn layout(key: &str, value: &str, config: &mut Config) {
         "font-family" if config.font_family.is_none() => {
             config.font_family = Some(value.to_owned());
         }
+        "font-family-bold" => config.font_styles[0] = Some(value.to_owned()),
+        "font-family-italic" => config.font_styles[1] = Some(value.to_owned()),
+        "font-family-bold-italic" => config.font_styles[2] = Some(value.to_owned()),
         "font-size" => config.font_size = value.parse().unwrap_or(config.font_size),
         "window-padding-x" => config.padding.0 = value.parse().unwrap_or(config.padding.0),
         "window-padding-y" => config.padding.1 = value.parse().unwrap_or(config.padding.1),
