@@ -13,7 +13,7 @@ use winit::dpi::PhysicalSize;
 use winit::event::{ElementState, Ime, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy};
 use winit::platform::wayland::WindowAttributesExtWayland;
-use winit::window::{Window, WindowId};
+use winit::window::{Icon, Window, WindowId};
 
 use crate::remote::{self, Request, Server};
 use crate::restore::take_saved;
@@ -119,6 +119,7 @@ impl App {
     fn open(&self, event_loop: &ActiveEventLoop) -> Result<View, Box<dyn Error>> {
         let attributes = Window::default_attributes()
             .with_title("DimaSter")
+            .with_window_icon(window_icon())
             .with_decorations(self.config.window.decorations == Decorations::System)
             .with_transparent(true)
             .with_blur(self.config.window.blur)
@@ -226,13 +227,16 @@ impl ApplicationHandler<Wake> for App {
             return;
         };
         match event {
-            WindowEvent::CloseRequested => self.close(event_loop),
+            WindowEvent::CloseRequested if view.request_close() => self.close(event_loop),
             WindowEvent::RedrawRequested => view.draw(),
             WindowEvent::Resized(size) => view.resize(size.width, size.height),
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => view.rescale(scale_factor),
             WindowEvent::ModifiersChanged(mods) => view.modifiers = mods.state(),
-            WindowEvent::KeyboardInput { event, .. } if event.state.is_pressed() => {
+            WindowEvent::KeyboardInput { event, .. } => {
                 view.key(&event);
+                if view.closing {
+                    self.close(event_loop);
+                }
             }
             WindowEvent::Ime(Ime::Preedit(text, _)) => view.set_preedit(text),
             WindowEvent::Ime(Ime::Commit(text)) => view.type_bytes(text.into_bytes()),
@@ -243,6 +247,11 @@ impl ApplicationHandler<Wake> for App {
             _ => {}
         }
     }
+}
+
+fn window_icon() -> Option<Icon> {
+    let png = dimaster_image::decode_png(include_bytes!("../../../assets/dimaster.png"))?;
+    Icon::from_rgba(png.pixels, png.width as u32, png.height as u32).ok()
 }
 
 // каждый обработчик начинает с захвата терминала

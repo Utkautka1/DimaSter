@@ -24,23 +24,28 @@ impl State {
         picture: &Picture,
         cols: Option<usize>,
         rows: Option<usize>,
+        crop: Option<[u32; 4]>,
     ) -> (usize, usize) {
-        let (cell_width, cell_height) = self.cell_size();
-        let width = picture.animation.width.max(1);
-        let height = picture.animation.height.max(1);
-        let (cols, rows) = match (cols.filter(|&c| c > 0), rows.filter(|&r| r > 0)) {
-            (Some(cols), Some(rows)) => (cols, rows),
-            (Some(cols), None) => (
-                cols,
-                (cols * cell_width * height).div_ceil(width * cell_height),
-            ),
-            (None, Some(rows)) => (
-                (rows * cell_height * width).div_ceil(height * cell_width),
-                rows,
-            ),
-            (None, None) => (width.div_ceil(cell_width), height.div_ceil(cell_height)),
-        };
+        let (pw, ph) = picture.dimensions();
+        let (width, height) = crop.map_or((pw, ph), |c| (c[2] as usize, c[3] as usize));
+        let (cols, rows) = self.raw_image_cells(width.max(1), height.max(1), cols, rows);
         self.fit_width(cols.max(1), rows.max(1))
+    }
+
+    pub(crate) fn raw_image_cells(
+        &self,
+        width: usize,
+        height: usize,
+        cols: Option<usize>,
+        rows: Option<usize>,
+    ) -> (usize, usize) {
+        let (cw, ch) = self.cell_size();
+        match (cols.filter(|&c| c > 0), rows.filter(|&r| r > 0)) {
+            (Some(c), Some(r)) => (c, r),
+            (Some(c), None) => (c, (c * cw * height).div_ceil(width * ch)),
+            (None, Some(r)) => ((r * ch * width).div_ceil(height * cw), r),
+            (None, None) => (width.div_ceil(cw), height.div_ceil(ch)),
+        }
     }
 
     // слишком широкая картинка уменьшается до правого края экрана
@@ -55,7 +60,13 @@ impl State {
     }
 
     /// Показывает картинку в позиции курсора, не двигая его.
-    pub(crate) fn place(&mut self, picture: Arc<Picture>, cells: (usize, usize), id: (u32, u32)) {
+    pub(crate) fn place(
+        &mut self,
+        picture: Arc<Picture>,
+        cells: (usize, usize),
+        id: (u32, u32),
+        crop: Option<[u32; 4]>,
+    ) {
         if id.0 != 0 && id.1 != 0 {
             self.remove_images(|p| p.id == id);
         }
@@ -72,6 +83,7 @@ impl State {
             rows,
             picture,
             id,
+            crop,
         });
         self.enforce_image_budget();
     }
@@ -82,8 +94,9 @@ impl State {
         picture: Arc<Picture>,
         cells: (usize, usize),
         id: (u32, u32),
+        crop: Option<[u32; 4]>,
     ) {
-        self.place(picture, cells, id);
+        self.place(picture, cells, id, crop);
         let col = self.cursor.col + cells.0;
         // line_feed прокручивает экран, и якорь уезжает вместе с текстом
         (1..cells.1).for_each(|_| self.line_feed());
@@ -91,8 +104,10 @@ impl State {
     }
 
     pub(crate) fn remove_images(&mut self, doomed: impl Fn(&Placement) -> bool) {
-        let history = self.screen.history.iter_mut().rev().take(MAX_IMAGE_ROWS);
-        for row in self.screen.rows.iter_mut().chain(history) {
+        for row in &mut self.screen.rows {
+            row.images.retain(|p| !doomed(p));
+        }
+        for row in self.screen.history.iter_mut().rev().take(MAX_IMAGE_ROWS) {
             row.images.retain(|p| !doomed(p));
         }
     }

@@ -6,7 +6,7 @@ use unicode_width::UnicodeWidthChar;
 use crate::colors::ColorOverrides;
 use crate::command::Commands;
 use crate::extensions::{Policy, Progress};
-use crate::graphics::Store;
+use crate::graphics::{Store, VirtualPlacement};
 use crate::hyperlink::Links;
 use crate::keyboard::KeyboardStack;
 use crate::reflow::Position;
@@ -109,6 +109,14 @@ impl Terminal {
 
     pub fn is_alternate(&self) -> bool {
         self.state.alternate
+    }
+
+    /// Виртуальное размещение Kitty (`U=1`) для Unicode-плейсхолдеров.
+    pub fn virtual_placement(&self, image_id: u32, placement_id: u32) -> Option<VirtualPlacement> {
+        self.state
+            .graphics
+            .get_virtual(image_id, placement_id)
+            .cloned()
     }
 
     /// Флаги клавиатурного протокола Kitty для активного экрана.

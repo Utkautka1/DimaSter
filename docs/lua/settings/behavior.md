@@ -16,6 +16,9 @@
 | `copy_on_select` | `"primary"`, `"clipboard"`, `"off"` | `"primary"` |
 | `scroll_multiplier` | строк на щелчок колеса, 0.1–50 | `3` |
 | `clipboard_write` | программы пишут в буфер обмена (OSC 52) | `true` |
+| `clipboard_paste_protection` | предупреждать перед вставкой опасного текста | `true` |
+| `mouse_hide_while_typing` | скрывать указатель мыши при наборе текста | `false` |
+| `confirm_close` | спрашивать подтверждение перед закрытием окна | `false` |
 | `remote_control` | разрешить `dimaster ctl` (применяется при запуске) | `true` |
 | `session` | `{ restore = false, history_lines = 2000 }` | выключено |
 

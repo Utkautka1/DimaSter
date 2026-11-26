@@ -4,8 +4,8 @@ use dimaster_vt::Sequence;
 
 use crate::terminal::State;
 
-// пока поддержан только «disambiguate escape codes»
-const SUPPORTED: u16 = 1;
+// поддерживаются все 5 флагов протокола Kitty (1|2|4|8|16)
+const SUPPORTED: u16 = 0b1_1111;
 // защита от программы, которая бесконечно кладёт флаги в стек
 const DEPTH: usize = 16;
 

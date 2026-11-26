@@ -132,7 +132,7 @@ fn lerp(a: Point, b: Point, t: f32) -> Point {
 }
 
 /// Буфер приращений покрытия.
-struct Area {
+pub(crate) struct Area {
     width: usize,
     height: usize,
     // два запасных столбца: вклад правее последнего пикселя не заезжает в строку ниже
@@ -141,7 +141,7 @@ struct Area {
 }
 
 impl Area {
-    fn new(width: usize, height: usize) -> Self {
+    pub(crate) fn new(width: usize, height: usize) -> Self {
         let stride = width + 2;
         Self {
             width,
@@ -152,7 +152,7 @@ impl Area {
     }
 
     /// Режет отрезок по строкам пикселей.
-    fn line(&mut self, from: Point, to: Point) {
+    pub(crate) fn line(&mut self, from: Point, to: Point) {
         if from.1 == to.1 {
             return;
         }
@@ -196,7 +196,7 @@ impl Area {
         }
     }
 
-    fn coverage(&self) -> Vec<u8> {
+    pub(crate) fn coverage(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(self.width * self.height);
         for row in self.cells.chunks(self.stride).take(self.height) {
             let mut sum = 0.0;

@@ -72,9 +72,10 @@ impl View {
 
     fn snapshot_session(&self) -> Saved {
         let screen = self.term.screen();
-        let rows = screen.history().chain(screen.rows());
-        let mut lines: Vec<String> = rows
+        let mut lines: Vec<String> = screen
+            .history()
             .map(|r| r.text())
+            .chain(screen.rows().iter().map(|r| r.text()))
             .filter(|l| l != MARKER && *l != tr(MARKER))
             .collect();
         while lines.last().is_some_and(String::is_empty) {

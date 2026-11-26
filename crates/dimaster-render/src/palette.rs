@@ -39,3 +39,55 @@ pub(crate) fn dim(color: Rgb, background: Rgb) -> Rgb {
     let mix = |shift| ((channel(color, shift) * 2 + channel(background, shift)) / 3) << shift;
     mix(16) | mix(8) | mix(0)
 }
+
+fn srgb_luminance(c: Rgb) -> f32 {
+    let lin = |shift: u32| {
+        let v = ((c >> shift) & 0xff) as f32 / 255.0;
+        if v <= 0.04045 {
+            v / 12.92
+        } else {
+            ((v + 0.055) / 1.055).powf(2.4)
+        }
+    };
+    0.2126 * lin(16) + 0.7152 * lin(8) + 0.0722 * lin(0)
+}
+
+fn contrast_ratio(a: Rgb, b: Rgb) -> f32 {
+    let (l1, l2) = (srgb_luminance(a), srgb_luminance(b));
+    let (hi, lo) = (l1.max(l2), l1.min(l2));
+    (hi + 0.05) / (lo + 0.05)
+}
+
+/// Подтягивает цвет текста, если его контраст с фоном ниже `min_ratio`.
+pub(crate) fn ensure_contrast(fg: Rgb, bg: Rgb, min_ratio: f32) -> Rgb {
+    if min_ratio <= 1.0 || fg == bg || contrast_ratio(fg, bg) >= min_ratio {
+        return fg;
+    }
+    let target = if srgb_luminance(bg) < 0.5 {
+        0xffffff
+    } else {
+        0x000000
+    };
+    if contrast_ratio(target, bg) < min_ratio {
+        return target;
+    }
+    let (mut lo, mut hi) = (0.0f32, 1.0f32);
+    for _ in 0..8 {
+        let mid = (lo + hi) * 0.5;
+        let candidate = lerp_rgb(fg, target, mid);
+        if contrast_ratio(candidate, bg) >= min_ratio {
+            hi = mid;
+        } else {
+            lo = mid;
+        }
+    }
+    lerp_rgb(fg, target, hi)
+}
+
+fn lerp_rgb(a: Rgb, b: Rgb, t: f32) -> Rgb {
+    let ch = |shift: u32| {
+        let (x, y) = (((a >> shift) & 0xff) as f32, ((b >> shift) & 0xff) as f32);
+        ((x + (y - x) * t).round() as u32) << shift
+    };
+    ch(16) | ch(8) | ch(0)
+}

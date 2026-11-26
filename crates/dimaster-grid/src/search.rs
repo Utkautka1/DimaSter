@@ -136,8 +136,9 @@ impl Terminal {
     }
 
     fn link_number(&self, point: Point) -> u16 {
-        let cell = self.line(point.line).and_then(|r| r.cells.get(point.col));
-        cell.map_or(0, |c| c.style.link)
+        self.line(point.line)
+            .and_then(|r| r.cells.get(point.col).map(|c| c.style.link))
+            .unwrap_or(0)
     }
 
     // гиперссылка OSC 8 под точкой: все соседние клетки с тем же номером

@@ -48,6 +48,7 @@ pub struct FontSystem {
     // множитель высоты строки
     line_height: f32,
     pub(crate) ligatures: bool,
+    pub(crate) features: Vec<rustybuzz::Feature>,
     metrics: Metrics,
     // None — для символа нет шрифта; кэшируем, чтобы не сканировать повторно
     pub(crate) fallbacks: HashMap<(char, bool), Option<ID>>,
@@ -100,6 +101,7 @@ impl FontSystem {
             size,
             line_height: 1.0,
             ligatures: true,
+            features: Vec::new(),
             metrics,
             fallbacks,
             shaped,
@@ -132,6 +134,12 @@ impl FontSystem {
         self.line_height = line_height;
         self.ligatures = ligatures;
         self.set_size(self.size);
+    }
+
+    /// Дополнительные OpenType-фичи (например `"-calt"`, `"ss01"`).
+    pub fn set_features(&mut self, list: &[String]) {
+        self.features = list.iter().filter_map(|s| s.parse().ok()).collect();
+        self.shaped.clear();
     }
 
     /// Отдельные семейства: жирный, курсив, жирный курсив. `None` — то же

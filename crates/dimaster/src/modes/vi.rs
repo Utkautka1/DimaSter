@@ -1,6 +1,6 @@
 //! Vi-режим: перемещение по выводу и копирование без мыши.
 
-use dimaster_grid::{Point, Row, Selection, SelectionKind, Terminal};
+use dimaster_grid::{Point, Selection, SelectionKind, Terminal};
 
 use super::Press;
 
@@ -22,7 +22,7 @@ pub(crate) enum Outcome {
 
 fn chars(term: &Terminal, line: u64) -> Vec<char> {
     term.line(line)
-        .map(Row::text)
+        .map(|r| r.text())
         .unwrap_or_default()
         .chars()
         .collect()

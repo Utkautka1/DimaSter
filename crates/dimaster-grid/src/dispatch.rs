@@ -70,6 +70,7 @@ impl Perform for State {
     fn dcs(&mut self, seq: Sequence<'_>, data: &[u8]) {
         match (seq.intermediates, seq.action) {
             ([], b'q') => self.sixel(data),
+            ([], b't') if data.starts_with(b"mux;") => self.tmux_passthrough(&data[4..]),
             ([b'$'], b'q') => self.setting_report(data),
             ([b'+'], b'q') => self.capability_report(data),
             _ => log::debug!(
@@ -85,6 +86,26 @@ impl Perform for State {
 }
 
 impl State {
+    // tmux удваивает ESC внутри `DCS tmux; ... ST` — разворачиваем и парсим
+    fn tmux_passthrough(&mut self, data: &[u8]) {
+        let mut unwrapped = Vec::with_capacity(data.len());
+        let mut i = 0;
+        while i < data.len() {
+            unwrapped.push(data[i]);
+            if data[i] == 0x1b && data.get(i + 1) == Some(&0x1b) {
+                i += 2;
+            } else {
+                i += 1;
+            }
+        }
+        if let Some(apc) = unwrapped
+            .strip_prefix(b"\x1b_")
+            .and_then(|s| s.strip_suffix(b"\x1b\\"))
+        {
+            self.handle_apc(apc);
+        }
+    }
+
     // 0 означает «как настроил пользователь»
     fn cursor_style(&mut self, style: u16) {
         match style {

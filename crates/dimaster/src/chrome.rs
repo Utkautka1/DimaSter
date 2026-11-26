@@ -79,7 +79,7 @@ impl View {
         }
         let cell = self.fonts.metrics().cell_width;
         match button(x, &slots(&self.config.ui.title, size.width, cell)) {
-            Some(WindowButton::Close) => self.closing = true,
+            Some(WindowButton::Close) => self.closing = self.request_close(),
             Some(WindowButton::Maximize) => self.window.set_maximized(!self.window.is_maximized()),
             Some(WindowButton::Minimize) => self.window.set_minimized(true),
             None => {

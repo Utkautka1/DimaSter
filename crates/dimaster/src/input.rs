@@ -63,19 +63,29 @@ fn physical_name(key: PhysicalKey) -> String {
 
 impl View {
     pub(crate) fn key(&mut self, event: &KeyEvent) {
+        let key = self.layout_independent(event);
+        let text = event.text.as_deref();
+        if !event.state.is_pressed() {
+            if matches!(self.mode, crate::modes::Mode::Normal)
+                && let Some(bytes) = self.program_bytes(event, &key, text)
+            {
+                self.type_bytes(bytes);
+            }
+            return;
+        }
         if !matches!(event.logical_key, Key::Named(NamedKey::Alt)) {
             self.assist.other_key();
         }
-        // без модификаторов: Ctrl+C должен работать и на русской раскладке
-        let key = self.layout_independent(event);
-        let text = event.text.as_deref();
         if self.mode_key(&key, text) {
             return;
         }
-        let bytes = self.program_bytes(event, &key, text);
+        self.handle_pressed_key(event, &key, text);
+    }
+
+    fn handle_pressed_key(&mut self, event: &KeyEvent, key: &Key, text: Option<&str>) {
+        let bytes = self.program_bytes(event, key, text);
         let physical = physical_name(event.physical_key);
-        let name = key_name(&key).filter(|_| !is_modifier(&key));
-        if let Some(name) = name {
+        if let Some(name) = key_name(key).filter(|_| !is_modifier(key)) {
             let pressed = variants(&physical, &name, mods(self.modifiers));
             if self.bound_key(pressed, bytes.clone().unwrap_or_default()) {
                 return self.render_status();
@@ -87,24 +97,38 @@ impl View {
                 self.assist.typed = !matches!(key, Key::Named(NamedKey::Enter));
                 self.type_bytes(bytes);
             }
-            None => self.maybe_double_alt(&key),
+            None => self.maybe_double_alt(key),
         }
     }
 
     // цифровой блок в режиме приложения кодируется по физической клавише
     fn program_bytes(&self, event: &KeyEvent, key: &Key, text: Option<&str>) -> Option<Vec<u8>> {
-        let keypad = self.term.modes().app_keypad && self.modifiers.is_empty();
+        let keypad =
+            event.state.is_pressed() && self.term.modes().app_keypad && self.modifiers.is_empty();
         let numpad = keypad.then(|| keys::keypad(event.physical_key)).flatten();
-        numpad.or_else(|| self.encoded(key, text))
+        numpad.or_else(|| self.encoded(event, key, text))
     }
 
     // что получила бы программа без всяких привязок
-    fn encoded(&self, key: &Key, text: Option<&str>) -> Option<Vec<u8>> {
+    fn encoded(&self, event: &KeyEvent, key: &Key, text: Option<&str>) -> Option<Vec<u8>> {
+        let action = match (event.state.is_pressed(), event.repeat) {
+            (false, _) => keys::KeyAction::Release,
+            (true, true) => keys::KeyAction::Repeat,
+            (true, false) => keys::KeyAction::Press,
+        };
         let modes = keys::KeyModes {
             app_cursor: self.term.modes().app_cursor,
-            disambiguate: self.term.keyboard_flags() & 1 != 0,
+            kitty: self.term.keyboard_flags(),
         };
-        keys::encode(key, text, self.modifiers, modes)
+        let input = keys::KeyInput {
+            key,
+            logical: &event.logical_key,
+            physical: event.physical_key,
+            text,
+            mods: self.modifiers,
+            action,
+        };
+        keys::encode(&input, modes)
     }
 
     /// `true` — нажатие забрали привязки.
@@ -154,7 +178,7 @@ impl View {
         match action {
             Action::Copy => self.selecting.selection.is_some(),
             Action::ScrollPageUp | Action::ScrollTop => {
-                self.scroll < self.term.screen().history().count()
+                self.scroll < self.term.screen().history_len()
             }
             Action::ScrollPageDown | Action::ScrollBottom => self.scroll > 0,
             Action::DeactivateTable | Action::DeactivateAllTables => !self.keymap.tables.is_empty(),

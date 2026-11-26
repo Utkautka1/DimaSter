@@ -134,7 +134,8 @@ fn answers_capability_queries() {
 
 #[test]
 fn keyboard_flags_stack_is_per_screen() {
-    assert_eq!(reply("\x1b[>31u\x1b[?u"), "\x1b[?1u");
+    assert_eq!(reply("\x1b[>31u\x1b[?u"), "\x1b[?31u");
+    assert_eq!(reply("\x1b[>63u\x1b[?u"), "\x1b[?31u");
     assert_eq!(reply("\x1b[>1u\x1b[?1049h\x1b[?u"), "\x1b[?0u");
     assert_eq!(reply("\x1b[>1u\x1b[<u\x1b[?u"), "\x1b[?0u");
 }
@@ -149,12 +150,39 @@ fn ascii_runs_match_single_characters() {
         single.advance(&[byte]);
     }
     let cells = |t: &Terminal| -> Vec<_> {
-        let rows = t.screen().history().chain(t.screen().rows());
-        rows.map(|r| (r.cells.clone(), r.wrapped)).collect()
+        t.screen()
+            .history()
+            .chain(t.screen().rows().iter().cloned())
+            .map(|r| (r.cells, r.wrapped))
+            .collect()
     };
     assert_eq!(cells(&whole), cells(&single));
     assert_eq!(
         (whole.cursor().row, whole.cursor().col),
         (single.cursor().row, single.cursor().col)
+    );
+}
+
+#[test]
+fn packed_history_compresses_memory_and_preserves_text() {
+    let mut term = Terminal::new(Size {
+        rows: 10,
+        cols: 200,
+    });
+    for i in 0..1000 {
+        term.advance(format!("line {i:04}: {}\r\n", "x".repeat(120)).as_bytes());
+    }
+    let len = term.screen().history_len();
+    assert!(len >= 990);
+    let bytes = term.screen().history_bytes();
+    // Без сжатия 1000 * 130 * 32 байт > 4 МБ; со сжатием на порядок меньше
+    assert!(bytes < 250_000, "history_bytes={bytes}");
+    assert!(
+        term.screen()
+            .history()
+            .next()
+            .unwrap()
+            .text()
+            .starts_with("line 0000:")
     );
 }

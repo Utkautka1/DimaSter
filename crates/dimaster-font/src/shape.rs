@@ -116,12 +116,13 @@ impl FontSystem {
             let mut buffer = UnicodeBuffer::new();
             buffer.push_str(text);
             buffer.guess_segment_properties();
-            let features = if self.ligatures {
-                &[][..]
+            let mut features = if self.ligatures {
+                Vec::new()
             } else {
-                &NO_LIGATURES
+                NO_LIGATURES.to_vec()
             };
-            let shaped = rustybuzz::shape(&face, features, buffer);
+            features.extend_from_slice(&self.features);
+            let shaped = rustybuzz::shape(&face, &features, buffer);
             let scale = self.size / face.units_per_em() as f32;
             let first = out.len();
             collect(id, &shaped, scale, offset, out);

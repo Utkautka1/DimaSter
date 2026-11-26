@@ -101,8 +101,24 @@ fn layout(key: &str, value: &str, config: &mut Config) {
         "font-family-italic" => config.font_styles[1] = Some(value.to_owned()),
         "font-family-bold-italic" => config.font_styles[2] = Some(value.to_owned()),
         "font-size" => config.font_size = value.parse().unwrap_or(config.font_size),
+        "font-feature" => config.font_features.push(value.to_owned()),
+        "minimum-contrast" => {
+            if let Ok(v) = value.parse::<f32>() {
+                config.minimum_contrast = v.clamp(1.0, 21.0);
+            }
+        }
+        "cursor-style" => config.cursor = CursorStyle::parse(value).unwrap_or(config.cursor),
+        "cursor-style-blink" => config.effects.cursor_blink = value == "true",
+        _ => window_and_behavior(key, value, config),
+    }
+}
+
+fn window_and_behavior(key: &str, value: &str, config: &mut Config) {
+    match key {
         "window-padding-x" => config.padding.0 = value.parse().unwrap_or(config.padding.0),
         "window-padding-y" => config.padding.1 = value.parse().unwrap_or(config.padding.1),
+        "window-width" => config.window.columns = value.parse().ok(),
+        "window-height" => config.window.rows = value.parse().ok(),
         "background-opacity" => {
             config.window.opacity = value.parse::<f32>().unwrap_or(1.0).clamp(0.0, 1.0);
         }
@@ -112,7 +128,21 @@ fn layout(key: &str, value: &str, config: &mut Config) {
         "window-decoration" if matches!(value, "false" | "none") => {
             config.window.decorations = Decorations::None;
         }
-        "cursor-style" => config.cursor = CursorStyle::parse(value).unwrap_or(config.cursor),
+        _ => behavior_flags(key, value, config),
+    }
+}
+
+fn behavior_flags(key: &str, value: &str, config: &mut Config) {
+    match key {
+        "scrollback-limit" => {
+            if let Ok(v) = value.parse::<usize>() {
+                config.scrollback = v.min(1_000_000);
+            }
+        }
+        "clipboard-write" => config.clipboard_write = !matches!(value, "deny" | "false"),
+        "clipboard-paste-protection" => config.clipboard_paste_protection = value != "false",
+        "mouse-hide-while-typing" => config.mouse_hide_while_typing = value == "true",
+        "confirm-close-surface" => config.confirm_close = value != "false",
         "command" => config.shell = value.split_whitespace().map(str::to_owned).collect(),
         _ => {}
     }

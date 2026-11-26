@@ -4,19 +4,24 @@ use std::time::{Duration, Instant};
 
 use dimaster_config::CopyOnSelect;
 use dimaster_grid::{Point, Selection, SelectionKind};
+use dimaster_i18n::t;
 
 use crate::clipboard::Target;
 use crate::keys;
+use crate::modes::{Mode, paste::PasteConfirm};
 use crate::view::View;
 
 // повторное нажатие в той же клетке за это время считается двойным
 const MULTI_CLICK: Duration = Duration::from_millis(400);
+// шаг автопрокрутки при удержании мыши за краем экрана
+const DRAG_SCROLL_STEP: Duration = Duration::from_millis(45);
 
 /// Счётчик кликов и текущее выделение.
 #[derive(Debug, Default)]
 pub(crate) struct Selecting {
     pub(crate) selection: Option<Selection>,
     dragging: bool,
+    drag_scroll_at: Option<Instant>,
     last_click: Option<(Instant, Point)>,
     clicks: u8,
 }
@@ -65,6 +70,11 @@ impl Selecting {
     pub(crate) fn clear(&mut self) {
         self.selection = None;
         self.dragging = false;
+        self.drag_scroll_at = None;
+    }
+
+    pub(crate) fn is_dragging(&self) -> bool {
+        self.dragging
     }
 }
 
@@ -90,8 +100,46 @@ impl View {
         }
     }
 
+    /// Направление автопрокрутки, когда мышь вытянута выше или ниже сетки.
+    pub(crate) fn drag_scroll_dir(&self) -> isize {
+        let (_, y) = self.pointer.position;
+        let top = f64::from(self.content_top() + self.config.padding.1);
+        let bottom = f64::from(
+            self.window
+                .inner_size()
+                .height
+                .saturating_sub(self.content_bottom() + self.config.padding.1),
+        );
+        let cell = f64::from(self.fonts.metrics().cell_height.max(1));
+        if y < top {
+            (((top - y) / cell).ceil() as isize).clamp(1, 5)
+        } else if y > bottom {
+            -(((y - bottom) / cell).ceil() as isize).clamp(1, 5)
+        } else {
+            0
+        }
+    }
+
+    /// Выполняет очередной шаг автопрокрутки при выделении за пределами окна.
+    pub(crate) fn drag_scroll_step(&mut self) -> Option<Instant> {
+        let dir = self.drag_scroll_dir();
+        if !self.selecting.dragging || dir == 0 {
+            self.selecting.drag_scroll_at = None;
+            return None;
+        }
+        let now = Instant::now();
+        let ready = self.selecting.drag_scroll_at.is_none_or(|at| now >= at);
+        if ready {
+            self.scroll_by(dir);
+            self.select_drag();
+            self.selecting.drag_scroll_at = Some(now + DRAG_SCROLL_STEP);
+        }
+        self.selecting.drag_scroll_at
+    }
+
     /// Отпускание кнопки кладёт выделенное в primary selection.
     pub(crate) fn select_release(&mut self) {
+        self.selecting.drag_scroll_at = None;
         if std::mem::take(&mut self.selecting.dragging) {
             match self.config.copy_on_select {
                 CopyOnSelect::Primary => self.copy(Target::Primary),
@@ -112,10 +160,23 @@ impl View {
     }
 
     pub(crate) fn paste(&mut self, target: Target) {
-        if let Some(text) = self.clipboard.get(target) {
-            let bytes = keys::paste(&text, self.term.modes().bracketed_paste);
-            self.type_bytes(bytes);
+        let Some(text) = self.clipboard.get(target) else {
+            return;
+        };
+        let bracketed = self.term.modes().bracketed_paste;
+        if self.config.clipboard_paste_protection
+            && let Some(danger) = keys::paste_danger(&text, bracketed)
+        {
+            let reason = match (danger.controls, danger.lines > 1) {
+                (true, true) => t!("{n} строк и управляющие символы", n = danger.lines),
+                (true, false) => t!("управляющие символы"),
+                (false, _) => t!("{n} строк без bracketed paste", n = danger.lines),
+            };
+            self.mode = Mode::Paste(PasteConfirm { text, reason });
+            self.window.request_redraw();
+            return;
         }
+        self.type_bytes(keys::paste(&text, bracketed));
     }
 }
 

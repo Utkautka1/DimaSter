@@ -1,6 +1,6 @@
 //! Сборка кадра: подсветки, панели и положение курсора.
 
-use dimaster_i18n::tr;
+use dimaster_i18n::{t, tr};
 use std::time::Instant;
 
 use dimaster_config::Anchor;
@@ -87,6 +87,11 @@ impl View {
             Mode::Hint(_) => tr(&texts.hint),
             Mode::Minimap(_) => tr(&texts.minimap),
             Mode::Vi(_) => tr(&texts.vi),
+            Mode::Paste(paste) => t!(
+                " Опасная вставка ({reason}): Enter — вставить · Пробел — в одну строку · Esc — отмена ",
+                reason = paste.reason
+            ),
+            Mode::CloseConfirm => t!(" Закрыть окно терминала? Enter/y — да · Esc/n — отмена "),
             _ => return Drawn::default(),
         };
         self.edge_line(self.columns(), text)

@@ -8,9 +8,9 @@ use dimaster_grid::Picture;
 use crate::images::ImageQuad;
 use crate::pipeline::Pipeline;
 
-/// Привязки по номеру картинки и номеру кадра.
+/// Привязки по номеру картинки, поколению кадров и номеру кадра.
 #[derive(Default)]
-pub(crate) struct Textures(HashMap<(u64, usize), wgpu::BindGroup>);
+pub(crate) struct Textures(HashMap<(u64, u64, usize), wgpu::BindGroup>);
 
 impl Textures {
     pub(crate) fn prepare(
@@ -20,10 +20,18 @@ impl Textures {
         pipeline: &Pipeline,
         images: &[ImageQuad],
     ) {
-        let visible: HashSet<u64> = images.iter().map(|i| i.picture.serial).collect();
-        self.0.retain(|(serial, _), _| visible.contains(serial));
+        let visible: HashSet<(u64, u64)> = images
+            .iter()
+            .map(|i| (i.picture.serial, i.picture.generation()))
+            .collect();
+        self.0
+            .retain(|(serial, generation, _), _| visible.contains(&(*serial, *generation)));
         for image in images {
-            let key = (image.picture.serial, image.frame);
+            let key = (
+                image.picture.serial,
+                image.picture.generation(),
+                image.frame,
+            );
             if self.0.contains_key(&key) {
                 continue;
             }
@@ -34,7 +42,11 @@ impl Textures {
     }
 
     pub(crate) fn get(&self, image: &ImageQuad) -> Option<&wgpu::BindGroup> {
-        self.0.get(&(image.picture.serial, image.frame))
+        self.0.get(&(
+            image.picture.serial,
+            image.picture.generation(),
+            image.frame,
+        ))
     }
 }
 
@@ -52,13 +64,14 @@ fn upload(
         bytes_per_row: Some(size.width * 4),
         rows_per_image: None,
     };
-    let pixels = &picture.animation.frames[frame].pixels;
-    queue.write_texture(texture.as_image_copy(), pixels, layout, size);
+    picture.with_frame(frame, |pixels| {
+        queue.write_texture(texture.as_image_copy(), pixels, layout, size);
+    })?;
     Some(texture)
 }
 
 fn extent(device: &wgpu::Device, picture: &Picture) -> Option<wgpu::Extent3d> {
-    let (width, height) = (picture.animation.width, picture.animation.height);
+    let (width, height) = picture.dimensions();
     let limit = device.limits().max_texture_dimension_2d as usize;
     if width > limit || height > limit {
         log::warn!(

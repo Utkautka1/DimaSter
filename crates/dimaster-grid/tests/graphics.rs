@@ -93,6 +93,35 @@ fn sixel_iterm_and_own_protocol() {
     assert_eq!(images(&own), [(0, 0, 4, 2)]);
 }
 
+#[test]
+fn kitty_unicode_placeholders_animation_and_tmux_dcs() {
+    // Виртуальное размещение U=1 не ставит картинку в строку, а ждёт U+10EEEE
+    let mut term = run(6, 20, &rgba("a=T,i=42,p=3,U=1,c=4,r=2"));
+    assert!(images(&term).is_empty());
+    let vp = term.virtual_placement(42, 3).unwrap();
+    assert_eq!((vp.cols, vp.rows), (4, 2));
+    // Клетка-плейсхолдер с цветом fg=#00002a (id=42), underline_color=#000003 (p=3), row=1, col=2
+    term.advance("\x1b[38;2;0;0;42m\x1b[58;2;0;0;3m\u{10EEEE}\u{030D}\u{030E}".as_bytes());
+    let cell = &term.screen().rows()[0].cells[0];
+    let info = dimaster_grid::placeholder_info(cell).unwrap();
+    assert_eq!(
+        (info.image_id, info.placement_id, info.row, info.col),
+        (42, 3, 1, 2)
+    );
+
+    // Анимация a=f и a=a
+    term.advance(rgba("a=f,i=42,z=50").as_bytes());
+    assert_eq!(vp.picture.animation.read().frames.len(), 2);
+    term.advance(b"\x1b_Ga=a,i=42,s=1\x1b\\");
+    assert_eq!(vp.picture.current_frame().1, None);
+    term.advance(b"\x1b_Ga=a,i=42,s=3,v=1\x1b\\");
+    assert!(vp.picture.current_frame().1.is_some());
+
+    // Обрезка x, y, w, h
+    let cropped = run(6, 20, &rgba("a=T,i=9,x=2,y=4,w=10,h=20"));
+    assert_eq!(images(&cropped), [(0, 0, 1, 1)]);
+}
+
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(2000))]
 

@@ -65,10 +65,12 @@ fn pictures_have_a_total_memory_budget() {
     for _ in 0..200 {
         term.advance(b"\x1bPq\"1;1;1000;1000#1~\x1b\\\r\n");
     }
-    let rows = term.screen().history().chain(term.screen().rows());
-    let bytes: usize = rows
-        .flat_map(|r| &r.images)
-        .map(|p| p.picture.animation.bytes())
+    let bytes: usize = term
+        .screen()
+        .history()
+        .flat_map(|r| r.images)
+        .chain(term.screen().rows().iter().flat_map(|r| r.images.clone()))
+        .map(|p| p.picture.bytes())
         .sum();
     assert!(bytes <= 320 << 20, "{} МБ", bytes >> 20);
 }

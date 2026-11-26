@@ -4,6 +4,7 @@
 //! вязь), цветные эмодзи берутся из PNG-растров таблицы CBDT.
 
 mod color;
+mod colr;
 mod discover;
 mod raster;
 mod shape;

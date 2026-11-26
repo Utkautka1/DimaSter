@@ -14,7 +14,7 @@ const LIMIT: usize = 256 * 1024 * 1024;
 // номера растут со временем, поэтому порядок ключей — порядок появления
 fn doomed<'a>(placements: impl Iterator<Item = &'a Placement>) -> Option<u64> {
     let sizes: BTreeMap<u64, usize> = placements
-        .map(|p| (p.picture.serial, p.picture.animation.bytes()))
+        .map(|p| (p.picture.serial, p.picture.bytes()))
         .collect();
     let mut excess = sizes
         .values()
@@ -31,14 +31,20 @@ impl State {
     /// Убирает самые старые картинки, пока объём не уложится в лимит.
     pub(crate) fn enforce_image_budget(&mut self) {
         let screens = [&self.screen, &self.other];
-        let rows = screens
-            .into_iter()
-            .flat_map(|s| s.history.iter().chain(&s.rows));
-        let Some(oldest_kept) = doomed(rows.flat_map(|r| &r.images)) else {
+        let images = screens.into_iter().flat_map(|s| {
+            s.history
+                .iter()
+                .flat_map(|r| &r.images)
+                .chain(s.rows.iter().flat_map(|r| &r.images))
+        });
+        let Some(oldest_kept) = doomed(images) else {
             return;
         };
         for screen in [&mut self.screen, &mut self.other] {
-            for row in screen.history.iter_mut().chain(&mut screen.rows) {
+            for row in screen.history.iter_mut() {
+                row.images.retain(|p| p.picture.serial > oldest_kept);
+            }
+            for row in &mut screen.rows {
                 row.images.retain(|p| p.picture.serial > oldest_kept);
             }
         }

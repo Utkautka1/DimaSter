@@ -316,8 +316,9 @@ impl View {
             self.animate_at = None;
             self.window.request_redraw();
         }
+        let drag = self.drag_scroll_step();
         let sync = self.sync_since.and_then(|_| self.refresh());
-        [sync, self.animate_at].into_iter().flatten().min()
+        [sync, self.animate_at, drag].into_iter().flatten().min()
     }
 
     // ближайшее из: кадр картинки, шаг анимации, мигание
@@ -347,7 +348,11 @@ impl View {
             Mode::Search(search) => search.update(&self.term),
             Mode::Vi(_) => self.mode = Mode::Normal,
             Mode::Hint(_) | Mode::Minimap(_) => self.mode = Mode::Normal,
-            Mode::Normal | Mode::Palette(_) | Mode::History(_) => {}
+            Mode::Normal
+            | Mode::Palette(_)
+            | Mode::History(_)
+            | Mode::Paste(_)
+            | Mode::CloseConfirm => {}
         }
     }
 
@@ -389,6 +394,9 @@ impl View {
 
     /// Ввод пользователя всегда возвращает вид к последней строке.
     pub(crate) fn type_bytes(&mut self, bytes: Vec<u8>) {
+        if self.config.mouse_hide_while_typing {
+            self.window.set_cursor_visible(false);
+        }
         self.animator.restart_blink(Instant::now());
         self.scroll = 0;
         self.selecting.clear();
@@ -397,7 +405,7 @@ impl View {
     }
 
     pub(crate) fn scroll_by(&mut self, lines: isize) {
-        let max = self.term.screen().history().count();
+        let max = self.term.screen().history_len();
         let old = self.scroll;
         self.scroll = self.scroll.saturating_add_signed(lines).min(max);
         let height = self.fonts.metrics().cell_height as f32;

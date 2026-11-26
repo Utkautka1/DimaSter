@@ -54,7 +54,7 @@ impl Track {
 
 impl View {
     pub(crate) fn scrollbar_rects(&self) -> Vec<Rect> {
-        let history = self.term.screen().history().count();
+        let history = self.term.screen().history_len();
         if !self.config.scrollbar || self.term.is_alternate() || history == 0 {
             return Vec::new();
         }

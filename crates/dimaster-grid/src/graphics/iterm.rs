@@ -40,7 +40,7 @@ impl State {
         let width = value("width").and_then(|v| cells(v, cell.0, self.screen.cols()));
         let height = value("height").and_then(|v| cells(v, cell.1, rows));
         let picture = self.graphics.picture(animation);
-        let size = self.image_cells(&picture, width, height);
-        self.place_and_advance(picture, size, (0, 0));
+        let size = self.image_cells(&picture, width, height, None);
+        self.place_and_advance(picture, size, (0, 0), None);
     }
 }

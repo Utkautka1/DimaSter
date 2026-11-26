@@ -5,19 +5,20 @@ use rustybuzz::ttf_parser::{self, RasterImageFormat};
 
 use crate::{Bitmap, Metrics};
 
-/// `None`, если у глифа нет PNG-растра (обычный контурный шрифт).
+/// `None`, если у глифа нет PNG-растра и таблицы COLR.
 pub(crate) fn render(
     face: &ttf_parser::Face<'_>,
     glyph: ttf_parser::GlyphId,
     cells: u32,
     metrics: Metrics,
 ) -> Option<Bitmap> {
-    let raster = face.glyph_raster_image(glyph, u16::MAX)?;
-    if raster.format != RasterImageFormat::PNG {
-        return None;
+    if let Some(raster) = face.glyph_raster_image(glyph, u16::MAX)
+        && raster.format == RasterImageFormat::PNG
+        && let Some(image) = decode_png(raster.data)
+    {
+        return Some(fit(&image, cells * metrics.cell_width, metrics));
     }
-    let image = decode_png(raster.data)?;
-    Some(fit(&image, cells * metrics.cell_width, metrics))
+    crate::colr::render(face, glyph, cells, metrics)
 }
 
 // вписывает картинку в прямоугольник ячеек с сохранением пропорций и центрирует

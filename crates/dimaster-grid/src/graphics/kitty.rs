@@ -1,13 +1,18 @@
-//! Графический протокол Kitty (APC `G`).
+//! Графический протокол Kitty (APC `G`): вывод, анимация (`a=f`/`a=a`), `t=s` и `U=1`.
 
 use std::collections::HashMap;
+use std::ffi::CString;
 use std::fs::File;
 use std::io::Read;
-use std::os::fd::AsRawFd;
+use std::os::fd::{AsRawFd, FromRawFd};
 use std::path::Path;
+use std::sync::Arc;
+use std::sync::atomic::Ordering;
+use std::time::{Duration, Instant};
 
-use dimaster_image::{Animation, decode, decode_base64, inflate_zlib};
+use dimaster_image::{Animation, Frame, decode, decode_base64, inflate_zlib};
 
+use super::{MAX_IMAGE_ROWS, Picture, VirtualPlacement};
 use crate::terminal::State;
 
 // предел на один файл или передачу по частям
@@ -27,6 +32,10 @@ impl Pending {
             .get(&key)
             .and_then(|v| v.parse().ok())
             .unwrap_or(0)
+    }
+
+    fn signed(&self, key: u8) -> Option<i32> {
+        self.keys.get(&key).and_then(|v| v.parse().ok())
     }
 
     fn letter(&self, key: u8, default: u8) -> u8 {
@@ -104,10 +113,44 @@ fn read_file(path: &[u8], temporary: bool) -> Option<Vec<u8>> {
         .take(MAX_PAYLOAD as u64)
         .read_to_end(&mut data)
         .ok()?;
-    // удаляем только файлы, явно созданные для протокола
     if temporary && is_temporary(path) {
         let _ = std::fs::remove_file(path);
     }
+    Some(data)
+}
+
+#[cfg(unix)]
+fn read_shm(name: &[u8]) -> Option<Vec<u8>> {
+    let raw = std::str::from_utf8(name).ok()?;
+    let clean = raw.strip_prefix('/').unwrap_or(raw);
+    if clean.is_empty() || clean.contains('/') || clean.contains('\0') {
+        return None;
+    }
+    let c_name = CString::new(format!("/{clean}")).ok()?;
+    // SAFETY: `c_name` — валидная C-строка без внутренних NUL-байтов;
+    // дескриптор сразу оборачивается в `File`, а имя удаляется через `shm_unlink`.
+    let fd = unsafe { libc::shm_open(c_name.as_ptr(), libc::O_RDONLY, 0) };
+    if fd < 0 {
+        return None;
+    }
+    let file = unsafe { File::from_raw_fd(fd) };
+    let data = read_bounded(file);
+    unsafe { libc::shm_unlink(c_name.as_ptr()) };
+    data
+}
+
+#[cfg(not(unix))]
+fn read_shm(_: &[u8]) -> Option<Vec<u8>> {
+    None
+}
+
+fn read_bounded(file: File) -> Option<Vec<u8>> {
+    let meta = file.metadata().ok()?;
+    if !meta.is_file() || meta.len() > MAX_PAYLOAD as u64 {
+        return None;
+    }
+    let mut data = Vec::new();
+    file.take(MAX_PAYLOAD as u64).read_to_end(&mut data).ok()?;
     Some(data)
 }
 
@@ -129,6 +172,7 @@ fn load(command: &Pending) -> Option<Animation> {
     match command.letter(b't', b'd') {
         b'd' => {}
         medium @ (b'f' | b't') => data = read_file(&data, medium == b't')?,
+        b's' => data = read_shm(&data)?,
         _ => return None,
     }
     if command.letter(b'o', 0) == b'z' {
@@ -139,6 +183,61 @@ fn load(command: &Pending) -> Option<Animation> {
         24 => raw_pixels(command, data, 3),
         0 | 32 => raw_pixels(command, data, 4),
         _ => None,
+    }
+}
+
+fn crop_rect(command: &Pending, picture: &Picture) -> Option<[u32; 4]> {
+    let (x, y) = (command.number(b'x'), command.number(b'y'));
+    let (w, h) = (command.number(b'w'), command.number(b'h'));
+    if x == 0 && y == 0 && w == 0 && h == 0 {
+        return None;
+    }
+    let (pw, ph) = picture.dimensions();
+    let (pw, ph) = (pw as u32, ph as u32);
+    if x >= pw || y >= ph {
+        return None;
+    }
+    let cw = if w == 0 { pw - x } else { w.min(pw - x) };
+    let ch = if h == 0 { ph - y } else { h.min(ph - y) };
+    (cw > 0 && ch > 0).then_some([x, y, cw, ch])
+}
+
+fn blit_frame(
+    canvas: &mut [u8],
+    cw: usize,
+    ch: usize,
+    src: &Animation,
+    at: (usize, usize),
+    replace: bool,
+) {
+    let pixels = &src.frames[0].pixels;
+    for row in 0..src.height.min(ch.saturating_sub(at.1)) {
+        for col in 0..src.width.min(cw.saturating_sub(at.0)) {
+            let si = (row * src.width + col) * 4;
+            let di = ((at.1 + row) * cw + at.0 + col) * 4;
+            if replace {
+                canvas[di..di + 4].copy_from_slice(&pixels[si..si + 4]);
+            } else {
+                blend_pixel(&mut canvas[di..di + 4], &pixels[si..si + 4]);
+            }
+        }
+    }
+}
+
+fn blend_pixel(dst: &mut [u8], src: &[u8]) {
+    let a = u16::from(src[3]);
+    let inv = 255 - a;
+    for i in 0..3 {
+        dst[i] = ((u16::from(src[i]) * a + u16::from(dst[i]) * inv) / 255) as u8;
+    }
+    dst[3] = dst[3].saturating_add(((a * u16::from(255 - dst[3])) / 255) as u8);
+}
+
+fn frame_delay(command: &Pending) -> u32 {
+    match command.signed(b'z') {
+        Some(z) if z < 0 => 1,
+        Some(z) if z > 0 => z as u32,
+        _ => 40,
     }
 }
 
@@ -170,6 +269,8 @@ impl State {
         let ok = match action {
             b't' | b'T' | b'q' => self.kitty_transmit(command, action),
             b'p' => self.kitty_put(command),
+            b'f' => self.kitty_frame(command),
+            b'a' => self.kitty_animate(command),
             b'd' => return self.kitty_delete(command),
             _ => false,
         };
@@ -180,7 +281,6 @@ impl State {
         let Some(animation) = load(command) else {
             return false;
         };
-        // запрос возможностей: декодировали, но не храним
         if action == b'q' {
             return true;
         }
@@ -203,15 +303,101 @@ impl State {
         true
     }
 
-    fn kitty_show(&mut self, command: &Pending, picture: std::sync::Arc<super::Picture>) {
-        let size = |key| Some(command.number(key) as usize);
-        let cells = self.image_cells(&picture, size(b'c'), size(b'r'));
+    fn kitty_show(&mut self, command: &Pending, picture: Arc<Picture>) {
         let id = (command.number(b'i'), command.number(b'p'));
-        // C=1 просит не двигать курсор
+        let crop = crop_rect(command, &picture);
+        let size = |key| Some(command.number(key) as usize);
+        if command.number(b'U') == 1 {
+            let (pw, ph) = picture.dimensions();
+            let (cols, rows) = self.raw_image_cells(pw.max(1), ph.max(1), size(b'c'), size(b'r'));
+            let placement = VirtualPlacement {
+                picture,
+                cols: cols.clamp(1, MAX_IMAGE_ROWS),
+                rows: rows.clamp(1, MAX_IMAGE_ROWS),
+            };
+            self.graphics.put_virtual(id, placement);
+            return;
+        }
+        let cells = self.image_cells(&picture, size(b'c'), size(b'r'), crop);
         if command.number(b'C') == 1 {
-            self.place(picture, cells, id);
+            self.place(picture, cells, id, crop);
         } else {
-            self.place_and_advance(picture, cells, id);
+            self.place_and_advance(picture, cells, id, crop);
+        }
+    }
+
+    fn kitty_frame(&mut self, command: &Pending) -> bool {
+        let Some(picture) = self.graphics.get(command.number(b'i')) else {
+            return false;
+        };
+        let Some(src) = load(command) else {
+            return false;
+        };
+        let delay = frame_delay(command);
+        let mut anim = picture.animation.write();
+        let (cw, ch) = (anim.width, anim.height);
+        let base = command
+            .number(b'c')
+            .checked_sub(1)
+            .and_then(|i| anim.frames.get(i as usize));
+        let mut pixels = base.map_or_else(|| vec![0; cw * ch * 4], |f| f.pixels.clone());
+        let at = (command.number(b'x') as usize, command.number(b'y') as usize);
+        blit_frame(&mut pixels, cw, ch, &src, at, command.number(b'X') == 1);
+        let frame = Frame { pixels, delay };
+        match command.number(b'r').checked_sub(1) {
+            Some(idx) if (idx as usize) < anim.frames.len() => anim.frames[idx as usize] = frame,
+            _ => anim.frames.push(frame),
+        }
+        picture.generation.fetch_add(1, Ordering::Relaxed);
+        true
+    }
+
+    fn kitty_animate(&mut self, command: &Pending) -> bool {
+        let Some(picture) = self.graphics.get(command.number(b'i')) else {
+            return false;
+        };
+        self.apply_animation_state(command, &picture);
+        self.apply_frame_seek(command, &picture);
+        true
+    }
+
+    fn apply_animation_state(&self, command: &Pending, picture: &Picture) {
+        let mut pb = picture.playback.write();
+        match command.number(b's') {
+            1 => {
+                pb.paused_frame = picture.current_frame_unlocked(&pb);
+                pb.running = false;
+            }
+            2 | 3 => {
+                pb.running = true;
+                *picture.started.write() = Instant::now();
+            }
+            _ => {}
+        }
+        match command.number(b'v') {
+            1 => pb.loops = 0,
+            n if n > 1 => pb.loops = n - 1,
+            _ => {}
+        }
+    }
+
+    fn apply_frame_seek(&self, command: &Pending, picture: &Picture) {
+        let mut anim = picture.animation.write();
+        if let Some(r) = command.number(b'r').checked_sub(1)
+            && let Some(frame) = anim.frames.get_mut(r as usize)
+            && let Some(z) = command.signed(b'z')
+        {
+            frame.delay = if z <= 0 { 1 } else { z as u32 };
+        }
+        if let Some(c) = command.number(b'c').checked_sub(1)
+            && (c as usize) < anim.frames.len()
+        {
+            picture.playback.write().paused_frame = c as usize;
+            let offset: u64 = anim.frames[..c as usize]
+                .iter()
+                .map(|f| u64::from(f.delay))
+                .sum();
+            *picture.started.write() = Instant::now() - Duration::from_millis(offset);
         }
     }
 
@@ -222,8 +408,10 @@ impl State {
         let by_id = target.eq_ignore_ascii_case(&b'i');
         if by_id {
             self.remove_images(|p| p.id.0 == id.0 && (id.1 == 0 || p.id.1 == id.1));
+            self.graphics.remove_virtual(id.0, id.1);
         } else if target.eq_ignore_ascii_case(&b'a') {
             self.remove_images(|_| true);
+            self.graphics.remove(None);
         }
         if target.is_ascii_uppercase() {
             self.graphics.remove(by_id.then_some(id.0));
@@ -242,6 +430,18 @@ impl State {
             p => format!(",p={p}"),
         };
         self.answer(format!("\x1b_Gi={id}{placement};{status}\x1b\\"));
+    }
+}
+
+impl Picture {
+    fn current_frame_unlocked(&self, pb: &super::Playback) -> usize {
+        if !pb.running {
+            return pb.paused_frame;
+        }
+        self.animation
+            .read()
+            .frame_at_limit(self.started.read().elapsed(), pb.loops)
+            .0
     }
 }
 

@@ -36,7 +36,10 @@ impl Screen {
             row: self.history.len() + cursor.row,
             ..cursor
         };
-        let mut all: Vec<Row> = std::mem::take(&mut self.history).into();
+        let mut all: Vec<Row> = std::mem::take(&mut self.history)
+            .into_iter()
+            .map(|r| r.unpack())
+            .collect();
         all.append(&mut self.rows);
         // пустые строки под курсором не должны выталкивать текст в историю
         while all.len() > absolute.row + 1 && all.last().is_some_and(Row::is_blank) {

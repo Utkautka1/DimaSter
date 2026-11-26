@@ -3,6 +3,8 @@
 //! Строки адресуются постоянными номерами (с учётом вытесненных из истории),
 //! поэтому выделение не «уезжает», когда программа продолжает печатать.
 
+use std::borrow::Cow;
+
 use crate::{Flags, Row, Terminal};
 
 /// Клетка в постоянных координатах.
@@ -76,12 +78,15 @@ impl Terminal {
         screen.evicted + screen.history.len().saturating_sub(scroll) as u64
     }
 
-    pub fn line(&self, line: u64) -> Option<&Row> {
+    pub fn line(&self, line: u64) -> Option<Cow<'_, Row>> {
         let screen = self.screen();
         let index = usize::try_from(line.checked_sub(screen.evicted)?).ok()?;
         match screen.history.get(index) {
-            Some(row) => Some(row),
-            None => screen.rows.get(index - screen.history.len()),
+            Some(row) => Some(Cow::Owned(row.unpack())),
+            None => screen
+                .rows
+                .get(index - screen.history.len())
+                .map(Cow::Borrowed),
         }
     }
 

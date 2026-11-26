@@ -102,11 +102,21 @@ pub struct Config {
     // множитель высоты строки, 1.0 — как задано шрифтом
     pub line_height: f32,
     pub ligatures: bool,
+    /// OpenType-фичи (например `{"-calt", "ss01"}`).
+    pub font_features: Vec<String>,
+    /// Минимальный контраст текста и фона (1.0 — выкл., до 21.0).
+    pub minimum_contrast: f32,
     pub copy_on_select: CopyOnSelect,
     // строк на один щелчок колеса
     pub scroll_multiplier: f32,
     /// Разрешить программам писать в буфер обмена (OSC 52).
     pub clipboard_write: bool,
+    /// Предупреждать перед вставкой опасного текста.
+    pub clipboard_paste_protection: bool,
+    /// Скрывать указатель мыши при наборе текста.
+    pub mouse_hide_while_typing: bool,
+    /// Спрашивать подтверждение перед закрытием окна.
+    pub confirm_close: bool,
     pub smart: Smart,
     /// Полоса прокрутки с метками команд.
     pub scrollbar: bool,
@@ -146,9 +156,14 @@ impl Default for Config {
             remote_control: true,
             line_height: 1.0,
             ligatures: true,
+            font_features: Vec::new(),
+            minimum_contrast: 1.0,
             copy_on_select: CopyOnSelect::Primary,
             scroll_multiplier: 3.0,
             clipboard_write: true,
+            clipboard_paste_protection: true,
+            mouse_hide_while_typing: false,
+            confirm_close: false,
             smart: Smart::default(),
             scrollbar: true,
             widgets: Widgets::default(),

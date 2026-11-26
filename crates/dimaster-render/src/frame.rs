@@ -27,6 +27,7 @@ pub(crate) struct Quad {
     /// Левый верхний угол в атласе; отрицательный X — сплошная заливка.
     pub(crate) uv: [f32; 2],
     pub(crate) color: u32,
+    pub(crate) uv_size: [f32; 2],
 }
 
 impl Quad {
@@ -36,6 +37,7 @@ impl Quad {
             size,
             uv: [-1.0, 0.0],
             color,
+            uv_size: [0.0, 0.0],
         }
     }
 
@@ -47,6 +49,7 @@ impl Quad {
             size,
             uv: [slot.x as f32, slot.y as f32],
             color,
+            uv_size: [0.0, 0.0],
         }
     }
 }
@@ -89,7 +92,7 @@ impl Builder<'_> {
     pub(crate) fn build(&mut self, term: &Terminal, view: Viewport<'_>) {
         self.quads.clear();
         self.pictures.clear();
-        let scroll = view.scroll.min(term.screen().history().count());
+        let scroll = view.scroll.min(term.screen().history_len());
         let first = term.visible_line(scroll);
         self.rows(term, view, first);
         self.images(term, first);
@@ -123,7 +126,7 @@ impl Builder<'_> {
             let Some(row) = term.line(line) else { continue };
             let start = self.quads.len();
             let selection = self.look.selection;
-            self.row(index.max(0) as usize, row, |col| {
+            self.row(index.max(0) as usize, &row, |col| {
                 let highlight = view.highlights.iter().find(|h| h.0.contains(line, col));
                 let selected = view.selection.is_some_and(|s| s.contains(line, col));
                 highlight.map(|h| h.1).or(selected.then_some(selection))
@@ -231,6 +234,9 @@ fn colors(cell: &Cell, look: &Appearance) -> (Rgb, Rgb) {
     }
     if style.flags.contains(Flags::DIM) {
         fg = palette::dim(fg, bg);
+    }
+    if look.minimum_contrast > 1.0 && cell.ch != ' ' {
+        fg = palette::ensure_contrast(fg, bg, look.minimum_contrast);
     }
     (fg, bg)
 }

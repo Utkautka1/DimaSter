@@ -4,7 +4,7 @@ use dimaster_i18n::t;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use dimaster_config::{Config, CursorStyle, Decorations, config_dir, load, translations};
 use dimaster_font::{FontError, FontSystem};
@@ -98,6 +98,7 @@ pub(crate) fn fonts(config: &Config, scale: f64) -> Result<FontSystem, FontError
     let mut fonts =
         FontSystem::with_settings(config.font_family.as_deref(), size, &config.font_dirs)?;
     fonts.set_style(config.line_height, config.ligatures);
+    fonts.set_features(&config.font_features);
     fonts.set_style_families(config.font_styles.clone());
     Ok(fonts)
 }
@@ -139,6 +140,7 @@ pub(crate) fn appearance(config: &Config, cell_height: u32) -> Appearance {
         ansi: theme.ansi,
         padding: config.padding,
         rtl: config.rtl,
+        minimum_contrast: config.minimum_contrast,
         opacity: config.window.opacity,
         top: title_height(config, cell_height),
         wallpaper: None,
@@ -197,11 +199,7 @@ pub(crate) fn wallpaper(config: &Config) -> Option<(Arc<Picture>, f32)> {
         .ok()?;
     let animation = decode(&data)?;
     let serial = NEXT.fetch_sub(1, Ordering::Relaxed);
-    let picture = Picture {
-        serial,
-        animation,
-        started: Instant::now(),
-    };
+    let picture = Picture::new(serial, animation);
     Some((Arc::new(picture), config.window.background_opacity))
 }
 

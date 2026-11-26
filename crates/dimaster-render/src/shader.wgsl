@@ -16,6 +16,7 @@ struct Quad {
     @location(1) size: vec2<f32>,
     @location(2) uv: vec2<f32>,
     @location(3) color: u32,
+    @location(4) uv_size: vec2<f32>,
 }
 
 struct Pixel {
@@ -38,7 +39,7 @@ fn vertex(@builtin(vertex_index) index: u32, quad: Quad) -> Pixel {
     let solid = u32(quad.uv.x < 0.0);
     var uv = quad.uv + corner * quad.size;
     if (quad.color & IMAGE) != 0u {
-        uv = corner;
+        uv = quad.uv + corner * quad.uv_size;
     }
     return Pixel(vec4<f32>(ndc, 0.0, 1.0), uv, quad.color, solid, corner * quad.size, quad.size, quad.uv);
 }

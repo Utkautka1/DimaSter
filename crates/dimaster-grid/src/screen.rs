@@ -2,14 +2,15 @@
 
 use std::collections::VecDeque;
 
+use crate::history::PackedRow;
 use crate::{Cell, Row, Size};
 
 /// Экран (основной или альтернативный).
 #[derive(Debug)]
 pub struct Screen {
     pub(crate) rows: Vec<Row>,
-    /// Строки, ушедшие вверх; у альтернативного экрана всегда пусто.
-    pub(crate) history: VecDeque<Row>,
+    /// Строки, ушедшие вверх в сжатом виде; у альтернативного экрана всегда пусто.
+    pub(crate) history: VecDeque<PackedRow>,
     // сколько строк уже вытеснено из истории: делает номера строк постоянными
     pub(crate) evicted: u64,
     // максимум строк истории; 0 отключает её
@@ -45,8 +46,19 @@ impl Screen {
         &self.rows
     }
 
-    pub fn history(&self) -> impl DoubleEndedIterator<Item = &Row> {
-        self.history.iter()
+    /// Количество строк в сжатой истории за O(1).
+    pub fn history_len(&self) -> usize {
+        self.history.len()
+    }
+
+    /// Строки истории с распаковкой по мере обхода.
+    pub fn history(&self) -> impl DoubleEndedIterator<Item = Row> + '_ {
+        self.history.iter().map(PackedRow::unpack)
+    }
+
+    /// Оценочный объём памяти, занятый историей (в байтах).
+    pub fn history_bytes(&self) -> usize {
+        self.history.iter().map(PackedRow::heap_bytes).sum()
     }
 
     pub(crate) fn cols(&self) -> usize {
@@ -66,13 +78,12 @@ impl Screen {
         for _ in 0..count {
             self.rows[self.top..=self.bottom].rotate_left(1);
             let mut row = std::mem::replace(&mut self.rows[self.bottom], Row::empty());
-            // ушедшая в историю строка уже пуста — перезаписывать незачем
-            let emptied = self.top == 0 && self.limit > 0 && row.cells.len() == cols;
+            let keep = self.top == 0 && self.limit > 0 && row.cells.len() == cols;
             if self.top == 0 {
                 self.remember(&mut row);
             }
-            if emptied && *fill == Cell::default() {
-                row.cells.resize(cols, Cell::default());
+            if keep && *fill == Cell::default() {
+                row.cells.fill(Cell::default());
                 row.recycle();
             } else {
                 row.reset(cols, fill);
@@ -93,47 +104,21 @@ impl Screen {
         }
     }
 
-    // В истории храним только занятую часть строки — это в разы меньше памяти
+    // В истории храним сжатое представление строки: текст в UTF-8 и прогоны стилей
     pub(crate) fn remember(&mut self, row: &mut Row) {
         if self.limit == 0 {
             return;
         }
-        let mut cells = self.recycle_oldest();
-        let blank = Cell::default();
-        // у перенесённой строки хвостовые пробелы — часть текста
-        let used = match row.wrapped {
-            true => row.cells.len(),
-            false => row
-                .cells
-                .iter()
-                .rposition(|c| *c != blank)
-                .map_or(0, |i| i + 1),
-        };
-        cells.clear();
-        // на месте забранных клеток остаются пустые
-        cells.extend(row.cells[..used].iter_mut().map(std::mem::take));
+        if self.history.len() >= self.limit {
+            self.evicted += 1;
+            self.history.pop_front();
+        }
         let images = match self.keep_images {
             true => std::mem::take(&mut row.images),
             false => Vec::new(),
         };
-        self.history.push_back(Row {
-            cells,
-            wrapped: row.wrapped,
-            mark: row.mark,
-            images,
-        });
-    }
-
-    // заполненная история отдаёт буфер самой старой строки новой
-    fn recycle_oldest(&mut self) -> Vec<Cell> {
-        if self.history.len() < self.limit {
-            return Vec::new();
-        }
-        self.evicted += 1;
-        self.history
-            .pop_front()
-            .map(|old| old.cells)
-            .unwrap_or_default()
+        let packed = PackedRow::pack(&mut row.cells, row.wrapped, row.mark, images);
+        self.history.push_back(packed);
     }
 
     pub(crate) fn set_limit(&mut self, limit: usize) {

@@ -13,6 +13,7 @@ mod dispatch;
 mod edit;
 mod extensions;
 mod graphics;
+mod history;
 mod hyperlink;
 mod keyboard;
 mod margins;
@@ -34,7 +35,10 @@ pub use colors::{ColorOverrides, DefaultColors};
 pub use command::{Finished, SmartOptions, describe_exit};
 pub use cursor::Cursor;
 pub use extensions::{Policy, Progress};
-pub use graphics::{MAX_IMAGE_ROWS, Picture, Placement};
+pub use graphics::{
+    MAX_IMAGE_ROWS, PLACEHOLDER_CHAR, Picture, PlaceholderCell, Placement, VirtualPlacement,
+    placeholder_info,
+};
 pub use modes::{CursorShape, Modes};
 pub use regex::Regex;
 pub use row::{PromptMark, Row};

@@ -162,6 +162,9 @@ fn apply_font(table: &Table, config: &mut Config) -> Result<(), ConfigError> {
     }
     ranged(&font, "line_height", 0.8..=2.0, &mut config.line_height)?;
     flag(&font, "ligatures", &mut config.ligatures)?;
+    if let Some(features) = font.get::<Option<Vec<String>>>("features")? {
+        config.font_features = features;
+    }
     let dirs: Option<Vec<String>> = font.get("dirs")?;
     config.font_dirs = dirs.unwrap_or_default().into_iter().map(expand).collect();
     Ok(())
@@ -210,6 +213,13 @@ fn apply_general(table: &Table, config: &mut Config) -> Result<(), ConfigError> 
     if let Some(term) = table.get::<Option<String>>("term")? {
         config.term = term;
     }
+    ranged(
+        table,
+        "minimum_contrast",
+        1.0..=21.0,
+        &mut config.minimum_contrast,
+    )?;
+    flag(table, "confirm_close", &mut config.confirm_close)?;
     Ok(())
 }
 
@@ -314,7 +324,17 @@ fn apply_interaction(table: &Table, config: &mut Config) -> Result<(), ConfigErr
         0.1..=50.0,
         &mut config.scroll_multiplier,
     )?;
-    flag(table, "clipboard_write", &mut config.clipboard_write)
+    flag(table, "clipboard_write", &mut config.clipboard_write)?;
+    flag(
+        table,
+        "clipboard_paste_protection",
+        &mut config.clipboard_paste_protection,
+    )?;
+    flag(
+        table,
+        "mouse_hide_while_typing",
+        &mut config.mouse_hide_while_typing,
+    )
 }
 
 // значения с `~/` раскрываются: так указывают пути к другим конфигам

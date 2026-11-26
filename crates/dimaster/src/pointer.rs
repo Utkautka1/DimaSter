@@ -22,10 +22,16 @@ pub(crate) struct Pointer {
 
 impl View {
     pub(crate) fn pointer_moved(&mut self, x: f64, y: f64) {
+        if self.config.mouse_hide_while_typing {
+            self.window.set_cursor_visible(true);
+        }
         self.pointer.position = (x, y);
         let cell = self.cell_at(x, y);
         self.update_hover(cell);
         self.update_pointer_icon();
+        if self.selecting.is_dragging() && self.drag_scroll_dir() != 0 {
+            self.drag_scroll_step();
+        }
         if cell == self.pointer.cell {
             return;
         }

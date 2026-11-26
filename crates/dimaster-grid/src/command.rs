@@ -125,24 +125,33 @@ impl State {
     fn output_since(&self, from: u64) -> Vec<String> {
         let end = self.cursor_line() + u64::from(self.cursor.col > 0);
         let start = from.max(end.saturating_sub(SNAPSHOT_LINES as u64));
-        let rows = self.screen.history.iter().chain(&self.screen.rows);
         let skip = start.saturating_sub(self.screen.evicted) as usize;
-        rows.skip(skip)
-            .take(end.saturating_sub(start) as usize)
+        let count = end.saturating_sub(start) as usize;
+        self.screen
+            .history
+            .iter()
             .map(|r| r.text())
+            .chain(self.screen.rows.iter().map(|r| r.text()))
+            .skip(skip)
+            .take(count)
             .collect()
     }
 
     // красная метка на строке приглашения нужна полосе прокрутки
     fn mark_failed(&mut self, before: u64) {
         let at = (before.saturating_sub(self.screen.evicted)) as usize;
-        let rows = self.screen.history.iter_mut().chain(&mut self.screen.rows);
-        if let Some(row) = rows
+        let marks = self
+            .screen
+            .history
+            .iter_mut()
+            .map(|r| &mut r.mark)
+            .chain(self.screen.rows.iter_mut().map(|r| &mut r.mark));
+        if let Some(mark) = marks
             .take(at + 1)
-            .filter(|r| r.mark == Some(PromptMark::Prompt))
+            .filter(|m| **m == Some(PromptMark::Prompt))
             .last()
         {
-            row.mark = Some(PromptMark::Failed);
+            *mark = Some(PromptMark::Failed);
         }
     }
 

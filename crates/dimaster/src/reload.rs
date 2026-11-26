@@ -41,28 +41,36 @@ impl View {
     }
 
     pub(crate) fn apply(&mut self, config: Config) {
-        let style_before = (self.config.line_height, self.config.ligatures);
-        let styles_changed = config.font_styles != self.config.font_styles;
-        let font_changed = (&config.font_family, &config.font_dirs, config.font_size)
-            != (
-                &self.config.font_family,
-                &self.config.font_dirs,
-                self.config.font_size,
-            );
+        let prev = self.config.clone();
         settings::set_language(&config);
         self.config = config;
-        if font_changed || styles_changed {
-            self.zoom = 0.0;
-            self.rebuild_fonts();
-        }
-        if style_before != (self.config.line_height, self.config.ligatures) {
-            self.fonts
-                .set_style(self.config.line_height, self.config.ligatures);
-            self.renderer.reset_glyphs();
-        }
+        self.sync_fonts(&prev);
         self.apply_to_terminal();
         let size = self.window.inner_size();
         self.resize(size.width, size.height);
+    }
+
+    fn sync_fonts(&mut self, prev: &Config) {
+        let font_changed = (
+            &self.config.font_family,
+            &self.config.font_dirs,
+            self.config.font_size,
+        ) != (&prev.font_family, &prev.font_dirs, prev.font_size);
+        if font_changed || self.config.font_styles != prev.font_styles {
+            self.zoom = 0.0;
+            self.rebuild_fonts();
+        }
+        let style = (
+            &self.config.line_height,
+            &self.config.ligatures,
+            &self.config.font_features,
+        );
+        if style != (&prev.line_height, &prev.ligatures, &prev.font_features) {
+            self.fonts
+                .set_style(self.config.line_height, self.config.ligatures);
+            self.fonts.set_features(&self.config.font_features);
+            self.renderer.reset_glyphs();
+        }
     }
 
     pub(crate) fn apply_to_terminal(&mut self) {

@@ -1,7 +1,7 @@
 //! Текст строки: клетки собираются в отрезки одного стиля и шейпятся вместе,
 //! чтобы работали лигатуры и арабская вязь.
 
-use dimaster_grid::{Cell, Flags};
+use dimaster_grid::{Cell, Flags, PLACEHOLDER_CHAR};
 
 use crate::frame::{Builder, Quad};
 use crate::palette::Rgb;
@@ -55,7 +55,7 @@ impl Builder<'_> {
         at: (usize, usize),
         roomy: bool,
     ) {
-        let blank = cell.ch == ' ' && cell.extra.is_none();
+        let blank = (cell.ch == ' ' && cell.extra.is_none()) || cell.ch == PLACEHOLDER_CHAR;
         if blank || !run.accepts(cell, color) {
             self.flush(run, at.0);
         }

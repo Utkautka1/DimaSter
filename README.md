@@ -1,178 +1,140 @@
 # DimaSter
 
-Терминал для Linux на Rust. Готовы этапы 1 (ядро), 2 (окно, GPU, ввод) 3 (совместимость) и 4 (лигатуры, цветные эмодзи, CJK, RTL, IME) 5 (настройки на Lua), 6 (графика), 7 (интерфейс) и 8 (плагины, сессии, управление).
+[![CI](https://github.com/Utkautka1/DimaSter/actions/workflows/ci.yml/badge.svg)](https://github.com/Utkautka1/DimaSter/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-## Установка
+A fast, GPU-accelerated Linux terminal emulator written in Rust (`wgpu` + `winit`), featuring modular **Lua 5.4** configuration, full **Kitty keyboard & graphics protocols**, **COLR/CBDT color emoji**, **shell integration**, **vi mode**, **command palette**, and a built-in **Lua status bar**.
 
-```bash
+![DimaSter terminal screenshot](assets/screenshots/main.png)
+
+## Features
+
+- **GPU Rendering (`wgpu`)**: Vulkan primary backend with automatic OpenGL fallback; works on Wayland and X11.
+- **Custom Font Rasterizer & Shaping**: `rustybuzz` text shaping with ligatures, OpenType `features`, per-style font families (`bold`, `italic`, `bold_italic`), Nerd Font icon fitting, RTL (bidi), CJK, IME preedit, and **CBDT + COLR v0/v1 color emoji**.
+- **Full Keyboard & Input Support**:
+  - Complete **Kitty Keyboard Protocol** (all 5 flags: disambiguate, event types, alternate keys, all keys, associated text).
+  - **Unsafe Paste Protection**: warns before pasting multi-line text without bracketed paste or dangerous control sequences.
+  - **Mouse Selection**: word/line/block (`Alt+drag`), auto-scroll when dragging past viewport edges, primary/clipboard `copy_on_select`, and OSC 8 hyperlinks (`Ctrl+click`).
+- **Graphics Protocols**:
+  - **Kitty** (`t=d/f/t/s` including POSIX shared memory, `a=f`/`a=a` frame animations, `U=1` Unicode placeholders for `tmux` + `yazi`, `x/y/w/h` cropping).
+  - **Sixel**, **iTerm2** (`OSC 1337`), and built-in `dimaster icat` (images and video via `ffmpeg`) + `dimaster fetch`.
+- **Memory-Efficient Scrollback**: RLE + style-run packed history compression with full reflow on resize.
+- **Layered Lua 5.4 Configuration**: hot-reloaded on save, with built-in migration wizard from Ghostty, Kitty, and Alacritty (`dimaster --setup`) and Ghostty theme support.
+- **Productivity Modes & Widgets**:
+  - Command Palette (`Ctrl+Shift+P`), Scrollback Search (`Ctrl+Shift+F`), Vi Mode (`Ctrl+Shift+Space`), Link Hints (`Ctrl+Shift+U`), Command History (`Ctrl+Shift+H`), Minimap (`Ctrl+Shift+M`), Resource Monitor (`Ctrl+Shift+O`), Status Bar (`Ctrl+Shift+B`), Sudo Fix (`Ctrl+Shift+S`), Presentation Mode (`Ctrl+Shift+Z`).
+  - Lua plugin API (`~/.config/dimaster/plugins/*.lua`) and CLI remote control (`dimaster ctl`).
+
+## Installation
+
+### One-Command Install (Linux x86_64, no Rust required)
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Utkautka1/DimaSter/main/install.sh | sh
+```
+
+This downloads the latest release binary to `~/.local/bin/dimaster`, installs the desktop entry and icon, and registers `xterm-dimaster` terminfo if `tic` is available.
+
+To uninstall:
+
+```sh
+./install.sh --uninstall
+```
+
+### Build from Source
+
+Dependencies: Rust toolchain, `fontconfig`, `libxkbcommon`, `wayland` / `x11` / `xcb` development headers, Vulkan loader (or Mesa OpenGL), and optionally `ffmpeg` for video/WebP/JPEG in `icat`.
+
+```sh
+git clone https://github.com/Utkautka1/DimaSter.git
+cd DimaSter
 ./install.sh
 ```
 
-Ставит `dimaster` в `~/.local/bin` и добавляет ярлык приложения, без root. Удаление: `./install.sh --uninstall`.
+Or run directly with Cargo:
 
-## Свой TERM по SSH
-
-Чтобы использовать `term = "xterm-dimaster"` и не ломать удалённые сессии, один раз скопируйте описание на каждый сервер:
-
-```bash
-dimaster ssh-terminfo user@host
-```
-
-## Запуск
-
-Окно с вашим shell:
-
-```bash
+```sh
 cargo run --release -p dimaster
 ```
 
-Другая программа в окне:
+### Packaging
 
-```bash
-cargo run --release -p dimaster -- -e htop
+- **Arch Linux / CachyOS (AUR)**: see [packaging/aur/PKGBUILD](packaging/aur/PKGBUILD).
+- **Debian / Ubuntu (`.deb`)**: run `./packaging/deb/build-deb.sh`.
+
+## Usage
+
+```sh
+dimaster                       # open terminal with $SHELL
+dimaster -e htop               # run a specific command
+dimaster --headless ls -la     # render offscreen and print text
+dimaster --setup               # run first-time config & import wizard
+dimaster icat image.png        # display image/GIF/video in terminal
+dimaster fetch                 # built-in system info (customizable via fetch.lua)
+dimaster ctl info              # query or control a running window
+dimaster ssh-terminfo u@host   # install xterm-dimaster terminfo on a remote server
 ```
 
-Без окна (печатает получившийся экран):
+## Keybindings & Modes
 
-```bash
-cargo run --release -p dimaster -- --headless ls -la
-```
-
-| Сочетание | Действие |
+| Shortcut | Action |
 |---|---|
-| Ctrl+Shift+C / Ctrl+Shift+V | копировать / вставить |
-| Потянуть мышью | выделить (сразу попадает в primary selection) |
-| Двойной / тройной клик | слово / строка |
-| Alt + потянуть | прямоугольный блок |
-| Средняя кнопка | вставить primary selection |
-| Shift+PageUp / PageDown, колесо | прокрутка истории |
-| Shift + мышь | мышь для терминала, даже если программа её захватила |
+| `Ctrl+Shift+C` / `Ctrl+Shift+V` | Copy / Paste |
+| Drag mouse / `Alt` + drag | Select (primary) / Block selection |
+| Middle click | Paste primary selection |
+| `Shift+PageUp` / `PageDown` / Wheel | Scroll history |
+| `Shift` + mouse | Bypass program mouse capture |
+| `Ctrl+Shift+F` | Search scrollback (`Ctrl+R` toggles regex) |
+| `Ctrl+Shift+Space` | Vi mode (`hjkl`, `w b`, `0 $`, `g G`, `v V`, `y`, `/`, `q`) |
+| `Ctrl+Shift+P` | Command palette |
+| `Ctrl+Click` / `Ctrl+Shift+U` | Open link or file / Link hints overlay |
+| `Ctrl+Shift+H` | Command history with output snapshots |
+| `Ctrl+Shift+S` | Prefix last command with `sudo` |
+| `Ctrl+Shift+Z` | Presentation mode |
+| `Ctrl+Shift+M` / `O` / `B` | Minimap / Resource monitor / Status bar |
 
-Своя запись terminfo включается переменной `DIMASTER_TERM=xterm-dimaster`.
+## Configuration
 
-Шрифт можно временно сменить переменной `DIMASTER_FONT`.
+DimaSter stores modular Lua 5.4 configs under `~/.config/dimaster/` (hot-reloaded automatically):
 
-**Справочник по Lua, по странице на каждый файл настроек: [docs/lua/](docs/lua/README.md).**
-
-## Настройки
-
-Все настройки — Lua в `~/.config/dimaster/`; изменения применяются на лету. При первом запуске мастер создаёт дерево и предлагает перенести настройки из Ghostty, kitty или Alacritty. Повторный запуск сохраняет изменённые файлы в `backups/`:
-
-```bash
-cargo run --release -p dimaster -- --setup
-```
-
-```
+```text
 ~/.config/dimaster/
-├── init.lua              загрузчик
-├── lib/                  layers.lua (порядок слоёв), merge.lua (объединение)
+├── init.lua              entry point
+├── lib/                  layers.lua, merge.lua
 ├── settings/             appearance, font, window, effects, behavior, keys
-├── themes/               свои и перенесённые темы
-├── plugins/*.lua         плагины терминала
-├── profiles/
-│   ├── desktop/<de>.lua  по окружению (hyprland, gnome, …)
-│   ├── session/<s>.lua   wayland или x11
-│   ├── ssh.lua           внутри SSH-сессии
-│   └── presentation.lua  DIMASTER_PROFILE=presentation
-├── hosts/<имя>.lua       для конкретной машины
-└── local.lua             личные правки, применяются последними
+├── themes/               custom and imported themes
+├── plugins/*.lua         user Lua plugins
+├── profiles/             desktop/<de>.lua, session/<wayland|x11>.lua, ssh.lua, presentation.lua
+├── hosts/<hostname>.lua  per-machine overrides
+└── local.lua             personal overrides (applied last, untouched by --setup)
 ```
 
-Слои накладываются сверху вниз в этом порядке: `settings` → `profiles` → `hosts` → `local`. Словари объединяются, списки заменяются, сочетания `keys` складываются. Файлы `local.lua` и `profiles/` мастер не перезаписывает.
+Layers merge top-to-bottom: `settings` -> `profiles` -> `hosts` -> `local`.
+Full Lua reference: [docs/lua/README.md](docs/lua/README.md).
 
-Действия для `keys`: `copy`, `paste`, `paste_primary`, `scroll_page_up`, `scroll_page_down`, `scroll_top`, `scroll_bottom`, `font_increase`, `font_decrease`, `font_reset`, `reload_config`, `search`, `vi_mode`, `command_palette`, `plugin:<имя>`, `none`.
+## Development & Tests
 
-## Режимы
-
-| Сочетание | Что делает |
-|---|---|
-| Ctrl+Shift+F | поиск; Enter / Shift+Enter, Ctrl+R — regex, Esc |
-| Ctrl+Shift+Space | vi-режим: hjkl, w b, 0 $, g G, v V Ctrl+V, y, /, q |
-| Ctrl+Shift+P | палитра команд |
-| Ctrl+клик | открыть ссылку или файл (в том числе OSC 8) |
-| Ctrl+Shift+U | метки на ссылках и путях |
-| Ctrl+Shift+H | история команд с их выводом |
-| Ctrl+Shift+S | добавить `sudo` |
-| Ctrl+Shift+Z | режим презентации |
-| Ctrl+Shift+M / O / B | миникарта / монитор ресурсов / строка статуса |
-
-## Плагины
-
-Каждый файл `~/.config/dimaster/plugins/*.lua` загружается при старте и после изменения настроек. Команды плагинов появляются в палитре.
-
-```lua
-dimaster.command("insert_date", "Вставить дату", function()
-  dimaster.send(os.date("%Y-%m-%d"))
-end)
-
-dimaster.on("cwd", function(path) dimaster.log(path) end)
-```
-
-События: `startup`, `title`, `cwd`, `focus`, `notification`. Действия: `send`, `action`, `notify`, `log`. Чтение: `title`, `cwd`, `selection`, `screen_text`. Один вызов ограничен 100 мс. Плагин выполняется с вашими правами — ставьте только те, чей код вы прочли.
-
-## Управление из командной строки
-
-```bash
-dimaster ctl info
-```
-
-Команды: `list`, `info`, `get-text`, `send-text <текст>`, `action <имя>`, `set-title <текст>`, `reload`, `new-window`. Внутри окна используется его сокет, снаружи — единственного запущенного. Отключается `remote_control = false`.
-
-## Сессии
-
-Выключены по умолчанию: вывод терминала записывается на диск. Включить в `local.lua`:
-
-```lua
-return { session = { restore = true, history_lines = 2000 } }
-```
-
-Восстанавливаются окна, каталоги и текст истории без цветов. Запущенные программы не восстанавливаются.
-
-## Картинки
-
-Поддерживаются протоколы Kitty, Sixel, iTerm2 и собственный. PNG, GIF и Sixel декодируются своим кодом, остальное через `ffmpeg`.
-
-Внутри DimaSter (картинки, анимации и видео без звука):
-
-```bash
-cargo run --release -p dimaster -- icat picture.png movie.mp4
-```
-
-Сведения о системе, `--logo` заменяет текстовый логотип картинкой:
-
-```bash
-cargo run --release -p dimaster -- fetch --logo picture.png
-```
-
-Собственный протокол: `ESC _ D a=show,c=<колонки>,r=<строки>,C=1;<base64 файла> ESC \`. Параметры `c`, `r`, `C` необязательны; `C=1` не двигает курсор.
-
-`images_scroll = false` в конфиге убирает картинки, ушедшие в историю.
-
-## Проверки
-
-```bash
+```sh
 cargo test --workspace
-```
-
-```bash
-cargo clippy --workspace --all-targets
-```
-
-```bash
+cargo clippy --workspace --all-targets -- -D warnings
 cargo bench -p dimaster-grid
 ```
 
-## Структура
+## Architecture
 
-| Крейт | Зачем |
+| Crate | Responsibility |
 |---|---|
-| `dimaster-vt` | разбор escape-последовательностей |
-| `dimaster-grid` | экран, история, режимы |
-| `dimaster-pty` | запуск shell |
-| `dimaster-font` | поиск шрифтов, свой растеризатор |
-| `dimaster-render` | отрисовка на wgpu |
-| `dimaster-image` | декодеры PNG, GIF, Sixel; остальное через ffmpeg |
-| `dimaster-config` | Lua-конфиг, темы, импорт |
-| `dimaster` | приложение |
+| `dimaster-vt` | Streaming VT/ANSI escape sequence parser |
+| `dimaster-grid` | Terminal state, screen, compressed scrollback, reflow, graphics state |
+| `dimaster-pty` | PTY spawning and process management |
+| `dimaster-font` | Font discovery, `rustybuzz` shaping, outline & COLR/CBDT rasterizer |
+| `dimaster-render` | `wgpu` renderer, glyph atlas, bidi, shader pipeline |
+| `dimaster-image` | PNG, GIF, and Sixel decoders (+ `ffmpeg` fallback) |
+| `dimaster-config` | Lua 5.4 config loader, Ghostty/Kitty/Alacritty importer, plugins |
+| `dimaster-i18n` | Built-in localization (`en`, `ru`, extensible via Lua) |
+| `dimaster` | Application window, input, modes, CLI, session restore |
 
-Диаграммы: [docs/UML.md](docs/UML.md). Требования: [docs/NOTES.md](docs/NOTES.md).
+Architecture diagrams: [docs/UML.md](docs/UML.md).
+
+## License
+
+[MIT](LICENSE)

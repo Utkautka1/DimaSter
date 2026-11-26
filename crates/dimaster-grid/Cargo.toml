@@ -12,7 +12,9 @@ dimaster-i18n.workspace = true
 dimaster-vt.workspace = true
 regex.workspace = true
 dimaster-image.workspace = true
+libc.workspace = true
 log.workspace = true
+parking_lot.workspace = true
 unicode-width.workspace = true
 
 [dev-dependencies]

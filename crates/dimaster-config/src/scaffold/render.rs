@@ -59,7 +59,8 @@ pub(super) fn appearance(config: &Config) -> String {
     let (x, y) = config.padding;
     format!(
         "-- Цвета, отступы и курсор.\nreturn {{\n{theme}  -- colors = {{ background = \"#101010\" }},\n  \
-         padding = {{ x = {x}, y = {y} }},\n  cursor = {},\n}}\n",
+         padding = {{ x = {x}, y = {y} }},\n  minimum_contrast = {},\n  cursor = {},\n}}\n",
+        config.minimum_contrast,
         quote(config.cursor.name()),
     )
 }
@@ -84,11 +85,12 @@ pub(super) fn font(config: &Config) -> String {
     format!(
         "-- Шрифт. size — в пунктах, dirs — свои каталоги со шрифтами.\nreturn {{\n  font = {{\n    \
          {family}\n{}    size = {},\n    line_height = {},\n    ligatures = {},\n    \
-         dirs = {},\n  }},\n}}\n",
+         features = {},\n    dirs = {},\n  }},\n}}\n",
         style_families(config),
         config.font_size,
         config.line_height,
         config.ligatures,
+        list(&config.font_features, |f| quote(f)),
         list(&config.font_dirs, |d| path(d)),
     )
 }
@@ -184,10 +186,14 @@ fn interaction(config: &Config) -> String {
     format!(
         "  -- выделенное мышью: primary, clipboard или off\n  copy_on_select = {},\n  \
          scroll_multiplier = {},\n  -- программы могут писать в буфер обмена (OSC 52)\n  \
-         clipboard_write = {},\n",
+         clipboard_write = {},\n  clipboard_paste_protection = {},\n  \
+         mouse_hide_while_typing = {},\n  confirm_close = {},\n",
         quote(config.copy_on_select.name()),
         config.scroll_multiplier,
         config.clipboard_write,
+        config.clipboard_paste_protection,
+        config.mouse_hide_while_typing,
+        config.confirm_close,
     )
 }
 

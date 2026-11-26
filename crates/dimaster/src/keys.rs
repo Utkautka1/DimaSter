@@ -1,30 +1,65 @@
-//! Кодирование клавиш в последовательности xterm.
+//! Кодирование клавиш (xterm + полный протокол Kitty) и безопасная вставка.
 
 use winit::keyboard::{Key, KeyCode, ModifiersState, NamedKey, PhysicalKey};
+
+pub(crate) const KITTY_DISAMBIGUATE: u16 = 1;
+pub(crate) const KITTY_EVENTS: u16 = 2;
+pub(crate) const KITTY_ALTERNATE: u16 = 4;
+pub(crate) const KITTY_ALL_KEYS: u16 = 8;
+pub(crate) const KITTY_TEXT: u16 = 16;
+
+/// Тип события клавиатуры.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum KeyAction {
+    #[default]
+    Press = 1,
+    Repeat = 2,
+    Release = 3,
+}
 
 /// Режимы терминала, влияющие на кодирование.
 #[derive(Debug, Default, Clone, Copy)]
 pub(crate) struct KeyModes {
     /// DECCKM: стрелки шлют `ESC O` вместо `ESC [`.
     pub(crate) app_cursor: bool,
-    /// Протокол Kitty, флаг «disambiguate escape codes».
-    pub(crate) disambiguate: bool,
+    /// Флаги клавиатурного протокола Kitty (биты 1..=16).
+    pub(crate) kitty: u16,
+}
+
+/// Данные нажатой или отпущенной клавиши для кодирования.
+pub(crate) struct KeyInput<'a> {
+    pub(crate) key: &'a Key,
+    pub(crate) logical: &'a Key,
+    pub(crate) physical: PhysicalKey,
+    pub(crate) text: Option<&'a str>,
+    pub(crate) mods: ModifiersState,
+    pub(crate) action: KeyAction,
 }
 
 /// Байты для PTY; `None` — клавиша ничего не отправляет.
-pub(crate) fn encode(
-    key: &Key,
-    text: Option<&str>,
-    mods: ModifiersState,
-    modes: KeyModes,
-) -> Option<Vec<u8>> {
-    if modes.disambiguate
-        && let Some(bytes) = unambiguous(key, mods)
+pub(crate) fn encode(input: &KeyInput<'_>, modes: KeyModes) -> Option<Vec<u8>> {
+    if input.action == KeyAction::Release && (modes.kitty & KITTY_EVENTS == 0) {
+        return None;
+    }
+    if modes.kitty != 0
+        && let Some(bytes) = kitty_encode(input, modes)
     {
         return Some(bytes);
     }
+    if input.action == KeyAction::Release {
+        return None;
+    }
+    legacy_encode(input.key, input.text, input.mods, modes.app_cursor)
+}
+
+fn legacy_encode(
+    key: &Key,
+    text: Option<&str>,
+    mods: ModifiersState,
+    app_cursor: bool,
+) -> Option<Vec<u8>> {
     if let Key::Named(named) = key
-        && let Some(bytes) = named_key(*named, mods, modes.app_cursor)
+        && let Some(bytes) = named_key(*named, mods, app_cursor)
     {
         return Some(bytes);
     }
@@ -36,6 +71,254 @@ pub(crate) fn encode(
     }
     let text = text.filter(|t| !t.is_empty())?;
     Some(with_alt(mods, text.as_bytes().to_vec()))
+}
+
+fn kitty_encode(input: &KeyInput<'_>, modes: KeyModes) -> Option<Vec<u8>> {
+    let flags = modes.kitty;
+    let all = flags & KITTY_ALL_KEYS != 0;
+    let events = flags & KITTY_EVENTS != 0;
+    let event_num = if events { input.action as u8 } else { 1 };
+    if let Some(bytes) = kitty_special(input, flags, event_num) {
+        return Some(bytes);
+    }
+    if let Some(bytes) = kitty_char(input, flags, event_num, all) {
+        return Some(bytes);
+    }
+    // при flag 2 без flag 8 обычные клавиши при отпускании молчат
+    if input.action == KeyAction::Release {
+        return None;
+    }
+    None
+}
+
+fn kitty_special(input: &KeyInput<'_>, flags: u16, event: u8) -> Option<Vec<u8>> {
+    let all = flags & KITTY_ALL_KEYS != 0;
+    let mod_code = modifier_code(input.mods);
+    if let Key::Named(named) = input.key {
+        if let Some(letter) = kitty_letter(*named, flags) {
+            return Some(format_letter(letter, mod_code, event));
+        }
+        if let Some(num) = kitty_tilde(*named, flags) {
+            return Some(format_tilde(num, mod_code, event));
+        }
+        if let Some(code) = kitty_csi_u_named(*named, input.mods, all) {
+            return Some(format_csi_u(code, None, None, mod_code, event, None));
+        }
+    }
+    modifier_key_code(input.physical, all)
+        .map(|code| format_csi_u(code, None, None, mod_code, event, None))
+}
+
+fn kitty_char(input: &KeyInput<'_>, flags: u16, event: u8, all: bool) -> Option<Vec<u8>> {
+    let Key::Character(chars) = input.key else {
+        return None;
+    };
+    let ch = chars.chars().next()?;
+    let chord = input.mods.control_key() || input.mods.alt_key() || input.mods.super_key();
+    let use_csi = all || (chord && flags & KITTY_DISAMBIGUATE != 0);
+    if !use_csi {
+        return None;
+    }
+    let code = u32::from(ch.to_ascii_lowercase());
+    let (shifted, base) = alternate_codes(input, ch, code, flags & KITTY_ALTERNATE != 0);
+    let text = associated_text(input, flags & KITTY_TEXT != 0);
+    Some(format_csi_u(
+        code,
+        shifted,
+        base,
+        modifier_code(input.mods),
+        event,
+        text.as_deref(),
+    ))
+}
+
+fn alternate_codes(
+    input: &KeyInput<'_>,
+    ch: char,
+    code: u32,
+    enabled: bool,
+) -> (Option<u32>, Option<u32>) {
+    if !enabled {
+        return (None, None);
+    }
+    let shifted = if input.mods.shift_key()
+        && let Key::Character(logical) = input.logical
+        && let Some(s) = logical.chars().next()
+        && u32::from(s) != code
+    {
+        Some(u32::from(s))
+    } else {
+        None
+    };
+    let base = us_base_char(input.physical)
+        .map(u32::from)
+        .filter(|&b| b != code && !ch.is_ascii_alphanumeric());
+    (shifted, base)
+}
+
+fn associated_text(input: &KeyInput<'_>, enabled: bool) -> Option<String> {
+    if !enabled || input.action == KeyAction::Release {
+        return None;
+    }
+    let text = input.text.filter(|t| !t.is_empty())?;
+    let codes: Vec<String> = text
+        .chars()
+        .filter(|c| !c.is_control())
+        .map(|c| u32::from(c).to_string())
+        .collect();
+    (!codes.is_empty()).then(|| codes.join(":"))
+}
+
+fn format_csi_u(
+    code: u32,
+    shifted: Option<u32>,
+    base: Option<u32>,
+    mods: u8,
+    event: u8,
+    text: Option<&str>,
+) -> Vec<u8> {
+    let mut out = format!("\x1b[{code}");
+    match (shifted, base) {
+        (Some(s), Some(b)) => out.push_str(&format!(":{s}:{b}")),
+        (Some(s), None) => out.push_str(&format!(":{s}")),
+        (None, Some(b)) => out.push_str(&format!("::{b}")),
+        (None, None) => {}
+    }
+    append_mods_and_text(&mut out, mods, event, text);
+    out.push('u');
+    out.into_bytes()
+}
+
+fn append_mods_and_text(out: &mut String, mods: u8, event: u8, text: Option<&str>) {
+    if event > 1 {
+        out.push_str(&format!(";{mods}:{event}"));
+    } else if mods > 1 {
+        out.push_str(&format!(";{mods}"));
+    } else if text.is_some() {
+        out.push_str(";1");
+    }
+    if let Some(text) = text {
+        out.push(';');
+        out.push_str(text);
+    }
+}
+
+fn format_letter(letter: char, mods: u8, event: u8) -> Vec<u8> {
+    if event > 1 {
+        format!("\x1b[1;{mods}:{event}{letter}").into_bytes()
+    } else if mods > 1 {
+        format!("\x1b[1;{mods}{letter}").into_bytes()
+    } else if matches!(letter, 'P'..='S') {
+        format!("\x1bO{letter}").into_bytes()
+    } else {
+        format!("\x1b[{letter}").into_bytes()
+    }
+}
+
+fn format_tilde(number: u8, mods: u8, event: u8) -> Vec<u8> {
+    if event > 1 {
+        format!("\x1b[{number};{mods}:{event}~").into_bytes()
+    } else if mods > 1 {
+        format!("\x1b[{number};{mods}~").into_bytes()
+    } else {
+        format!("\x1b[{number}~").into_bytes()
+    }
+}
+
+fn kitty_letter(key: NamedKey, flags: u16) -> Option<char> {
+    // F3 в Kitty использует CSI 13 ~ вместо CSI R, чтобы не путаться с CPR
+    if key == NamedKey::F3 && flags & (KITTY_DISAMBIGUATE | KITTY_ALL_KEYS) != 0 {
+        return None;
+    }
+    letter_key(key)
+}
+
+fn kitty_tilde(key: NamedKey, flags: u16) -> Option<u8> {
+    if key == NamedKey::F3 && flags & (KITTY_DISAMBIGUATE | KITTY_ALL_KEYS) != 0 {
+        return Some(13);
+    }
+    tilde_key(key)
+}
+
+fn kitty_csi_u_named(key: NamedKey, mods: ModifiersState, all: bool) -> Option<u32> {
+    let modified = mods.shift_key() || mods.control_key() || mods.alt_key() || mods.super_key();
+    let chord = mods.control_key() || mods.alt_key() || mods.super_key();
+    Some(match key {
+        NamedKey::Escape => 27,
+        NamedKey::Enter if all || modified => 13,
+        NamedKey::Tab if all || modified => 9,
+        NamedKey::Backspace if all || modified => 127,
+        NamedKey::Space if all || chord => 32,
+        NamedKey::CapsLock if all => 57358,
+        NamedKey::ScrollLock if all => 57359,
+        NamedKey::NumLock if all => 57360,
+        NamedKey::PrintScreen if all => 57361,
+        NamedKey::Pause if all => 57362,
+        NamedKey::ContextMenu if all => 57363,
+        _ => return None,
+    })
+}
+
+fn modifier_key_code(physical: PhysicalKey, all: bool) -> Option<u32> {
+    if !all {
+        return None;
+    }
+    let PhysicalKey::Code(code) = physical else {
+        return None;
+    };
+    Some(match code {
+        KeyCode::ShiftLeft => 57441,
+        KeyCode::ControlLeft => 57442,
+        KeyCode::AltLeft => 57443,
+        KeyCode::SuperLeft => 57444,
+        KeyCode::ShiftRight => 57447,
+        KeyCode::ControlRight => 57448,
+        KeyCode::AltRight => 57449,
+        KeyCode::SuperRight => 57450,
+        _ => return None,
+    })
+}
+
+fn us_base_char(physical: PhysicalKey) -> Option<char> {
+    let PhysicalKey::Code(code) = physical else {
+        return None;
+    };
+    us_letter_or_digit(code).or_else(|| us_punctuation(code))
+}
+
+fn us_letter_or_digit(code: KeyCode) -> Option<char> {
+    use KeyCode::*;
+    let letters = [
+        KeyA, KeyB, KeyC, KeyD, KeyE, KeyF, KeyG, KeyH, KeyI, KeyJ, KeyK, KeyL, KeyM, KeyN, KeyO,
+        KeyP, KeyQ, KeyR, KeyS, KeyT, KeyU, KeyV, KeyW, KeyX, KeyY, KeyZ,
+    ];
+    if let Some(pos) = letters.iter().position(|&c| c == code) {
+        return Some((b'a' + pos as u8) as char);
+    }
+    let digits = [
+        Digit0, Digit1, Digit2, Digit3, Digit4, Digit5, Digit6, Digit7, Digit8, Digit9,
+    ];
+    digits
+        .iter()
+        .position(|&c| c == code)
+        .map(|pos| (b'0' + pos as u8) as char)
+}
+
+fn us_punctuation(code: KeyCode) -> Option<char> {
+    Some(match code {
+        KeyCode::Minus => '-',
+        KeyCode::Equal => '=',
+        KeyCode::BracketLeft => '[',
+        KeyCode::BracketRight => ']',
+        KeyCode::Backslash => '\\',
+        KeyCode::Semicolon => ';',
+        KeyCode::Quote => '\'',
+        KeyCode::Comma => ',',
+        KeyCode::Period => '.',
+        KeyCode::Slash => '/',
+        KeyCode::Backquote => '`',
+        _ => return None,
+    })
 }
 
 /// DECKPAM: клавиши цифрового блока шлют `ESC O <буква>`.
@@ -59,36 +342,6 @@ pub(crate) fn keypad(key: PhysicalKey) -> Option<Vec<u8>> {
         _ => return None,
     };
     Some(vec![0x1b, b'O', letter])
-}
-
-// `CSI код;модификаторы u` для клавиш, неотличимых в старой кодировке
-fn unambiguous(key: &Key, mods: ModifiersState) -> Option<Vec<u8>> {
-    let chord = mods.control_key() || mods.alt_key() || mods.super_key();
-    let modified = chord || mods.shift_key();
-    let code = match key {
-        Key::Named(NamedKey::Escape) => 27,
-        Key::Named(NamedKey::Enter) if modified => 13,
-        Key::Named(NamedKey::Tab) if modified => 9,
-        Key::Named(NamedKey::Backspace) if modified => 127,
-        Key::Named(NamedKey::Space) if chord => 32,
-        Key::Character(text) if chord => u32::from(text.chars().next()?.to_ascii_lowercase()),
-        // CSI R занят отчётом о позиции курсора
-        Key::Named(NamedKey::F3) => return Some(tilde(13, modifier_code(mods))),
-        _ => return None,
-    };
-    let sequence = match modifier_code(mods) {
-        1 => format!("\x1b[{code}u"),
-        modifiers => format!("\x1b[{code};{modifiers}u"),
-    };
-    Some(sequence.into_bytes())
-}
-
-fn tilde(number: u8, code: u8) -> Vec<u8> {
-    match code {
-        1 => format!("\x1b[{number}~"),
-        _ => format!("\x1b[{number};{code}~"),
-    }
-    .into_bytes()
 }
 
 fn with_alt(mods: ModifiersState, mut bytes: Vec<u8>) -> Vec<u8> {
@@ -138,7 +391,6 @@ fn modifier_code(mods: ModifiersState) -> u8 {
 fn function_key(key: NamedKey, mods: ModifiersState, app_cursor: bool) -> Option<Vec<u8>> {
     let code = modifier_code(mods);
     if let Some(letter) = letter_key(key) {
-        // F1–F4 всегда идут через SS3, стрелки — только в app cursor mode
         let ss3 = app_cursor || matches!(letter, 'P'..='S');
         let sequence = match (code, ss3) {
             (1, true) => format!("\x1bO{letter}"),
@@ -147,7 +399,7 @@ fn function_key(key: NamedKey, mods: ModifiersState, app_cursor: bool) -> Option
         };
         return Some(sequence.into_bytes());
     }
-    Some(tilde(tilde_key(key)?, code))
+    Some(format_tilde(tilde_key(key)?, code, 1))
 }
 
 fn letter_key(key: NamedKey) -> Option<char> {
@@ -184,13 +436,35 @@ fn tilde_key(key: NamedKey) -> Option<u8> {
     })
 }
 
-/// Подготавливает вставку из буфера обмена.
-///
-/// ESC вырезается, чтобы вставленный текст не мог закрыть bracketed paste
-/// и выполнить команду без ведома пользователя.
+/// Причина предупреждения при вставке.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PasteDanger {
+    pub(crate) lines: usize,
+    pub(crate) controls: bool,
+}
+
+/// Проверяет текст на многострочность без bracketed paste и опасные управляющие символы.
+pub(crate) fn paste_danger(text: &str, bracketed: bool) -> Option<PasteDanger> {
+    let lines = text.lines().count().max(1);
+    let has_newline = text.contains('\n') || text.contains('\r');
+    let controls = text.chars().any(is_dangerous_control);
+    if controls || (!bracketed && has_newline) {
+        Some(PasteDanger { lines, controls })
+    } else {
+        None
+    }
+}
+
+fn is_dangerous_control(ch: char) -> bool {
+    matches!(ch, '\x00'..='\x08' | '\x0b'..='\x0c' | '\x0e'..='\x1f' | '\x7f' | '\u{0080}'..='\u{009f}' | '\u{202a}'..='\u{202e}' | '\u{2066}'..='\u{2069}')
+}
+
+/// Подготавливает вставку: вырезает ESC и опасные управляющие байты.
 pub(crate) fn paste(text: &str, bracketed: bool) -> Vec<u8> {
-    let clean = text
-        .replace('\x1b', "")
+    let clean: String = text
+        .chars()
+        .filter(|&c| !is_dangerous_control(c))
+        .collect::<String>()
         .replace("\r\n", "\r")
         .replace('\n', "\r");
     if bracketed {
@@ -200,72 +474,95 @@ pub(crate) fn paste(text: &str, bracketed: bool) -> Vec<u8> {
     }
 }
 
+/// Вставка в одну строку: заменяет переводы строк пробелами.
+pub(crate) fn paste_single_line(text: &str, bracketed: bool) -> Vec<u8> {
+    let flat = text.replace("\r\n", " ").replace(['\r', '\n'], " ");
+    paste(&flat, bracketed)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn modes(app_cursor: bool, disambiguate: bool) -> KeyModes {
-        KeyModes {
-            app_cursor,
-            disambiguate,
+    fn input<'a>(key: &'a Key, mods: ModifiersState) -> KeyInput<'a> {
+        KeyInput {
+            key,
+            logical: key,
+            physical: PhysicalKey::Unidentified(winit::keyboard::NativeKeyCode::Unidentified),
+            text: None,
+            mods,
+            action: KeyAction::Press,
         }
     }
 
+    fn modes(app_cursor: bool, kitty: u16) -> KeyModes {
+        KeyModes { app_cursor, kitty }
+    }
+
     #[test]
-    fn kitty_disambiguation() {
-        let kitty = modes(false, true);
+    fn kitty_disambiguation_and_events() {
+        let kitty = modes(false, KITTY_DISAMBIGUATE | KITTY_EVENTS);
         let escape = Key::Named(NamedKey::Escape);
         let none = ModifiersState::empty();
-        assert_eq!(encode(&escape, None, none, kitty).unwrap(), b"\x1b[27u");
+        assert_eq!(encode(&input(&escape, none), kitty).unwrap(), b"\x1b[27u");
+        let mut rel = input(&escape, none);
+        rel.action = KeyAction::Release;
+        assert_eq!(encode(&rel, kitty).unwrap(), b"\x1b[27;1:3u");
         let i = Key::Character("i".into());
-        assert_eq!(
-            encode(&i, Some("i"), ModifiersState::CONTROL, kitty).unwrap(),
-            b"\x1b[105;5u"
-        );
-        assert_eq!(encode(&i, Some("i"), none, kitty).unwrap(), b"i");
-        let enter = Key::Named(NamedKey::Enter);
-        assert_eq!(encode(&enter, None, none, kitty).unwrap(), b"\r");
-    }
-
-    fn named(key: NamedKey, mods: ModifiersState, app: bool) -> Vec<u8> {
-        encode(&Key::Named(key), None, mods, modes(app, false)).unwrap()
+        let mut ci = input(&i, ModifiersState::CONTROL);
+        ci.text = Some("i");
+        assert_eq!(encode(&ci, kitty).unwrap(), b"\x1b[105;5u");
     }
 
     #[test]
-    fn arrows_follow_cursor_mode_and_modifiers() {
-        let none = ModifiersState::empty();
-        assert_eq!(named(NamedKey::ArrowUp, none, false), b"\x1b[A");
-        assert_eq!(named(NamedKey::ArrowUp, none, true), b"\x1bOA");
+    fn kitty_all_keys_alternate_and_text() {
+        let flags =
+            KITTY_DISAMBIGUATE | KITTY_EVENTS | KITTY_ALTERNATE | KITTY_ALL_KEYS | KITTY_TEXT;
+        let a = Key::Character("a".into());
+        let shift_a = Key::Character("A".into());
+        let mut ki = KeyInput {
+            key: &a,
+            logical: &shift_a,
+            physical: PhysicalKey::Code(KeyCode::KeyA),
+            text: Some("A"),
+            mods: ModifiersState::SHIFT,
+            action: KeyAction::Press,
+        };
         assert_eq!(
-            named(NamedKey::ArrowLeft, ModifiersState::CONTROL, true),
-            b"\x1b[1;5D"
+            encode(&ki, modes(false, flags)).unwrap(),
+            b"\x1b[97:65;2;65u"
         );
+        ki.action = KeyAction::Repeat;
         assert_eq!(
-            named(NamedKey::Delete, ModifiersState::SHIFT, false),
-            b"\x1b[3;2~"
-        );
-    }
-
-    #[test]
-    fn control_alt_and_plain_text() {
-        let c = Key::Character("c".into());
-        assert_eq!(
-            encode(&c, Some("c"), ModifiersState::CONTROL, modes(false, false)).unwrap(),
-            [3]
-        );
-        assert_eq!(
-            encode(&c, Some("c"), ModifiersState::ALT, modes(false, false)).unwrap(),
-            b"\x1bc"
-        );
-        let ru = Key::Character("ё".into());
-        assert_eq!(
-            encode(&ru, Some("ё"), ModifiersState::empty(), modes(false, false)).unwrap(),
-            "ё".as_bytes()
+            encode(&ki, modes(false, flags)).unwrap(),
+            b"\x1b[97:65;2:2;65u"
         );
     }
 
     #[test]
-    fn paste_cannot_escape_brackets() {
-        assert_eq!(paste("a\x1b[201~\nb", true), b"\x1b[200~a[201~\rb\x1b[201~");
+    fn kitty_base_layout_for_non_latin() {
+        let flags = KITTY_ALTERNATE | KITTY_ALL_KEYS;
+        let ru = Key::Character("ф".into());
+        let ki = KeyInput {
+            key: &ru,
+            logical: &ru,
+            physical: PhysicalKey::Code(KeyCode::KeyA),
+            text: Some("ф"),
+            mods: ModifiersState::empty(),
+            action: KeyAction::Press,
+        };
+        assert_eq!(encode(&ki, modes(false, flags)).unwrap(), b"\x1b[1092::97u");
+    }
+
+    #[test]
+    fn paste_safety_and_single_line() {
+        assert_eq!(
+            paste("a\x1b[201~\x03\nb", true),
+            b"\x1b[200~a[201~\rb\x1b[201~"
+        );
+        assert!(paste_danger("echo 1\necho 2", false).is_some());
+        assert!(paste_danger("echo 1\necho 2", true).is_none());
+        assert!(paste_danger("hello\x1b[201~", true).is_some());
+        assert_eq!(paste_single_line("a\nb", false), b"a b");
     }
 }

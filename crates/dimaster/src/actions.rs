@@ -7,7 +7,8 @@ use winit::window::Fullscreen;
 
 use crate::clipboard::Target;
 use crate::desktop;
-use crate::modes::{Mode, Press, hint, history, minimap, palette, press, search, vi};
+use crate::keys;
+use crate::modes::{Mode, Press, hint, history, minimap, palette, paste, press, search, vi};
 use crate::view::View;
 
 impl View {
@@ -70,6 +71,8 @@ impl View {
             Mode::Hint(state) => self.hint_press(state, press),
             Mode::History(state) => self.history_press(state, press),
             Mode::Minimap(state) => self.minimap_press(state, press),
+            Mode::Paste(state) => self.paste_press(state, press),
+            Mode::CloseConfirm => self.close_press(press),
             Mode::Palette(mut state) => match state.press(press) {
                 palette::Outcome::Stay => self.mode = Mode::Palette(state),
                 palette::Outcome::Run(action) => self.perform(action),
@@ -138,7 +141,7 @@ impl View {
     }
 
     fn minimap_press(&mut self, state: minimap::Minimap, press: Press) {
-        let max = self.term.screen().history().count();
+        let max = self.term.screen().history_len();
         match state.press(press, self.scroll, max, self.term.screen().rows().len()) {
             minimap::Outcome::Scroll(scroll) => {
                 self.scroll = scroll;
@@ -147,6 +150,35 @@ impl View {
             minimap::Outcome::Accept => {}
             minimap::Outcome::Cancel => self.scroll = state.origin,
         }
+    }
+
+    fn paste_press(&mut self, state: paste::PasteConfirm, press: Press) {
+        let bracketed = self.term.modes().bracketed_paste;
+        match state.press(press) {
+            paste::Outcome::Stay => self.mode = Mode::Paste(state),
+            paste::Outcome::PasteRaw => self.type_bytes(keys::paste(&state.text, bracketed)),
+            paste::Outcome::PasteSingleLine => {
+                self.type_bytes(keys::paste_single_line(&state.text, bracketed))
+            }
+            paste::Outcome::Cancel => {}
+        }
+    }
+
+    fn close_press(&mut self, press: Press) {
+        match press {
+            Press::Enter { .. } | Press::Char('y' | 'Y' | 'д' | 'Д') => self.closing = true,
+            Press::Escape | Press::Ctrl('c') | Press::Char('n' | 'N' | 'н' | 'Н') => {}
+            _ => self.mode = Mode::CloseConfirm,
+        }
+    }
+
+    pub(crate) fn request_close(&mut self) -> bool {
+        if self.config.confirm_close && !matches!(self.mode, Mode::CloseConfirm) {
+            self.mode = Mode::CloseConfirm;
+            self.window.request_redraw();
+            return false;
+        }
+        true
     }
 
     // виджет включается до перечитывания конфига

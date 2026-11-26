@@ -127,8 +127,13 @@ fn bind(
 
 fn create_pipeline(device: &wgpu::Device, format: wgpu::TextureFormat) -> wgpu::RenderPipeline {
     let module = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
-    let attributes =
-        wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x2, 2 => Float32x2, 3 => Uint32];
+    let attributes = wgpu::vertex_attr_array![
+        0 => Float32x2,
+        1 => Float32x2,
+        2 => Float32x2,
+        3 => Uint32,
+        4 => Float32x2
+    ];
     let buffers = [Some(wgpu::VertexBufferLayout {
         array_stride: size_of::<Quad>() as u64,
         step_mode: wgpu::VertexStepMode::Instance,

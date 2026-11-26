@@ -264,3 +264,10 @@ dimaster.command("insert_date", dimaster.tr("Вставить сегодняшн
 -- Ctrl+Shift+P (палитра), Ctrl =/-/0 (кегль), Shift+PageUp/PageDown.	-- Ctrl+Shift+P (palette), Ctrl =/-/0 (font size), Shift+PageUp/PageDown.
 -- Цвета, перенесённые из другого терминала.	-- Colors imported from another terminal.
 -- Цепочки, таблицы и приставки: docs/lua/settings/keys.md.	-- Sequences, tables and prefixes: docs/lua/settings/keys.md.
+ВСТАВКА	PASTE
+{n} строк и управляющие символы	{n} lines and control characters
+управляющие символы	control characters
+{n} строк без bracketed paste	{n} lines without bracketed paste
+ Опасная вставка ({reason}): Enter — вставить · Пробел — в одну строку · Esc — отмена 	 Unsafe paste ({reason}): Enter — paste · Space — single line · Esc — cancel 
+ВЫХОД	CLOSE
+ Закрыть окно терминала? Enter/y — да · Esc/n — отмена 	 Close terminal window? Enter/y — yes · Esc/n — cancel 

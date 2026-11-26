@@ -55,6 +55,8 @@ pub struct Appearance {
     // отступы от краёв окна в пикселях: по горизонтали и вертикали
     pub padding: (u32, u32),
     pub rtl: bool,
+    /// Минимальный контраст текста к фону (1.0 — выкл., до 21.0).
+    pub minimum_contrast: f32,
     // непрозрачность фона окна
     pub opacity: f32,
     // высота своей полосы заголовка в пикселях, 0 — её нет
@@ -81,6 +83,7 @@ impl Default for Appearance {
             ],
             padding: (6, 6),
             rtl: true,
+            minimum_contrast: 1.0,
             opacity: 1.0,
             top: 0,
             wallpaper: None,

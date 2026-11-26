@@ -34,13 +34,22 @@ impl Animation {
     }
 
     /// Кадр в момент `elapsed` и сколько ещё он продержится.
-    /// Второе значение `None` у неподвижных картинок.
+    /// Второе значение `None` у неподвижных картинок или после окончания циклов.
     pub fn frame_at(&self, elapsed: Duration) -> (usize, Option<Duration>) {
+        self.frame_at_limit(elapsed, 0)
+    }
+
+    /// Как `frame_at`, но с ограничением числа повторов (`0` — бесконечно).
+    pub fn frame_at_limit(&self, elapsed: Duration, loops: u32) -> (usize, Option<Duration>) {
         let total: u64 = self.frames.iter().map(|f| u64::from(f.delay)).sum();
         if self.frames.len() < 2 || total == 0 {
             return (0, None);
         }
-        let mut position = (elapsed.as_millis() % u128::from(total)) as u64;
+        let elapsed_ms = elapsed.as_millis();
+        if loops > 0 && elapsed_ms >= u128::from(total) * u128::from(loops) {
+            return (self.frames.len() - 1, None);
+        }
+        let mut position = (elapsed_ms % u128::from(total)) as u64;
         for (index, frame) in self.frames.iter().enumerate() {
             let delay = u64::from(frame.delay);
             if position < delay {

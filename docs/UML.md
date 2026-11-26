@@ -83,20 +83,27 @@ classDiagram
     class Builder { +build(term, scroll) }
     class Atlas { +get(fonts, key) +clear() }
     class Pipeline { +upload(queue, upload) }
-    class FontSystem { +new(size) +metrics() +set_size(size) +shape(text, bold, italic) +glyph(id, cells) }
+    class FontSystem { +new(size) +metrics() +set_size(size) +set_features(list) +shape(text, bold, italic) +glyph(id, cells) }
+    class ColrPainter { +outline_glyph() +paint() +push_clip() +push_layer() }
     class ShapedGlyph { id; cluster; x; y }
     class Run { text; cells; color }
     class Image { width; height; pixels }
-    class Animation { width; height; frames; +frame_at(elapsed) }
-    class Store { +picture(animation) +keep(id, picture) }
-    class Picture { serial; animation; started }
-    class Placement { col; cols; rows; picture }
+    class Animation { width; height; frames; +frame_at(elapsed) +frame_at_limit(elapsed, loops) }
+    class Store { +picture(animation) +keep(id, picture) +put_virtual() +get_virtual() }
+    class Picture { serial; animation; started; generation; playback }
+    class Placement { col; cols; rows; picture; crop }
+    class VirtualPlacement { picture; cols; rows }
+    class PackedRow { wrapped; mark; images; text; runs; extras }
     class Textures { +prepare(images) +get(image) }
     State *-- Store
+    Store *-- VirtualPlacement
+    Screen *-- PackedRow
     Row *-- Placement
     Placement --> Picture
+    VirtualPlacement --> Picture
     Picture *-- Animation
     Renderer *-- Textures
+    FontSystem ..> ColrPainter : COLR v0/v1
     class Config { font; theme; padding; cursor; scrollback; shell; keys }
     class Theme { foreground; background; cursor; selection; ansi }
     class Source { +apply(config_home, config) }
@@ -105,7 +112,8 @@ classDiagram
     Config *-- Binding
     Source ..> Config
     View *-- Config
-    class Mode { Normal; Search; Vi; Palette }
+    class Mode { Normal; Search; Vi; Palette; Hint; History; Minimap; Paste; CloseConfirm }
+    class PasteConfirm { text; reason }
     class Animator { +tick(target, effects) +next_frame() }
     class WindowConfig { decorations; opacity; blur; background_image }
     class Effects { cursor_blink; cursor_animation; cursor_trail; smooth_scroll }
