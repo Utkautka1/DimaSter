@@ -5,7 +5,7 @@ use dimaster_i18n::t;
 use std::time::Instant;
 
 use winit::event::KeyEvent;
-use winit::keyboard::{Key, KeyCode, ModifiersState, NamedKey, PhysicalKey};
+use winit::keyboard::{Key, KeyCode, KeyLocation, ModifiersState, NamedKey, PhysicalKey};
 use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
 
 use crate::clipboard::Target;
@@ -101,12 +101,9 @@ impl View {
         }
     }
 
-    // цифровой блок в режиме приложения кодируется по физической клавише
+    // что должна получить программа от нажатия клавиши
     fn program_bytes(&self, event: &KeyEvent, key: &Key, text: Option<&str>) -> Option<Vec<u8>> {
-        let keypad =
-            event.state.is_pressed() && self.term.modes().app_keypad && self.modifiers.is_empty();
-        let numpad = keypad.then(|| keys::keypad(event.physical_key)).flatten();
-        numpad.or_else(|| self.encoded(event, key, text))
+        self.encoded(event, key, text)
     }
 
     // что получила бы программа без всяких привязок
@@ -208,6 +205,11 @@ impl View {
     }
 
     fn layout_independent(&self, event: &KeyEvent) -> Key {
+        // Для numpad key_without_modifiers() сбрасывает NumLock (Mod2 в XKB)
+        // и превращает цифры в End/Arrow/Insert/Delete.
+        if event.location == KeyLocation::Numpad {
+            return event.logical_key.clone();
+        }
         let key = event.key_without_modifiers();
         let latin = matches!(&key, Key::Character(c) if c.is_ascii());
         let chord = self.modifiers.control_key() || self.modifiers.super_key();

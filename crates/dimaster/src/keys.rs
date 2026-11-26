@@ -49,11 +49,18 @@ pub(crate) fn encode(input: &KeyInput<'_>, modes: KeyModes) -> Option<Vec<u8>> {
     if input.action == KeyAction::Release {
         return None;
     }
-    legacy_encode(input.key, input.text, input.mods, modes.app_cursor)
+    legacy_encode(
+        input.key,
+        input.physical,
+        input.text,
+        input.mods,
+        modes.app_cursor,
+    )
 }
 
 fn legacy_encode(
     key: &Key,
+    physical: PhysicalKey,
     text: Option<&str>,
     mods: ModifiersState,
     app_cursor: bool,
@@ -62,6 +69,10 @@ fn legacy_encode(
         && let Some(bytes) = named_key(*named, mods, app_cursor)
     {
         return Some(bytes);
+    }
+    // На Linux/XKB нажатие Numpad 5 при выключенном NumLock даёт KP_Begin (Unidentified).
+    if matches!(key, Key::Unidentified(_)) && physical == PhysicalKey::Code(KeyCode::Numpad5) {
+        return function_key(NamedKey::Clear, mods, app_cursor);
     }
     if mods.control_key()
         && let Key::Character(chars) = key
@@ -101,12 +112,36 @@ fn kitty_special(input: &KeyInput<'_>, flags: u16, event: u8) -> Option<Vec<u8>>
         if let Some(num) = kitty_tilde(*named, flags) {
             return Some(format_tilde(num, mod_code, event));
         }
-        if let Some(code) = kitty_csi_u_named(*named, input.mods, all) {
+        if let Some(code) = kitty_csi_u_named(*named, input.physical, input.mods, all) {
             return Some(format_csi_u(code, None, None, mod_code, event, None));
         }
     }
+    if let Some(bytes) = kitty_numpad_begin(input, flags, mod_code, event) {
+        return Some(bytes);
+    }
     modifier_key_code(input.physical, all)
         .map(|code| format_csi_u(code, None, None, mod_code, event, None))
+}
+
+fn kitty_numpad_begin(
+    input: &KeyInput<'_>,
+    flags: u16,
+    mod_code: u8,
+    event: u8,
+) -> Option<Vec<u8>> {
+    if !matches!(input.key, Key::Unidentified(_))
+        || input.physical != PhysicalKey::Code(KeyCode::Numpad5)
+    {
+        return None;
+    }
+    let all = flags & KITTY_ALL_KEYS != 0;
+    Some(
+        if all || flags & KITTY_DISAMBIGUATE != 0 || mod_code > 1 || event > 1 {
+            format_csi_u(57427, None, None, mod_code, event, None)
+        } else {
+            format_letter('E', mod_code, event)
+        },
+    )
 }
 
 fn kitty_char(input: &KeyInput<'_>, flags: u16, event: u8, all: bool) -> Option<Vec<u8>> {
@@ -119,8 +154,13 @@ fn kitty_char(input: &KeyInput<'_>, flags: u16, event: u8, all: bool) -> Option<
     if !use_csi {
         return None;
     }
-    let code = u32::from(ch.to_ascii_lowercase());
-    let (shifted, base) = alternate_codes(input, ch, code, flags & KITTY_ALTERNATE != 0);
+    let kp = kitty_numpad_char(input.physical);
+    let code = kp.unwrap_or_else(|| u32::from(ch.to_ascii_lowercase()));
+    let (shifted, base) = if kp.is_some() {
+        (None, None)
+    } else {
+        alternate_codes(input, ch, code, flags & KITTY_ALTERNATE != 0)
+    };
     let text = associated_text(input, flags & KITTY_TEXT != 0);
     Some(format_csi_u(
         code,
@@ -240,11 +280,21 @@ fn kitty_tilde(key: NamedKey, flags: u16) -> Option<u8> {
     tilde_key(key)
 }
 
-fn kitty_csi_u_named(key: NamedKey, mods: ModifiersState, all: bool) -> Option<u32> {
+fn kitty_csi_u_named(
+    key: NamedKey,
+    physical: PhysicalKey,
+    mods: ModifiersState,
+    all: bool,
+) -> Option<u32> {
     let modified = mods.shift_key() || mods.control_key() || mods.alt_key() || mods.super_key();
     let chord = mods.control_key() || mods.alt_key() || mods.super_key();
     Some(match key {
         NamedKey::Escape => 27,
+        NamedKey::Enter
+            if (all || modified) && physical == PhysicalKey::Code(KeyCode::NumpadEnter) =>
+        {
+            57414
+        }
         NamedKey::Enter if all || modified => 13,
         NamedKey::Tab if all || modified => 9,
         NamedKey::Backspace if all || modified => 127,
@@ -255,6 +305,33 @@ fn kitty_csi_u_named(key: NamedKey, mods: ModifiersState, all: bool) -> Option<u
         NamedKey::PrintScreen if all => 57361,
         NamedKey::Pause if all => 57362,
         NamedKey::ContextMenu if all => 57363,
+        _ => return None,
+    })
+}
+
+fn kitty_numpad_char(physical: PhysicalKey) -> Option<u32> {
+    use KeyCode::*;
+    let PhysicalKey::Code(code) = physical else {
+        return None;
+    };
+    Some(match code {
+        Numpad0 => 57399,
+        Numpad1 => 57400,
+        Numpad2 => 57401,
+        Numpad3 => 57402,
+        Numpad4 => 57403,
+        Numpad5 => 57404,
+        Numpad6 => 57405,
+        Numpad7 => 57406,
+        Numpad8 => 57407,
+        Numpad9 => 57408,
+        NumpadDecimal => 57409,
+        NumpadDivide => 57410,
+        NumpadMultiply => 57411,
+        NumpadSubtract => 57412,
+        NumpadAdd => 57413,
+        NumpadEqual => 57415,
+        NumpadComma => 57416,
         _ => return None,
     })
 }
@@ -321,29 +398,6 @@ fn us_punctuation(code: KeyCode) -> Option<char> {
     })
 }
 
-/// DECKPAM: клавиши цифрового блока шлют `ESC O <буква>`.
-pub(crate) fn keypad(key: PhysicalKey) -> Option<Vec<u8>> {
-    use KeyCode::*;
-    let PhysicalKey::Code(code) = key else {
-        return None;
-    };
-    let digits = [
-        Numpad0, Numpad1, Numpad2, Numpad3, Numpad4, Numpad5, Numpad6, Numpad7, Numpad8, Numpad9,
-    ];
-    let digit = digits.iter().position(|&d| d == code);
-    let letter = match code {
-        _ if digit.is_some() => b'p' + digit? as u8,
-        NumpadDecimal => b'n',
-        NumpadEnter => b'M',
-        NumpadAdd => b'k',
-        NumpadSubtract => b'm',
-        NumpadMultiply => b'j',
-        NumpadDivide => b'o',
-        _ => return None,
-    };
-    Some(vec![0x1b, b'O', letter])
-}
-
 fn with_alt(mods: ModifiersState, mut bytes: Vec<u8>) -> Vec<u8> {
     if mods.alt_key() {
         bytes.insert(0, 0x1b);
@@ -408,6 +462,7 @@ fn letter_key(key: NamedKey) -> Option<char> {
         NamedKey::ArrowDown => 'B',
         NamedKey::ArrowRight => 'C',
         NamedKey::ArrowLeft => 'D',
+        NamedKey::Clear => 'E',
         NamedKey::Home => 'H',
         NamedKey::End => 'F',
         NamedKey::F1 => 'P',
@@ -552,6 +607,47 @@ mod tests {
             action: KeyAction::Press,
         };
         assert_eq!(encode(&ki, modes(false, flags)).unwrap(), b"\x1b[1092::97u");
+    }
+
+    #[test]
+    fn numpad_digits_and_enter() {
+        let none = ModifiersState::empty();
+        let one = Key::Character("1".into());
+        let mut kp1 = input(&one, none);
+        kp1.physical = PhysicalKey::Code(KeyCode::Numpad1);
+        kp1.text = Some("1");
+        assert_eq!(encode(&kp1, modes(true, 0)).unwrap(), b"1");
+        assert_eq!(
+            encode(&kp1, modes(false, KITTY_DISAMBIGUATE)).unwrap(),
+            b"1"
+        );
+        assert_eq!(
+            encode(&kp1, modes(false, KITTY_ALL_KEYS)).unwrap(),
+            b"\x1b[57400u"
+        );
+
+        let enter = Key::Named(NamedKey::Enter);
+        let mut kp_enter = input(&enter, none);
+        kp_enter.physical = PhysicalKey::Code(KeyCode::NumpadEnter);
+        assert_eq!(encode(&kp_enter, modes(true, 0)).unwrap(), b"\r");
+        assert_eq!(
+            encode(&kp_enter, modes(false, KITTY_ALL_KEYS)).unwrap(),
+            b"\x1b[57414u"
+        );
+    }
+
+    #[test]
+    fn numpad_begin_and_nav() {
+        let none = ModifiersState::empty();
+        let unid = Key::Unidentified(winit::keyboard::NativeKey::Unidentified);
+        let mut kp5 = input(&unid, none);
+        kp5.physical = PhysicalKey::Code(KeyCode::Numpad5);
+        assert_eq!(encode(&kp5, modes(false, 0)).unwrap(), b"\x1b[E");
+        assert_eq!(encode(&kp5, modes(true, 0)).unwrap(), b"\x1bOE");
+        assert_eq!(
+            encode(&kp5, modes(false, KITTY_DISAMBIGUATE)).unwrap(),
+            b"\x1b[57427u"
+        );
     }
 
     #[test]
