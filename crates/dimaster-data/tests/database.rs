@@ -47,6 +47,15 @@ fn dump_loads_and_cannot_touch_disk() {
 }
 
 #[test]
+fn query_cannot_write_files() {
+    let db = Database::new().expect("база");
+    let target = std::env::temp_dir().join(format!("dimaster-vacuum-{}.db", std::process::id()));
+    let result = db.query(&format!("VACUUM INTO '{}'", target.display()));
+    assert!(result.is_err());
+    assert!(!target.exists());
+}
+
+#[test]
 fn sqlite_file_is_copied() {
     let dir = directory("copy");
     let file = dir.join("shop.db");

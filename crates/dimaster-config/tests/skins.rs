@@ -8,7 +8,7 @@ fn fifty_distinct_skins_override_the_config() {
     let mut names: Vec<&str> = all.iter().map(|s| s.name).collect();
     names.sort_unstable();
     names.dedup();
-    assert_eq!((all.len(), names.len()), (50, 50));
+    assert_eq!((all.len(), names.len()), (817, 817));
     let source = r##"return { theme = "nord", colors = { background = "#010203" } }"##;
     for skin in all {
         let literal = skin_literal(skin.name).unwrap();

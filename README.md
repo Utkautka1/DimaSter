@@ -113,7 +113,7 @@ The following are available starting with version 0.2.0:
 
 ## Skins
 
-Press `Ctrl+Shift+K` to browse 50 built-in color schemes and 8 complete looks with live preview. No config editing.
+Press `Ctrl+Shift+K` to browse 800+ built-in color schemes and 8 complete looks with live preview. No config editing.
 
 A look changes more than colors: the status bar and its contents, widgets, window frame, cursor, panels, starship prompt and a procedurally drawn background.
 
@@ -132,7 +132,7 @@ dimaster --headless ls -la     # render offscreen and print text
 dimaster --setup               # run first-time config & import wizard
 dimaster icat image.png        # display image/GIF/video in terminal
 dimaster fetch                 # built-in system info (customizable via fetch.lua)
-dimaster view a.csv b.json     # tables with SQL, fuzzy search and view.lua (docs/lua/view.md)
+dimaster view a.csv b.json     # CSV, JSON, Parquet, Arrow, Excel, SQLite…: SQL, fuzzy search, plots, view.lua (docs/lua/view.md)
 dimaster ctl info              # query or control a running window
 dimaster ssh-terminfo u@host   # install xterm-dimaster terminfo on a remote server
 ```

@@ -263,6 +263,10 @@ classDiagram
     class App { sheets; active; mode; +press(key) }
     class Sheet { sql; table; columns; shown; +search() +apply() }
     class Viewer { settings; +columns() +cell() +status() }
+    class Plot { Histogram; Scatter }
+    class Server { requests }
+    App --> Plot
+    Server ..> App : dimaster view --send
     App *-- Database
     App *-- Sheet
     App --> Viewer : view.lua

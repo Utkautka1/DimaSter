@@ -59,7 +59,35 @@ pub(crate) fn target(link: &str, cwd: Option<&str>) -> Option<PathBuf> {
     }
 }
 
+// только заведомо табличные файлы: README.md или package.json не они
+const TABLES: [&str; 14] = [
+    "csv", "tsv", "jsonl", "parquet", "pqt", "arrow", "feather", "xlsx", "xls", "xlsm", "xlsb",
+    "ods", "sqlite", "sqlite3",
+];
+
+/// Файл, который по щелчку показывает `dimaster view`: он только читает.
+pub(crate) fn table_file(link: &str, cwd: Option<&str>) -> Option<PathBuf> {
+    let path = local_path(link, cwd).filter(|p| p.is_file())?;
+    let extension = path.extension()?.to_str()?.to_ascii_lowercase();
+    TABLES.contains(&extension.as_str()).then_some(path)
+}
+
+// новое окно с просмотрщиком; `false`, если он выключен в view.lua
+fn view(path: PathBuf) -> bool {
+    let enabled = dimaster_config::Viewer::load().is_ok_and(|v| v.settings.enabled);
+    let (Ok(exe), true) = (std::env::current_exe(), enabled) else {
+        return false;
+    };
+    let mut command = Command::new(&exe);
+    command.arg("-e").arg(&exe).arg("view").arg(path);
+    spawn(command);
+    true
+}
+
 pub(crate) fn open(link: &str, cwd: Option<&str>) {
+    if table_file(link, cwd).is_some_and(view) {
+        return;
+    }
     match target(link, cwd) {
         Some(target) => {
             let mut command = Command::new("xdg-open");
@@ -79,6 +107,16 @@ pub(crate) fn notify(title: &str, body: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_tables_go_to_the_viewer() {
+        let file = std::env::temp_dir().join(format!("dimaster-click-{}.CSV", std::process::id()));
+        std::fs::write(&file, "a\n").expect("файл");
+        let found = table_file(&file.to_string_lossy(), None);
+        std::fs::remove_file(&file).expect("уборка");
+        assert_eq!(found, Some(file));
+        assert!(table_file("/etc/hostname", None).is_none());
+    }
 
     #[test]
     fn files_open_their_folder_and_domains_the_browser() {
