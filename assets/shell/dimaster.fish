@@ -46,3 +46,15 @@ if status is-interactive; and set -q DIMASTER_COLOR_LS
     end
     set -e DIMASTER_COLOR_LS
 end
+
+# подсветка nano, если своего nanorc или функции нет
+set -l __dimaster_data $XDG_DATA_HOME
+test -n "$__dimaster_data"; or set __dimaster_data $HOME/.local/share
+set -g __dimaster_nanorc $__dimaster_data/dimaster/shell/nanorc
+if set -q DIMASTER_COLOR_NANO; and test -r $__dimaster_nanorc; and not test -e ~/.nanorc
+    and not test -e ~/.config/nano/nanorc; and not functions -q nano
+    function nano --wraps nano
+        command nano --rcfile $__dimaster_nanorc $argv
+    end
+end
+set -e DIMASTER_COLOR_NANO

@@ -40,6 +40,7 @@ fn reset_env(command: &mut Command, socket: Option<&Path>) {
         .env_remove("DIMASTER_STARTUP_FETCH")
         .env_remove("DIMASTER_FETCH_EARLY")
         .env_remove("DIMASTER_BIN")
+        .env_remove("DIMASTER_COLOR_NANO")
         .env_remove("DIMASTER_COLOR_LS");
     if let Some(socket) = socket {
         command.env("DIMASTER_SOCKET", socket);

@@ -13,6 +13,8 @@ pub struct Smart {
     pub syntax_highlight: bool,
     /// Цветной `ls` и `LS_COLORS` для всех оболочек.
     pub color_ls: bool,
+    /// Включать подсветку синтаксиса nano, если своего nanorc нет.
+    pub color_nano: bool,
     /// Призрачные автоподсказки команд из истории (аналог zsh-autosuggestions).
     pub autosuggest: bool,
     /// Автоматическое закрытие скобок и кавычек (аналог zsh-autopair).
@@ -41,6 +43,7 @@ impl Default for Smart {
             fetch_early: false,
             syntax_highlight: true,
             color_ls: true,
+            color_nano: true,
             autosuggest: true,
             autopair: true,
             not_found: true,

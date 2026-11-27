@@ -24,6 +24,7 @@ fn reactions(table: &Table, smart: &mut Smart) -> mlua::Result<()> {
     set(table, "fetch_early", &mut smart.fetch_early)?;
     set(table, "syntax_highlight", &mut smart.syntax_highlight)?;
     set(table, "color_ls", &mut smart.color_ls)?;
+    set(table, "color_nano", &mut smart.color_nano)?;
     set(table, "autosuggest", &mut smart.autosuggest)?;
     set(table, "autopair", &mut smart.autopair)?;
     set(table, "not_found", &mut smart.not_found)?;

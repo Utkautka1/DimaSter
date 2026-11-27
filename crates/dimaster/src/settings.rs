@@ -239,6 +239,9 @@ fn apply_smart_env(config: &Config, env: &mut Vec<(String, String)>) {
     if config.smart.startup_fetch {
         apply_fetch_env(config, env);
     }
+    if config.smart.color_nano {
+        env.push(("DIMASTER_COLOR_NANO".to_owned(), "1".to_owned()));
+    }
     if config.smart.color_ls {
         env.push(("DIMASTER_COLOR_LS".to_owned(), "1".to_owned()));
         let has_ls =

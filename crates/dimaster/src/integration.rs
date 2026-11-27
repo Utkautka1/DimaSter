@@ -8,7 +8,8 @@ use dimaster_i18n::t;
 use std::io;
 use std::path::{Path, PathBuf};
 
-const FILES: [(&str, &str); 3] = [
+const FILES: [(&str, &str); 4] = [
+    ("nanorc", include_str!("../../../assets/shell/nanorc")),
     ("zsh/.zshenv", include_str!("../../../assets/shell/zshenv")),
     ("bashrc", include_str!("../../../assets/shell/bashrc")),
     (

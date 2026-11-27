@@ -59,6 +59,20 @@ if [[ -o interactive ]]; then
     }
     add-zsh-hook precmd __dimaster_color_ls
   fi
+  if [[ -n "$DIMASTER_COLOR_NANO" ]]; then
+    # подсветка nano, если у вас нет своего nanorc, алиаса или функции nano
+    __dimaster_color_nano() {
+      add-zsh-hook -d precmd __dimaster_color_nano
+      unset -f __dimaster_color_nano
+      unset DIMASTER_COLOR_NANO
+      local rc="${XDG_DATA_HOME:-$HOME/.local/share}/dimaster/shell/nanorc"
+      if [[ -r "$rc" && ! -e ~/.nanorc && ! -e "${XDG_CONFIG_HOME:-$HOME/.config}/nano/nanorc" ]] \
+        && (( ! $+aliases[nano] && ! $+functions[nano] )); then
+        alias nano="nano --rcfile ${(q)rc}"
+      fi
+    }
+    add-zsh-hook precmd __dimaster_color_nano
+  fi
   add-zsh-hook precmd __dimaster_precmd
   add-zsh-hook preexec __dimaster_preexec
 fi

@@ -51,3 +51,11 @@ if [ -n "$DIMASTER_NOT_FOUND" ] && ! declare -F command_not_found_handle >/dev/n
     return 127
   }
 fi
+
+# подсветка nano, если своего nanorc, алиаса или функции нет
+__dimaster_nanorc="${XDG_DATA_HOME:-$HOME/.local/share}/dimaster/shell/nanorc"
+if [ -n "$DIMASTER_COLOR_NANO" ] && [ -r "$__dimaster_nanorc" ] && [ ! -e ~/.nanorc ] \
+  && [ ! -e "${XDG_CONFIG_HOME:-$HOME/.config}/nano/nanorc" ] && ! type -t nano | grep -qE 'alias|function'; then
+  alias nano="nano --rcfile $(printf '%q' "$__dimaster_nanorc")"
+fi
+unset __dimaster_nanorc DIMASTER_COLOR_NANO

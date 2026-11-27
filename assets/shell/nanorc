@@ -1,0 +1,5 @@
+# Подсветка синтаксиса nano из DimaSter: схемы, идущие вместе с nano.
+# Файл перезаписывается терминалом; свои настройки держите в ~/.nanorc —
+# тогда DimaSter этот файл не подключает.
+include "/usr/share/nano/*.nanorc"
+include "/usr/share/nano/extra/*.nanorc"

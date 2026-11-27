@@ -39,6 +39,7 @@ return {
     fetch_early = false,     -- zsh: выводить fetch до чтения .zshrc; тогда не вызывайте в нём clear
     syntax_highlight = true, -- встроенная подсветка вводимых команд (без плагинов shell)
     color_ls = true,         -- цветной `ls` и `LS_COLORS` из коробки
+    color_nano = true,       -- подсветка в nano, если нет своего ~/.nanorc (только запуск из shell; не для sudo и git)
     autosuggest = true,      -- призрачные автоподсказки команд из истории (Right / Ctrl+Right)
     autopair = true,         -- умное автозакрытие скобок и кавычек () [] {} "" ''
     not_found = true,        -- «команда не найдена» на языке терминала (zsh, bash, fish)
