@@ -73,7 +73,7 @@ SIGTERM — завершён	SIGTERM — terminated
 в файле не найдено видео	no video found in the file
 нет вывода ffmpeg	no output from ffmpeg
 icat работает внутри DimaSter	icat only works inside DimaSter
-использование: dimaster [--class имя] [-e команда...] [--headless команда...] [--setup] [icat файл...] [fetch [--logo картинка]] [view [-f формат] [--separator знак] [--no-header] файл...] [ctl команда] [ssh-terminfo хост]	usage: dimaster [--class name] [-e command...] [--headless command...] [--setup] [icat file...] [fetch [--logo image]] [view [-f format] [--separator char] [--no-header] file...] [ctl command] [ssh-terminfo host]
+использование: dimaster [--class имя] [-e команда...] [--headless команда...] [--setup] [icat файл...] [fetch [--logo картинка]] [view [-f формат] [--separator знак] [--no-header] [--remote] [--send команда] файл...] [ctl команда] [ssh-terminfo хост]	usage: dimaster [--class name] [-e command...] [--headless command...] [--setup] [icat file...] [fetch [--logo image]] [view [-f format] [--separator char] [--no-header] [--remote] [--send command] file...] [ctl command] [ssh-terminfo host]
 нет действия {name}	no such action: {name}
 неизвестная команда: {command}	unknown command: {command}
 dimaster ctl [list | info | get-text | send-text <текст> | action <имя> | set-title <текст> | reload | new-window]	dimaster ctl [list | info | get-text | send-text <text> | action <name> | set-title <text> | reload | new-window]
@@ -336,3 +336,7 @@ f — вид · c — копировать · Esc — назад	f — view · c
   -- border: "rounded" | "single" | "double" | "heavy" | "none"	  -- border: "rounded" | "single" | "double" | "heavy" | "none"
 -- Просмотр таблиц: dimaster view файл.csv	-- Table viewer: dimaster view file.csv
 -- Все ключи описаны в документации, раздел «Просмотр таблиц».	-- Every key is described in the docs, section "Table viewer".
+Нет числовой колонки: {column}	No numeric column: {column}
+Esc — назад к таблице	Esc — back to the table
+после --send нужна команда	--send needs a command
+нет открытого просмотрщика: {error}	no open viewer: {error}

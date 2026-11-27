@@ -62,7 +62,7 @@ use std::process::ExitCode;
 
 use dimaster_config::Config;
 
-const USAGE: &str = "использование: dimaster [--class имя] [-e команда...] [--headless команда...] [--setup] [icat файл...] [fetch [--logo картинка]] [view [-f формат] [--separator знак] [--no-header] файл...] [ctl команда] [ssh-terminfo хост]";
+const USAGE: &str = "использование: dimaster [--class имя] [-e команда...] [--headless команда...] [--setup] [icat файл...] [fetch [--logo картинка]] [view [-f формат] [--separator знак] [--no-header] [--remote] [--send команда] файл...] [ctl команда] [ssh-terminfo хост]";
 
 fn main() -> ExitCode {
     // wgpu слишком подробен на info, поэтому по умолчанию только предупреждения

@@ -8,9 +8,12 @@ mod app;
 mod command;
 mod fuzzy;
 mod keys;
+mod plot;
+mod remote;
 mod render;
 mod sheet;
 mod terminal;
 
 pub use app::App;
+pub use remote::send;
 pub use terminal::run;

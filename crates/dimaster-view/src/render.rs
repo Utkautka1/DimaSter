@@ -10,6 +10,7 @@ use dimaster_data::Value;
 use dimaster_i18n::{t, tr};
 
 use crate::app::{App, Mode};
+use crate::plot;
 use crate::sheet::Sheet;
 
 const RESET: &str = "\x1b[0m";
@@ -317,9 +318,16 @@ fn status(app: &App, screen: usize) -> String {
         _ if !app.message.is_empty() => app.message.clone(),
         Mode::Record(_) => tr("f — вид · c — копировать · Esc — назад"),
         Mode::Table | Mode::Tabs => position(app),
+        Mode::Plot => tr("Esc — назад к таблице"),
     };
     let color = sgr(app.viewer.settings.colors.status, 38);
     format!("\x1b[7m{color}{}{RESET}", fitted(&text, screen))
+}
+
+fn chart(app: &App, width: usize, height: usize) -> Vec<String> {
+    let sheet = &app.sheets[app.active];
+    let draw = |p| plot::draw(p, &sheet.table, &sheet.shown, width, height);
+    app.plot.as_ref().map(draw).unwrap_or_default()
 }
 
 /// Все строки экрана `width` × `height`.
@@ -334,6 +342,7 @@ pub(crate) fn frame(app: &mut App, width: usize, height: usize) -> Vec<String> {
             all.into_iter().skip(app.scroll).collect()
         }
         Mode::Tabs => tab_list(app, width),
+        Mode::Plot => chart(app, width, body),
         _ => grid(app, width, app.page),
     };
     lines.resize(body, String::new());

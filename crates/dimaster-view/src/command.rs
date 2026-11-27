@@ -1,12 +1,13 @@
 //! Командная строка `:` — `q` запрос, `f` фильтр, `o` порядок, `s` колонки,
-//! `schema`, `import` и `export`.
+//! `hist` и `scatter`, `schema`, `import` и `export`.
 
 use std::path::Path;
 
 use dimaster_data::{Database, Options, Table};
 use dimaster_i18n::{t, tr};
 
-use crate::app::App;
+use crate::app::{App, Mode};
+use crate::plot;
 use crate::sheet::Sheet;
 
 // `_` в запросе — то, что сейчас на экране
@@ -95,6 +96,10 @@ pub(crate) fn run(app: &mut App, line: &str) -> Result<String, String> {
             return Ok(String::new());
         }
         _ => {}
+    }
+    if let Some(parsed) = plot::parse(&app.sheet().table, word, rest) {
+        (app.plot, app.mode) = (Some(parsed?), Mode::Plot);
+        return Ok(String::new());
     }
     let current = app.sheet().sql.clone();
     let sql = refine(&current, word, rest).filter(|_| !rest.is_empty());

@@ -49,6 +49,8 @@ pub struct ViewSettings {
     pub fit: bool,
     pub header: bool,
     pub row_numbers: bool,
+    /// Принимать команды `dimaster view --send`.
+    pub remote: bool,
     pub colors: ViewColors,
     /// Клавиша и действие; `None` снимает назначение.
     pub keys: Vec<(String, Option<String>)>,
@@ -72,6 +74,7 @@ impl Default for ViewSettings {
             fit: false,
             header: true,
             row_numbers: false,
+            remote: false,
             colors,
             keys: Vec::new(),
         }
@@ -164,6 +167,7 @@ fn settings(root: &Table) -> mlua::Result<ViewSettings> {
         fit: flag("fit", base.fit)?,
         header: flag("header", base.header)?,
         row_numbers: flag("row_numbers", base.row_numbers)?,
+        remote: flag("remote", base.remote)?,
         colors: colors(root, base.colors)?,
         keys: keys(root)?,
     })

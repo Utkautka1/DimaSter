@@ -13,6 +13,10 @@ dimaster view users.csv orders.json
 | `-f формат` | формат, если расширение его не называет (`logfmt`, `fwf`, …) |
 | `--separator знак` | разделитель вместо запятой |
 | `--no-header` | первая строка — данные |
+| `--remote` | принимать команды извне |
+| `--send "команда"` | выполнить команду в открытом просмотрщике |
+
+Ещё читаются Parquet (`.parquet`, `.pqt`), Arrow IPC (`.arrow`, `.feather`) и книги Excel и OpenDocument (`.xlsx`, `.xls`, `.xlsm`, `.xlsb`, `.ods`; каждый лист — вкладка).
 
 Без файлов читается конвейер: `ps aux | dimaster view -f fwf`.
 
@@ -44,7 +48,19 @@ dimaster view users.csv orders.json
 | `o` — порядок | `o age DESC` |
 | `s` — колонки | `s name, age` |
 | `schema` — все таблицы и колонки | |
+| `hist` — гистограмма числовой колонки | `hist age 10` |
+| `scatter` — точки по двум колонкам | `scatter age sum` |
 | `import файл`, `export файл.csv` | существующий файл не перезаписывается |
+
+## Удалённое управление
+
+Просмотрщик, запущенный с `--remote` (или с `remote = true` в `view.lua`), выполняет команды из другого окна:
+
+```bash
+dimaster view --send "q SELECT * FROM _ WHERE age > 30"
+```
+
+Принимаются все команды после `:` и `quit`. Команда уходит в последний открытый такой просмотрщик. Сокет лежит в `XDG_RUNTIME_DIR`, доступном только вам.
 
 ## view.lua
 
@@ -58,6 +74,7 @@ return {
   fit = false,           -- сразу уместить все колонки
   header = true,
   row_numbers = true,
+  remote = false,        -- принимать dimaster view --send
 
   -- "red", "bright_blue", номер 0–255, "#rrggbb"; false — без цвета
   colors = {

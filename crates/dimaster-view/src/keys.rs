@@ -169,10 +169,12 @@ fn tabs(app: &mut App, code: KeyCode) {
 
 fn submit(app: &mut App) {
     let line = std::mem::take(&mut app.input);
-    if app.mode == Mode::Command && !line.trim().is_empty() {
+    let command = app.mode == Mode::Command;
+    // команда может сама сменить режим, например открыть график
+    app.mode = Mode::Table;
+    if command && !line.trim().is_empty() {
         app.message = command::run(app, &line).unwrap_or_else(|e| e);
     }
-    app.mode = Mode::Table;
 }
 
 // набор команды или поиска; поиск применяется на каждую букву
@@ -197,6 +199,27 @@ fn typing(app: &mut App, code: KeyCode) {
 }
 
 impl App {
+    /// Команда извне, как набранная после `:`; `quit` закрывает программу.
+    pub(crate) fn remote(&mut self, line: &str) -> String {
+        self.mode = Mode::Table;
+        if line == "quit" {
+            self.done = true;
+            return "ok".to_owned();
+        }
+        let answer = command::run(self, line);
+        self.arrange();
+        match answer {
+            Ok(message) => {
+                self.message = message;
+                "ok".to_owned()
+            }
+            Err(e) => {
+                self.message.clone_from(&e);
+                format!("error: {e}")
+            }
+        }
+    }
+
     /// Обрабатывает нажатие клавиши.
     pub(crate) fn press(&mut self, key: KeyEvent) {
         let control = key.modifiers.contains(KeyModifiers::CONTROL);
@@ -210,6 +233,11 @@ impl App {
             }
             Mode::Record(json) => record(self, key.code, json),
             Mode::Tabs => tabs(self, key.code),
+            Mode::Plot => {
+                if matches!(key.code, KeyCode::Esc | KeyCode::Enter | KeyCode::Char('q')) {
+                    self.mode = Mode::Table;
+                }
+            }
             Mode::Command | Mode::Search => typing(self, key.code),
         }
         if !self.done {
@@ -264,6 +292,20 @@ mod tests {
         type_keys(&mut app, "q");
         assert!(!app.done);
         type_keys(&mut app, "x");
+        assert!(app.done);
+    }
+
+    #[test]
+    fn plots_and_remote_commands() {
+        let mut app = app();
+        type_keys(&mut app, ":hist age\n");
+        assert_eq!(app.mode, Mode::Plot);
+        type_keys(&mut app, "q");
+        assert_eq!((app.mode, app.done), (Mode::Table, false));
+        assert_eq!(app.remote("o age"), "ok");
+        assert_eq!(app.sheet().record()[0].1, "bob");
+        assert!(app.remote("nope").starts_with("error"));
+        app.remote("quit");
         assert!(app.done);
     }
 

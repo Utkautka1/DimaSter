@@ -4,6 +4,7 @@ use dimaster_config::Viewer;
 use dimaster_data::{DataError, Database};
 
 use crate::keys::{self, Bindings};
+use crate::plot::Plot;
 use crate::sheet::Sheet;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -17,6 +18,8 @@ pub(crate) enum Mode {
     Search,
     /// Список вкладок.
     Tabs,
+    /// График по текущей таблице.
+    Plot,
 }
 
 pub struct App {
@@ -35,6 +38,7 @@ pub struct App {
     /// Текст для буфера обмена, ждущий отправки терминалу.
     pub(crate) copied: Option<String>,
     pub(crate) done: bool,
+    pub(crate) plot: Option<Plot>,
     pub(crate) viewer: Viewer,
     pub(crate) keys: Bindings,
 }
@@ -60,6 +64,7 @@ impl App {
             page: 20,
             copied: None,
             done: false,
+            plot: None,
             viewer: Viewer::default(),
             keys: keys::bindings(&[]),
         })
