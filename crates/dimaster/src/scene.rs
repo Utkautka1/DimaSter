@@ -237,6 +237,7 @@ impl View {
             cursor: target.map(|_| pose.cursor),
             cursor_hidden: target.is_none() || pose.blink_hidden,
             unfocused: !self.focused,
+            shrink: pose.shrink,
             trail,
             rects: &rects,
         };

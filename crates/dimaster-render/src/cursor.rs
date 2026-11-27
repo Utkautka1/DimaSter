@@ -33,6 +33,15 @@ fn geometry(
     }
 }
 
+// сжатие к середине по высоте
+fn squeeze((at, size): ([f32; 2], [f32; 2]), shrink: f32) -> ([f32; 2], [f32; 2]) {
+    let cut = size[1] * shrink.clamp(0.0, 1.0);
+    (
+        [at[0], at[1] + cut / 2.0],
+        [size[0], (size[1] - cut).max(1.0)],
+    )
+}
+
 // четыре стороны рамки
 fn outline([x, y]: [f32; 2], [width, height]: [f32; 2], line: f32) -> [([f32; 2], [f32; 2]); 4] {
     [
@@ -77,13 +86,19 @@ impl Builder<'_> {
         }
     }
 
-    fn cursor_body(&mut self, shape: CursorShape, origin: [f32; 2], width: f32, hollow: bool) {
+    fn cursor_body(
+        &mut self,
+        shape: CursorShape,
+        origin: [f32; 2],
+        width: f32,
+        (hollow, shrink): (bool, f32),
+    ) {
         let metrics = self.fonts.metrics();
         let cell = [width, metrics.cell_height as f32];
         let look = self.look.cursor_look;
         let color = look.color.unwrap_or(self.look.cursor);
         let line = (metrics.line_thickness * 2) as f32;
-        let (at, size) = geometry(shape, look, origin, cell, line);
+        let (at, size) = squeeze(geometry(shape, look, origin, cell, line), shrink);
         if !hollow {
             return self.shaped(at, size, color, (look.opacity, look.radius));
         }
@@ -92,7 +107,12 @@ impl Builder<'_> {
         }
     }
 
-    pub(crate) fn cursor(&mut self, term: &Terminal, moved: Option<(f32, f32)>, unfocused: bool) {
+    pub(crate) fn cursor(
+        &mut self,
+        term: &Terminal,
+        moved: Option<(f32, f32)>,
+        (unfocused, shrink): (bool, f32),
+    ) {
         let cursor = term.cursor();
         let cells = &term.screen().rows()[cursor.row].cells;
         let cell = &cells[cursor.col];
@@ -103,7 +123,7 @@ impl Builder<'_> {
         let hollow = unfocused && self.look.cursor_look.hollow_unfocused;
         let shape = term.modes().cursor_shape;
         let origin = self.cell_origin(row, col);
-        self.cursor_body(shape, origin, self.cell_width(cell), hollow);
+        self.cursor_body(shape, origin, self.cell_width(cell), (hollow, shrink));
         // под неподвижным блоком символ перерисовывается контрастным цветом
         if shape == CursorShape::Block && !hollow && (row, col) == resting {
             let color = self
@@ -121,6 +141,12 @@ impl Builder<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn pulse_keeps_the_middle() {
+        let squeezed = squeeze(([0.0, 10.0], [2.0, 20.0]), 0.5);
+        assert_eq!(squeezed, ([0.0, 15.0], [2.0, 10.0]));
+    }
 
     #[test]
     fn shapes_respect_size_and_thickness() {

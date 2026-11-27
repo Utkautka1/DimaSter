@@ -77,6 +77,8 @@ pub struct Viewport<'a> {
     pub cursor_hidden: bool,
     /// Окно не в фокусе.
     pub unfocused: bool,
+    /// Доля высоты, на которую курсор сжат к середине; 0 — целый.
+    pub shrink: f32,
     /// Прошлые положения курсора для «хвоста».
     pub trail: &'a [(f32, f32)],
     /// Полоса прокрутки, свечение рамки.
@@ -111,7 +113,7 @@ impl Builder<'_> {
                 self.trail(term, view.trail);
                 let program_hides = !term.modes().cursor_visible && view.cursor.is_none();
                 if !program_hides {
-                    self.cursor(term, view.cursor, view.unfocused);
+                    self.cursor(term, view.cursor, (view.unfocused, view.shrink));
                 }
             }
         }

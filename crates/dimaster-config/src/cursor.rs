@@ -30,6 +30,11 @@ pub struct CursorLook {
     pub trail_distance: f32,
     pub trail_opacity: f32,
     pub trail_color: Option<u32>,
+    /// Курсор растёт из середины вверх и вниз и сжимается обратно.
+    pub pulse: bool,
+    // миллисекунды полного цикла и наименьшая доля высоты
+    pub pulse_period: u32,
+    pub pulse_min: f32,
 }
 
 impl Default for CursorLook {
@@ -50,6 +55,9 @@ impl Default for CursorLook {
             trail_distance: 1.5,
             trail_opacity: 0.35,
             trail_color: None,
+            pulse: false,
+            pulse_period: 1000,
+            pulse_min: 0.2,
         }
     }
 }
@@ -118,6 +126,14 @@ fn motion(table: &Table, look: &mut CursorLook) -> Done {
     color(table, "trail_color", &mut look.trail_color)
 }
 
+fn pulse(table: &Table, look: &mut CursorLook) -> Done {
+    if let Some(on) = table.get::<Option<bool>>("pulse")? {
+        look.pulse = on;
+    }
+    number(table, "pulse_period", (100, 10_000), &mut look.pulse_period)?;
+    number(table, "pulse_min", (0.0, 1.0), &mut look.pulse_min)
+}
+
 fn shape(name: &str, target: &mut CursorStyle) -> Done {
     *target = CursorStyle::parse(name).ok_or_else(|| ConfigError::new("cursor", name))?;
     Ok(())
@@ -133,7 +149,8 @@ pub(crate) fn apply(value: &Value, config: &mut Config) -> Done {
                 shape(&name, &mut config.cursor)?;
             }
             geometry(table, &mut config.cursor_look)?;
-            motion(table, &mut config.cursor_look)
+            motion(table, &mut config.cursor_look)?;
+            pulse(table, &mut config.cursor_look)
         }
         other => Err(ConfigError::new("cursor", other.type_name())),
     }

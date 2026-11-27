@@ -18,6 +18,8 @@ pub(crate) struct Pose {
     // сдвиг содержимого в пикселях
     pub(crate) offset: f32,
     pub(crate) blink_hidden: bool,
+    // на какую долю высоты курсор сейчас сжат пульсацией
+    pub(crate) shrink: f32,
 }
 
 #[derive(Debug)]
@@ -80,7 +82,19 @@ impl Animator {
             trail,
             offset: self.offset.round(),
             blink_hidden,
+            shrink: self.shrink(focused, now),
         }
+    }
+
+    // косинус даёт мягкий разворот в крайних точках; после ввода курсор целый
+    fn shrink(&self, focused: bool, now: Instant) -> f32 {
+        if !self.look.pulse || !focused {
+            return 0.0;
+        }
+        let period = self.look.pulse_period.max(1) as f32 / 1000.0;
+        let phase = now.duration_since(self.blink_from).as_secs_f32() / period;
+        let wave = (1.0 - (phase * std::f32::consts::TAU).cos()) / 2.0;
+        (1.0 - self.look.pulse_min) * wave
     }
 
     fn blink(&self) -> Duration {
@@ -146,7 +160,7 @@ impl Animator {
         focused: bool,
         now: Instant,
     ) -> Option<Instant> {
-        if self.moving {
+        if self.moving || (self.look.pulse && focused) {
             return Some(now + FRAME);
         }
         (effects.cursor_blink && focused).then(|| {
@@ -182,6 +196,22 @@ mod tests {
             .last();
         assert_eq!(end.unwrap().cursor, (0.0, 20.0));
         assert_eq!(animator.next_frame(effects, true, start + FRAME * 60), None);
+    }
+
+    #[test]
+    fn pulse_shrinks_and_returns() {
+        let start = Instant::now();
+        let mut animator = Animator::new(start);
+        (animator.look.pulse, animator.look.pulse_min) = (true, 0.2);
+        let at = |ms| animator.shrink(true, start + Duration::from_millis(ms));
+        assert!(at(0).abs() < 0.001 && (at(500) - 0.8).abs() < 0.001);
+        assert!(at(1000).abs() < 0.001);
+        assert_eq!(
+            animator.shrink(false, start + Duration::from_millis(500)),
+            0.0
+        );
+        let effects = Effects::default();
+        assert!(animator.next_frame(effects, true, start).is_some());
     }
 
     #[test]
