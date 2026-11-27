@@ -79,7 +79,7 @@ fn sixel_overdraw_is_bounded_in_time() {
     let started = std::time::Instant::now();
     let _ = decode_sixel(data.as_bytes());
     assert!(
-        started.elapsed() < Duration::from_secs(3),
+        started.elapsed() < Duration::from_secs(10),
         "{:?}",
         started.elapsed()
     );

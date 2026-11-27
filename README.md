@@ -61,10 +61,32 @@ Or run directly with Cargo:
 cargo run --release -p dimaster
 ```
 
-### Packaging
+### Packaging (Arch / CachyOS, Debian / Ubuntu, Fedora / openSUSE)
 
-- **Arch Linux / CachyOS (AUR)**: see [packaging/aur/PKGBUILD](packaging/aur/PKGBUILD).
-- **Debian / Ubuntu (`.deb`)**: run `./packaging/deb/build-deb.sh`.
+Prebuilt packages for every major Linux distribution are published on [GitHub Releases](https://github.com/Utkautka1/DimaSter/releases):
+
+- **Arch Linux / CachyOS (`pacman`)**:
+  ```sh
+  # Direct pacman install from Release:
+  curl -LO https://github.com/Utkautka1/DimaSter/releases/latest/download/dimaster-0.1.0-1-x86_64.pkg.tar.zst
+  sudo pacman -U dimaster-0.1.0-1-x86_64.pkg.tar.zst
+  ```
+  Or build locally via AUR-ready `PKGBUILD` ([packaging/aur/PKGBUILD](packaging/aur/PKGBUILD) or prebuilt [packaging/aur/dimaster-bin/PKGBUILD](packaging/aur/dimaster-bin/PKGBUILD)):
+  ```sh
+  cd packaging/aur && makepkg -si
+  ```
+- **Debian / Ubuntu / Linux Mint (`.deb`)**:
+  ```sh
+  curl -LO https://github.com/Utkautka1/DimaSter/releases/latest/download/dimaster_0.1.0_amd64.deb
+  sudo apt install ./dimaster_0.1.0_amd64.deb
+  ```
+  Or build locally: `./packaging/deb/build-deb.sh`
+- **Fedora / RHEL / openSUSE (`.rpm`)**:
+  ```sh
+  curl -LO https://github.com/Utkautka1/DimaSter/releases/latest/download/dimaster-0.1.0-1.x86_64.rpm
+  sudo dnf install ./dimaster-0.1.0-1.x86_64.rpm
+  ```
+  Or build locally: `./packaging/rpm/build-rpm.sh`
 
 ## Usage
 
