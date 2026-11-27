@@ -207,6 +207,7 @@ fn notice(table: &Table, ui: &mut Ui) -> Done {
     notice_look(table, ui)?;
     let style = &mut ui.notice;
     set(table, "copy", &mut style.copy)?;
+    set(table, "primary", &mut style.primary)?;
     set(table, "text", &mut style.text)?;
     set(table, "duration", &mut style.duration)?;
     style.duration = style.duration.clamp(200, 60_000);

@@ -282,3 +282,4 @@ dimaster.command("insert_date", dimaster.tr("Вставить сегодняшн
     notice = { -- плашка после копирования	    notice = { -- toast after copying
       -- text = " ✓ Скопировано: {count} ",	      -- text = " ✓ Copied: {count} ",
       -- свой вид (иначе как у panel): background, color, radius, padding, opacity	      -- own looks (otherwise as panel): background, color, radius, padding, opacity
+      -- primary = false, -- показывать и при простом выделении мышью	      -- primary = false, -- also show on plain mouse selection

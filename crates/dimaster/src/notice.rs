@@ -34,7 +34,8 @@ impl View {
             return;
         }
         let style = &self.config.ui.notice;
-        if style.copy {
+        // выделение мышью буфер Ctrl+V не меняет — это не «скопировано»
+        if style.copy && (style.primary || matches!(target, Target::Clipboard)) {
             let until = Instant::now() + Duration::from_millis(u64::from(style.duration));
             self.notice.shown = Some((message, until));
             self.window.request_redraw();

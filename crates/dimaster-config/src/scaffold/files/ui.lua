@@ -75,6 +75,7 @@ return {
 
     notice = { -- плашка после копирования
       -- copy = true,
+      -- primary = false, -- показывать и при простом выделении мышью
       -- text = " ✓ Скопировано: {count} ",
       -- duration = 1200,
       -- side = "right",

@@ -251,6 +251,8 @@ impl Default for Texts {
 #[derive(Debug, Clone, PartialEq)]
 pub struct NoticeStyle {
     pub copy: bool,
+    /// Показывать и при выделении мышью, когда текст идёт только в primary.
+    pub primary: bool,
     // `{count}`, `{lines}`, `{preview}`, `{target}`; `\n` — новая строка
     pub text: String,
     // миллисекунды на экране
@@ -267,6 +269,7 @@ impl Default for NoticeStyle {
     fn default() -> Self {
         Self {
             copy: true,
+            primary: false,
             text: " ✓ Скопировано: {count} ".to_owned(),
             duration: 1200,
             side: Align::Right,
