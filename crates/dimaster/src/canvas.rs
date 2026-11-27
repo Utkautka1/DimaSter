@@ -97,7 +97,10 @@ impl View {
             x: x as u32,
             y: y as u32,
             width: 0,
-            text: text.chars().take(500).collect(),
+            text: text
+                .chars()
+                .take(dimaster_limits::PLUGIN_LABEL_CHARS.size())
+                .collect(),
             color: paint.color.unwrap_or(self.config.theme.foreground),
             background: self.config.theme.background,
         }

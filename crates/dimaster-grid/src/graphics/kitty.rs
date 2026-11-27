@@ -12,13 +12,8 @@ use std::time::{Duration, Instant};
 
 use dimaster_image::{Animation, Frame, decode_base64, inflate_zlib};
 
-use super::store::LIMIT;
-use super::{MAX_IMAGE_ROWS, Picture, Then, VirtualPlacement};
+use super::{Picture, Then, VirtualPlacement};
 use crate::terminal::State;
-
-// предел на один файл или передачу по частям
-const MAX_PAYLOAD: usize = 64 * 1024 * 1024;
-const MAX_SIDE: usize = 8192;
 
 /// Ключи команды и накопленные base64-данные.
 #[derive(Debug, Default)]
@@ -102,7 +97,7 @@ fn open_checked(path: &Path) -> Option<File> {
     let opened = format!("/proc/self/fd/{}", file.as_raw_fd());
     let real = std::fs::read_link(opened).ok()?;
     let meta = file.metadata().ok()?;
-    let fits = meta.is_file() && meta.len() <= MAX_PAYLOAD as u64;
+    let fits = meta.is_file() && meta.len() <= dimaster_limits::KITTY_PAYLOAD_BYTES.size() as u64;
     (fits && is_readable_location(&real)).then_some(file)
 }
 
@@ -111,7 +106,7 @@ fn read_file(path: &[u8], temporary: bool) -> Option<Vec<u8>> {
     let path = Path::new(std::str::from_utf8(path).ok()?);
     let mut data = Vec::new();
     open_checked(path)?
-        .take(MAX_PAYLOAD as u64)
+        .take(dimaster_limits::KITTY_PAYLOAD_BYTES.size() as u64)
         .read_to_end(&mut data)
         .ok()?;
     if temporary && is_temporary(path) {
@@ -147,17 +142,20 @@ fn read_shm(_: &[u8]) -> Option<Vec<u8>> {
 
 fn read_bounded(file: File) -> Option<Vec<u8>> {
     let meta = file.metadata().ok()?;
-    if !meta.is_file() || meta.len() > MAX_PAYLOAD as u64 {
+    if !meta.is_file() || meta.len() > dimaster_limits::KITTY_PAYLOAD_BYTES.size() as u64 {
         return None;
     }
     let mut data = Vec::new();
-    file.take(MAX_PAYLOAD as u64).read_to_end(&mut data).ok()?;
+    file.take(dimaster_limits::KITTY_PAYLOAD_BYTES.size() as u64)
+        .read_to_end(&mut data)
+        .ok()?;
     Some(data)
 }
 
 fn raw_pixels(command: &Pending, data: Vec<u8>, depth: usize) -> Option<Animation> {
     let (width, height) = (command.number(b's') as usize, command.number(b'v') as usize);
-    let sizes = (1..=MAX_SIDE).contains(&width) && (1..=MAX_SIDE).contains(&height);
+    let sizes = (1..=dimaster_limits::KITTY_IMAGE_SIDE.size()).contains(&width)
+        && (1..=dimaster_limits::KITTY_IMAGE_SIDE.size()).contains(&height);
     if !sizes || data.len() < width * height * depth {
         return None;
     }
@@ -183,7 +181,7 @@ fn load(command: &Pending) -> Option<Loaded> {
         _ => return None,
     }
     if command.letter(b'o', 0) == b'z' {
-        data = inflate_zlib(&data, MAX_PAYLOAD * 4)?;
+        data = inflate_zlib(&data, dimaster_limits::KITTY_PAYLOAD_BYTES.size() * 4)?;
     }
     match command.number(b'f') {
         100 => Some(Loaded::File(data)),
@@ -254,7 +252,9 @@ fn add_frame(command: &Pending, anim: &mut Animation, source: &Animation) -> boo
     let index = command.number(b'r').checked_sub(1).map(|i| i as usize);
     let replaced = index.filter(|&i| i < anim.frames.len());
     // крошечная команда создаёт полный кадр: без предела память кончится
-    if replaced.is_none() && anim.bytes() + width * height * 4 > LIMIT {
+    if replaced.is_none()
+        && anim.bytes() + width * height * 4 > dimaster_limits::IMAGE_MEMORY_BYTES.size()
+    {
         return false;
     }
     let base = command.number(b'c').checked_sub(1);
@@ -286,7 +286,7 @@ impl State {
             }
             None => part,
         };
-        if command.data.len() > MAX_PAYLOAD {
+        if command.data.len() > dimaster_limits::KITTY_PAYLOAD_BYTES.size() {
             return;
         }
         if more {
@@ -361,8 +361,8 @@ impl State {
             let (cols, rows) = self.raw_image_cells(pw.max(1), ph.max(1), size(b'c'), size(b'r'));
             let placement = VirtualPlacement {
                 picture,
-                cols: cols.clamp(1, MAX_IMAGE_ROWS),
-                rows: rows.clamp(1, MAX_IMAGE_ROWS),
+                cols: cols.clamp(1, dimaster_limits::IMAGE_ROWS.size()),
+                rows: rows.clamp(1, dimaster_limits::IMAGE_ROWS.size()),
             };
             self.graphics.put_virtual(id, placement);
             return;

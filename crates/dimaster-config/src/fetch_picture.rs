@@ -4,9 +4,6 @@ use mlua::{Table, Value};
 
 use crate::ConfigError;
 
-// ячейки: защита от опечатки, которая заняла бы весь экран
-const MAX_CELLS: usize = 200;
-
 /// Где картинка относительно текста.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum PicturePosition {
@@ -54,7 +51,7 @@ impl Default for PictureStyle {
 
 fn cells(table: &Table, key: &str) -> mlua::Result<Option<usize>> {
     let value: Option<usize> = table.get(key)?;
-    Ok(value.map(|v| v.min(MAX_CELLS)))
+    Ok(value.map(|v| v.min(dimaster_limits::FETCH_PICTURE_CELLS.size())))
 }
 
 // название стиля или шесть своих символов

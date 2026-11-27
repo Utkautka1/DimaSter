@@ -8,12 +8,6 @@ use std::collections::{HashMap, HashSet};
 use crate::terminal::State;
 use crate::untrusted::clean;
 
-// номера укладываются в u16; 0 означает «не ссылка»
-const MAX_LINKS: usize = 4096;
-const MAX_URI: usize = 2048;
-// если уборка почти ничего не освободила, следующая — не раньше стольких ссылок
-const SWEEP_PAUSE: usize = 256;
-
 #[derive(Debug, Default)]
 pub(crate) struct Links {
     uris: Vec<String>,
@@ -31,7 +25,7 @@ impl Links {
         }
         let number = match self.free.pop() {
             Some(number) => number,
-            None if self.uris.len() < MAX_LINKS => {
+            None if self.uris.len() < dimaster_limits::HYPERLINKS.size() => {
                 self.uris.push(String::new());
                 self.uris.len() as u16
             }
@@ -44,7 +38,7 @@ impl Links {
 
     // пора ли освобождать номера ради нового адреса
     fn wants_sweep(&mut self, uri: &str) -> bool {
-        let full = self.free.is_empty() && self.uris.len() >= MAX_LINKS;
+        let full = self.free.is_empty() && self.uris.len() >= dimaster_limits::HYPERLINKS.size();
         if !full || self.numbers.contains_key(uri) {
             return false;
         }
@@ -57,8 +51,8 @@ impl Links {
         self.numbers.retain(|_, number| used.contains(number));
         let unused = (1..=self.uris.len() as u16).filter(|n| !used.contains(n));
         self.free = unused.collect();
-        if self.free.len() < SWEEP_PAUSE / 4 {
-            self.pause = SWEEP_PAUSE;
+        if self.free.len() < dimaster_limits::HYPERLINK_SWEEP_PAUSE.size() / 4 {
+            self.pause = dimaster_limits::HYPERLINK_SWEEP_PAUSE.size();
         }
     }
 
@@ -95,9 +89,10 @@ impl State {
             let used = self.used_links();
             self.links.sweep(&used);
         }
-        self.cursor.style.link = match uri.is_empty() || uri.len() > MAX_URI {
-            true => 0,
-            false => self.links.number(&uri),
-        };
+        self.cursor.style.link =
+            match uri.is_empty() || uri.len() > dimaster_limits::HYPERLINK_BYTES.size() {
+                true => 0,
+                false => self.links.number(&uri),
+            };
     }
 }

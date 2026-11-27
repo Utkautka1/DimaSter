@@ -125,9 +125,6 @@ pub struct VirtualPlacement {
     pub rows: usize,
 }
 
-/// Максимальная высота картинки в строках.
-pub const MAX_IMAGE_ROWS: usize = 500;
-
 impl State {
     /// APC: `G` — протокол Kitty, `D` — собственный протокол DimaSter.
     pub(crate) fn handle_apc(&mut self, data: &[u8]) {

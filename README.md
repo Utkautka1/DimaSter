@@ -236,6 +236,7 @@ cargo bench -p dimaster-grid
 | `dimaster-render` | `wgpu` renderer, glyph atlas, bidi, shader pipeline |
 | `dimaster-image` | PNG, GIF, and Sixel decoders (+ `ffmpeg` fallback) |
 | `dimaster-config` | Lua 5.4 config loader, Ghostty/Kitty/Alacritty importer, plugins |
+| `dimaster-limits` | Safety limits and internal values, adjustable from Lua (`limits`) |
 | `dimaster-i18n` | Built-in localization (`en`, `ru`, extensible via Lua) |
 | `dimaster` | Application window, input, modes, CLI, session restore |
 

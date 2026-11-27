@@ -6,8 +6,6 @@ use std::time::Duration;
 
 use dimaster_docker::capture;
 
-// вложенные Include глубже этого — почти наверняка цикл
-const MAX_INCLUDE: u8 = 3;
 // зависший демон Docker не должен надолго замораживать окно
 
 /// Имя уходит в командную строку: никаких пробелов, кавычек и ведущего `-`.
@@ -60,7 +58,9 @@ fn collect_hosts(file: &Path, ssh: &Path, depth: u8, out: &mut Vec<String>) {
             let names = words.filter(|w| safe_name(w) && !out.iter().any(|o| o == w));
             let names: Vec<String> = names.map(str::to_owned).collect();
             out.extend(names);
-        } else if keyword.eq_ignore_ascii_case("include") && depth < MAX_INCLUDE {
+        } else if keyword.eq_ignore_ascii_case("include")
+            && depth < dimaster_limits::SSH_INCLUDE_DEPTH.u8()
+        {
             let files = words.flat_map(|w| included(w, ssh));
             files.for_each(|f| collect_hosts(&f, ssh, depth + 1, out));
         }

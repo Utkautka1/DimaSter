@@ -36,7 +36,7 @@ pub use command::{Finished, SmartOptions, describe_exit};
 pub use cursor::Cursor;
 pub use extensions::{Policy, Progress};
 pub use graphics::{
-    DecodedImage, MAX_IMAGE_ROWS, PLACEHOLDER_CHAR, Picture, PlaceholderCell, Placement, SlowImage,
+    DecodedImage, PLACEHOLDER_CHAR, Picture, PlaceholderCell, Placement, SlowImage,
     VirtualPlacement, placeholder_info,
 };
 pub use modes::{CursorShape, Modes};

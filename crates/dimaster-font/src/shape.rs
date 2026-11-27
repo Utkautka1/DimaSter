@@ -29,9 +29,6 @@ pub struct ShapedGlyph {
     pub y: f32,
 }
 
-// кэш сбрасывается целиком: строки на экране повторяются, мусор — нет
-const CACHE_LIMIT: usize = 8192;
-
 const fn off(tag: &[u8; 4]) -> Feature {
     Feature {
         tag: Tag::from_bytes(tag),
@@ -65,7 +62,7 @@ impl FontSystem {
             }
             self.shape_segment(face, &text[start..end], start, &mut glyphs);
         }
-        if self.shaped.len() >= CACHE_LIMIT {
+        if self.shaped.len() >= dimaster_limits::SHAPE_CACHE.size() {
             self.shaped.clear();
         }
         let glyphs: Rc<[ShapedGlyph]> = glyphs.into();

@@ -14,7 +14,7 @@ use dimaster_i18n::tr;
 use std::cell::{Cell, RefCell};
 use std::path::Path;
 use std::rc::Rc;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use mlua::{Function, HookTriggers, Lua, Table, VmState};
 
@@ -22,9 +22,6 @@ use crate::context;
 
 pub use draw::{Paint, Shape};
 pub use status::{BarStyle, Segment, StatusBar, StatusLine};
-
-// дольше этого один вызов плагина выполняться не должен
-const BUDGET: Duration = Duration::from_millis(100);
 
 /// Что плагин может узнать о терминале в момент вызова.
 #[derive(Debug, Default, Clone)]
@@ -95,10 +92,15 @@ fn scripts(directory: &Path) -> Vec<std::path::PathBuf> {
 }
 
 // у каждого файла свой запас времени; сломанный не мешает остальным
+// до какого момента может работать следующий вызов Lua
+fn allowance() -> Instant {
+    Instant::now() + dimaster_limits::PLUGIN_BUDGET_MS.millis()
+}
+
 fn run_scripts(lua: &Lua, directory: &Path, deadline: &Cell<Instant>) -> Vec<String> {
     let mut errors = Vec::new();
     for path in scripts(directory) {
-        deadline.set(Instant::now() + BUDGET);
+        deadline.set(allowance());
         let name = path.display().to_string();
         let result = std::fs::read_to_string(&path)
             .map_err(mlua::Error::external)
@@ -146,7 +148,7 @@ impl Plugins {
         let lua = Lua::new();
         context::install(&lua, directory)?;
         let shared = Rc::new(Shared::default());
-        let deadline = Rc::new(Cell::new(Instant::now() + BUDGET));
+        let deadline = Rc::new(Cell::new(allowance()));
         limit_time(&lua, deadline.clone())?;
         api::install(&lua, &shared)?;
         let registry: Table = lua
@@ -154,7 +156,7 @@ impl Plugins {
             .set_name("prelude")
             .eval()?;
         let mut errors = run_scripts(&lua, directory, &deadline);
-        deadline.set(Instant::now() + BUDGET);
+        deadline.set(allowance());
         errors.extend(run_statusbar(&lua, directory).err());
         errors.extend(run_draw(&lua, directory).err());
         Ok((
@@ -171,7 +173,7 @@ impl Plugins {
 
     /// Заменяет строку статуса сценарием; `None` — вернуть `statusbar.lua`.
     pub fn set_bar(&self, source: Option<&str>) -> Result<(), String> {
-        self.deadline.set(Instant::now() + BUDGET);
+        self.deadline.set(allowance());
         match source {
             Some(source) => self
                 .lua
@@ -186,7 +188,7 @@ impl Plugins {
     // свежий снимок и новый запас времени перед вызовом Lua
     fn prepare_call(&self, snapshot: Snapshot) {
         *self.shared.snapshot.borrow_mut() = snapshot;
-        self.deadline.set(Instant::now() + BUDGET);
+        self.deadline.set(allowance());
     }
 
     fn call(&self, method: &str, arguments: impl mlua::IntoLuaMulti, snapshot: Snapshot) {

@@ -5,11 +5,6 @@ use mlua::{Function, Table, Value};
 use super::{Plugins, Snapshot};
 use crate::parse_color;
 
-const MAX_ROWS: usize = 5;
-const MAX_SEGMENTS: usize = 32;
-// пиксели: защита от опечатки, которая заняла бы всё окно
-const MAX_PIXELS: u32 = 200;
-
 /// Кусок строки.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Segment {
@@ -95,7 +90,9 @@ fn color(table: &Table, key: &str) -> Option<u32> {
 
 fn pixels(table: &Table, key: &str, default: u32) -> u32 {
     let value = table.get::<Option<u32>>(key).ok().flatten();
-    value.unwrap_or(default).min(MAX_PIXELS)
+    value
+        .unwrap_or(default)
+        .min(dimaster_limits::BAR_PIXELS.u32())
 }
 
 fn opacity(table: &Table) -> f32 {
@@ -150,7 +147,7 @@ fn side(table: &Table, key: &str) -> Vec<Segment> {
     list.sequence_values::<Value>()
         .flatten()
         .filter_map(segment)
-        .take(MAX_SEGMENTS)
+        .take(dimaster_limits::BAR_SEGMENTS.size())
         .collect()
 }
 
@@ -195,7 +192,7 @@ fn rows(table: &Table) -> Vec<StatusLine> {
     };
     list.sequence_values::<Table>()
         .flatten()
-        .take(MAX_ROWS)
+        .take(dimaster_limits::BAR_ROWS.size())
         .map(|row| line(&row))
         .collect()
 }

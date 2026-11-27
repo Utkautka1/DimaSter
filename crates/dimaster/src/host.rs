@@ -9,9 +9,6 @@ use crate::remote::Request;
 use crate::restore::open_window;
 use crate::view::View;
 
-// плагин, вызывающий действие из обработчика этого действия, не зациклит окно
-const MAX_DEPTH: u8 = 4;
-
 impl View {
     /// (Пере)загружает плагины и сообщает им о старте.
     pub(crate) fn load_plugins(&mut self) {
@@ -60,7 +57,7 @@ impl View {
     }
 
     pub(crate) fn apply_effects(&mut self, effects: Vec<Effect>) {
-        if self.plugin_depth >= MAX_DEPTH {
+        if self.plugin_depth >= dimaster_limits::PLUGIN_DEPTH.u8() {
             return log::warn!("{}", t!("Плагины вызывают друг друга по кругу"));
         }
         self.plugin_depth += 1;

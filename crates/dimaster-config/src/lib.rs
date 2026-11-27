@@ -15,6 +15,7 @@ mod help;
 pub mod import;
 mod keys;
 mod lang;
+mod limits;
 mod load;
 mod load_keys;
 mod load_smart;

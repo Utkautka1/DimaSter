@@ -8,6 +8,7 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+dimaster-limits.workspace = true
 arrow-array.workspace = true
 arrow-cast.workspace = true
 arrow-ipc.workspace = true

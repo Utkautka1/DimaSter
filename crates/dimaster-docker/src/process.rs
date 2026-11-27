@@ -6,9 +6,6 @@ use std::sync::mpsc::{Receiver, channel};
 use std::thread;
 use std::time::Duration;
 
-// больше мегабайтов эти программы не печатают
-const MAX_OUTPUT: u64 = 16 << 20;
-
 // чтение в своём потоке, чтобы программа не встала на полном канале
 fn reading(stream: Option<impl Read + Send + 'static>) -> Receiver<String> {
     let (send, receive) = channel();
@@ -16,7 +13,9 @@ fn reading(stream: Option<impl Read + Send + 'static>) -> Receiver<String> {
         let mut bytes = Vec::new();
         if let Some(stream) = stream {
             // оборванное чтение оставляет то, что успели получить
-            let _ = stream.take(MAX_OUTPUT).read_to_end(&mut bytes);
+            let _ = stream
+                .take(dimaster_limits::DOCKER_OUTPUT_BYTES.get())
+                .read_to_end(&mut bytes);
         }
         let _ = send.send(String::from_utf8_lossy(&bytes).into_owned());
     });

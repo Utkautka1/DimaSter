@@ -6,9 +6,6 @@ use crate::terminal::State;
 
 // поддерживаются все 5 флагов протокола Kitty (1|2|4|8|16)
 const SUPPORTED: u16 = 0b1_1111;
-// защита от программы, которая бесконечно кладёт флаги в стек
-const DEPTH: usize = 16;
-
 /// Флаги основного и альтернативного экранов независимы.
 #[derive(Debug, Default)]
 pub(crate) struct KeyboardStack {
@@ -25,7 +22,7 @@ impl KeyboardStack {
 
     fn push(&mut self, alternate: bool, flags: u16) {
         let stack = &mut self.stacks[usize::from(alternate)];
-        if stack.len() == DEPTH {
+        if stack.len() == dimaster_limits::KEYBOARD_STACK.size() {
             stack.remove(0);
         }
         stack.push(flags & SUPPORTED);

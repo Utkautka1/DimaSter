@@ -124,6 +124,8 @@ pub struct Config {
     pub help: Help,
     /// Тайминги и пределы.
     pub tuning: Tuning,
+    /// Изменённые защитные пределы: имя и значение.
+    pub limits: Vec<(String, u64)>,
     /// Свои команды для списка сниппетов.
     pub snippets: Vec<Snippet>,
     /// Полоса прокрутки с метками команд.
@@ -175,6 +177,7 @@ impl Default for Config {
             smart: Smart::default(),
             help: Help::default(),
             tuning: Tuning::default(),
+            limits: Vec::new(),
             snippets: Vec::new(),
             scrollbar: true,
             widgets: Widgets::default(),

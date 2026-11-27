@@ -5,9 +5,6 @@ use dimaster_data::{DataError, Database, Rows, Value};
 
 use crate::fuzzy;
 
-// по стольким первым строкам подбираются ширины колонок
-const SAMPLE: usize = 1000;
-
 // откуда вкладка взялась: сюда возвращает сброс
 enum Origin {
     Table(String),
@@ -148,6 +145,6 @@ impl Sheet {
 }
 
 fn sample(db: &Database, data: &Rows) -> Result<Vec<Vec<Value>>, DataError> {
-    let first: Vec<usize> = (0..data.len().min(SAMPLE)).collect();
+    let first: Vec<usize> = (0..data.len().min(dimaster_limits::VIEW_SAMPLE_ROWS.size())).collect();
     db.fetch(data, &first)
 }

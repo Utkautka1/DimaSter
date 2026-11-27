@@ -10,7 +10,8 @@ use crate::import::ghostty_theme;
 use crate::theme::builtin_source;
 use crate::{Config, CopyOnSelect, Decorations, Effects, Theme, WindowConfig, parse_color};
 use crate::{
-    context, cursor, help, load_keys, load_smart, load_ui, programs, snippets, tuning, widgets,
+    context, cursor, help, limits, load_keys, load_smart, load_ui, programs, snippets, tuning,
+    widgets,
 };
 
 /// Понятное человеку описание того, что не так в конфиге.
@@ -246,7 +247,7 @@ fn apply_general(table: &Table, config: &mut Config) -> Result<(), ConfigError> 
     cursor::apply(&table.get("cursor")?, config)?;
     if let Some(lines) = table.get::<Option<usize>>("scrollback")? {
         // верхняя граница защищает память от опечатки
-        config.scrollback = lines.min(1_000_000);
+        config.scrollback = lines.min(dimaster_limits::SCROLLBACK_MAX.size());
     }
     config.shell = table
         .get::<Option<Vec<String>>>("shell")?
@@ -325,6 +326,9 @@ fn apply_extras(table: &Table, config: &mut Config) -> Result<(), ConfigError> {
     if let Some(tuning_table) = table.get::<Option<Table>>("tuning")? {
         tuning::apply(&tuning_table, &mut config.tuning)?;
     }
+    if let Some(limits_table) = table.get::<Option<Table>>("limits")? {
+        limits::apply(&limits_table, &mut config.limits)?;
+    }
     Ok(())
 }
 
@@ -347,7 +351,7 @@ fn apply_sections(table: &Table, config: &mut Config) -> Result<(), ConfigError>
     if let Some(session) = table.get::<Option<Table>>("session")? {
         flag(&session, "restore", &mut config.restore_session)?;
         if let Some(lines) = session.get::<Option<usize>>("history_lines")? {
-            config.session_history = lines.min(100_000);
+            config.session_history = lines.min(dimaster_limits::SESSION_LINES_MAX.size());
         }
     }
     Ok(())

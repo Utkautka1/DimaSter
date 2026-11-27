@@ -8,6 +8,7 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+dimaster-limits.workspace = true
 libc.workspace = true
 dimaster-docker.workspace = true
 dimaster-i18n.workspace = true

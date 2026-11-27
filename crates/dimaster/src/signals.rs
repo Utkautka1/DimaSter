@@ -11,10 +11,6 @@ use winit::window::{CursorIcon, UserAttentionType};
 use crate::desktop;
 use crate::view::View;
 
-// чаще этого звонок не повторяется: `yes $'\a'` не должен плодить процессы
-const QUIET: Duration = Duration::from_millis(300);
-const FRAME: u32 = 4;
-
 /// Что окно помнит о звонках.
 #[derive(Debug, Default)]
 pub(crate) struct Ringer {
@@ -38,7 +34,10 @@ impl View {
     /// Замечает новые звонки в разобранном выводе.
     pub(crate) fn check_bell(&mut self) {
         let bells = self.term.bells();
-        let quiet = self.ringer.since.is_some_and(|t| t.elapsed() < QUIET);
+        let quiet = self
+            .ringer
+            .since
+            .is_some_and(|t| t.elapsed() < dimaster_limits::BELL_QUIET_MS.millis());
         if bells == self.ringer.heard || quiet {
             self.ringer.heard = bells;
             return;
@@ -71,17 +70,23 @@ impl View {
             .since
             .is_some_and(|t| t.elapsed() < Duration::from_millis(self.config.tuning.bell_flash));
         if lit && self.config.bell.flash {
-            let size = self.window.inner_size();
-            let (w, h, color) = (size.width, size.height, self.config.bell.color);
-            let sides = [
-                (0, 0, w, FRAME),
-                (0, h.saturating_sub(FRAME), w, FRAME),
-                (0, 0, FRAME, h),
-                (w.saturating_sub(FRAME), 0, FRAME, h),
-            ];
-            rects.extend(sides.map(|(x, y, w, h)| self.plain_rect(x, y, (w, h), color)));
+            rects.extend(self.flash_frame());
         }
         rects
+    }
+
+    // четыре стороны вспышки звонка
+    fn flash_frame(&self) -> [Rect; 4] {
+        let size = self.window.inner_size();
+        let (w, h, color) = (size.width, size.height, self.config.bell.color);
+        let t = dimaster_limits::BELL_FRAME_PX.u32();
+        [
+            (0, 0, w, t),
+            (0, h.saturating_sub(t), w, t),
+            (0, 0, t, h),
+            (w.saturating_sub(t), 0, t, h),
+        ]
+        .map(|(x, y, w, h)| self.plain_rect(x, y, (w, h), color))
     }
 
     fn progress_rect(&self) -> Option<Rect> {

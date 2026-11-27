@@ -2,14 +2,11 @@
 
 use std::sync::Arc;
 
-use super::{MAX_IMAGE_ROWS, Picture, Placement};
+use super::{Picture, Placement};
 use crate::terminal::State;
 
 // размер ячейки, когда окна нет (headless и тесты)
 const FALLBACK_CELL: (usize, usize) = (10, 20);
-// защита от потока картинок в одну и ту же строку
-const PER_ROW: usize = 64;
-
 impl State {
     pub(crate) fn cell_size(&self) -> (usize, usize) {
         match self.cell_pixels {
@@ -58,7 +55,10 @@ impl State {
         } else {
             rows
         };
-        (cols.min(available), rows.clamp(1, MAX_IMAGE_ROWS))
+        (
+            cols.min(available),
+            rows.clamp(1, dimaster_limits::IMAGE_ROWS.size()),
+        )
     }
 
     /// Показывает картинку в позиции курсора, не двигая его.
@@ -75,7 +75,7 @@ impl State {
         let col = self.cursor.col;
         let images = &mut self.screen.rows[self.cursor.row].images;
         images.retain(|p| p.col != col);
-        if images.len() == PER_ROW {
+        if images.len() == dimaster_limits::IMAGES_PER_ROW.size() {
             images.remove(0);
         }
         let (cols, rows) = cells;
@@ -109,7 +109,13 @@ impl State {
         for row in &mut self.screen.rows {
             row.images.retain(|p| !doomed(p));
         }
-        for row in self.screen.history.iter_mut().rev().take(MAX_IMAGE_ROWS) {
+        for row in self
+            .screen
+            .history
+            .iter_mut()
+            .rev()
+            .take(dimaster_limits::IMAGE_ROWS.size())
+        {
             row.images.retain(|p| !doomed(p));
         }
     }
@@ -117,7 +123,7 @@ impl State {
     /// Очистка экрана убирает и картинки, свисающие в него из истории.
     pub(crate) fn remove_overhanging_images(&mut self) {
         for (distance, row) in self.screen.history.iter_mut().rev().enumerate() {
-            if distance >= MAX_IMAGE_ROWS {
+            if distance >= dimaster_limits::IMAGE_ROWS.size() {
                 break;
             }
             row.images.retain(|p| p.rows <= distance + 1);

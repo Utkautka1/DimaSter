@@ -4,8 +4,6 @@
 
 use crate::Theme;
 
-// хватает для оценки тона: все пиксели большой картинки считать незачем
-const SAMPLES: usize = 20_000;
 // оттенки red, green, yellow, blue, magenta, cyan в градусах
 const HUES: [f32; 6] = [355.0, 125.0, 45.0, 220.0, 305.0, 185.0];
 
@@ -56,7 +54,7 @@ fn hsl(hue: f32, saturation: f32, light: f32) -> u32 {
 // общий тон, акцент по насыщенным пикселям и средняя яркость
 fn measure(rgba: &[u8]) -> (f32, f32, f32) {
     let (mut all, mut vivid, mut light) = (Mix::default(), Mix::default(), 0.0);
-    let step = (rgba.len() / 4 / SAMPLES).max(1);
+    let step = (rgba.len() / 4 / dimaster_limits::PHOTO_SAMPLES.size()).max(1);
     for pixel in rgba.as_chunks::<4>().0.iter().step_by(step) {
         let rgb = [pixel[0], pixel[1], pixel[2]].map(|v| f32::from(v) / 255.0);
         let max = rgb[0].max(rgb[1]).max(rgb[2]);

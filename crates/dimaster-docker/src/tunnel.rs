@@ -11,7 +11,7 @@ use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Mutex, MutexGuard, PoisonError};
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use crate::process::capture;
 use crate::timing::{get, seconds};
@@ -94,7 +94,7 @@ fn answers(child: &mut Child, socket: &Path) -> bool {
         if !matches!(child.try_wait(), Ok(None)) || Instant::now() > deadline {
             return false;
         }
-        thread::sleep(Duration::from_millis(50));
+        thread::sleep(dimaster_limits::TUNNEL_POLL_MS.millis());
     }
     let mut check = Command::new("docker");
     check.arg("-H").arg(format!("unix://{}", socket.display()));

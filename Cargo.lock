@@ -1013,6 +1013,7 @@ dependencies = [
  "dimaster-grid",
  "dimaster-i18n",
  "dimaster-image",
+ "dimaster-limits",
  "dimaster-pty",
  "dimaster-render",
  "dimaster-view",
@@ -1031,6 +1032,7 @@ name = "dimaster-config"
 version = "0.3.0"
 dependencies = [
  "dimaster-i18n",
+ "dimaster-limits",
  "log",
  "mlua",
  "toml",
@@ -1047,6 +1049,7 @@ dependencies = [
  "bytes",
  "calamine",
  "csv",
+ "dimaster-limits",
  "parquet",
  "rusqlite",
  "rust_xlsxwriter",
@@ -1061,6 +1064,7 @@ dependencies = [
  "crossterm",
  "dimaster-config",
  "dimaster-i18n",
+ "dimaster-limits",
  "dimaster-view",
  "dimaster-vt",
  "serde_json",
@@ -1073,6 +1077,7 @@ version = "0.3.0"
 dependencies = [
  "dimaster-i18n",
  "dimaster-image",
+ "dimaster-limits",
  "fontdb",
  "log",
  "rustybuzz",
@@ -1086,6 +1091,7 @@ dependencies = [
  "criterion",
  "dimaster-i18n",
  "dimaster-image",
+ "dimaster-limits",
  "dimaster-vt",
  "libc",
  "log",
@@ -1103,8 +1109,13 @@ version = "0.3.0"
 name = "dimaster-image"
 version = "0.3.0"
 dependencies = [
+ "dimaster-limits",
  "proptest",
 ]
+
+[[package]]
+name = "dimaster-limits"
+version = "0.3.0"
 
 [[package]]
 name = "dimaster-pty"
@@ -1123,6 +1134,7 @@ dependencies = [
  "dimaster-font",
  "dimaster-grid",
  "dimaster-i18n",
+ "dimaster-limits",
  "log",
  "naga",
  "pollster",
@@ -1139,6 +1151,7 @@ dependencies = [
  "dimaster-data",
  "dimaster-i18n",
  "dimaster-image",
+ "dimaster-limits",
  "unicode-width",
 ]
 
@@ -1146,6 +1159,7 @@ dependencies = [
 name = "dimaster-vt"
 version = "0.3.0"
 dependencies = [
+ "dimaster-limits",
  "proptest",
 ]
 

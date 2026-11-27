@@ -374,3 +374,68 @@ Docker: управление	Docker: manage
 ГБ	GB
       -- system = " система  CPU {cpu}%  {memory} ", -- пока ничего не запущено	      -- system = " system  CPU {cpu}%  {memory} ", -- while nothing is running
 --       system_cpu, system_memory — вся машина.	--       system_cpu, system_memory — the whole machine.
+больше — программа может занять всю память одной escape-строкой	bigger: a program can fill memory with one escape string
+больше — программа может положить в буфер обмена огромный текст	bigger: a program can put huge text into the clipboard
+больше — длинные заголовки и пути от программ занимают память	bigger: long titles and paths from programs use memory
+больше — растёт память под ссылки	bigger: more memory for links
+больше — программа может подсунуть огромный адрес	bigger: a program can send a huge address
+меньше — частая очистка ссылок тормозит вывод	smaller: frequent link cleanup slows output
+больше — картинки могут занять всю память	bigger: images can fill all memory
+больше — декодирование картинок может занять всю память	bigger: image decoding can fill all memory
+больше — медленная прокрутка с картинками	bigger: slow scrolling with images
+больше — медленная отрисовка строки	bigger: slow line drawing
+больше — программа может прислать или прочитать огромный файл	bigger: a program can send or read a huge file
+больше — огромная картинка займёт всю память	bigger: a huge image fills all memory
+больше — программы копят режимы клавиатуры	bigger: programs pile up keyboard modes
+больше — огромный PNG займёт всю память	bigger: a huge PNG fills all memory
+больше — Sixel может занять всю память	bigger: Sixel can fill all memory
+больше — Sixel может надолго подвесить окно	bigger: Sixel can freeze the window for long
+больше — огромный GIF займёт всю память	bigger: a huge GIF fills all memory
+больше — анимация может занять всю память	bigger: animation can fill all memory
+секунды; больше — зависший ffmpeg дольше держит окно	seconds; bigger: a hung ffmpeg holds the window longer
+больше — вывод ffmpeg может занять всю память	bigger: ffmpeg output can fill all memory
+больше — клиент dimaster ctl может занять память	bigger: a dimaster ctl client can use up memory
+секунды; больше — зависший клиент дольше держит соединение	seconds; bigger: a hung client keeps the connection longer
+больше — ответы программе, которая их не читает, копятся в памяти	bigger: unread replies to a program pile up in memory
+меньше — выше нагрузка на процессор и видеокарту	smaller: more CPU and GPU load
+больше — зависшая программа дольше замораживает экран	bigger: a hung program freezes the screen longer
+меньше — shell может получить неверный размер окна	smaller: the shell may get a wrong window size
+меньше — частый звонок плодит процессы	smaller: a frequent bell spawns many processes
+толщина рамки вспышки	thickness of the flash frame
+меньше — подсветка команд чаще читает диск	smaller: highlighting reads the disk more often
+секунды; больше — зависший датчик дольше не обновляется	seconds; bigger: a hung sensor stays stale longer
+больше — плагины получают больше вывода и тормозят	bigger: plugins get more output and slow down
+больше — настройки от плагинов копятся в памяти	bigger: plugin settings pile up in memory
+больше — плагины, вызывающие друг друга, могут подвесить окно	bigger: plugins calling each other can freeze the window
+больше — зацикленные Include в ssh_config читаются дольше	bigger: looped Include in ssh_config is read longer
+больше — плагин может завалить окно действиями	bigger: a plugin can flood the window with actions
+больше — медленный плагин подвешивает окно	bigger: a slow plugin freezes the window
+больше — рисунок плагина тормозит отрисовку	bigger: plugin drawing slows rendering
+больше — сложные фигуры тормозят отрисовку	bigger: complex shapes slow rendering
+больше — строка статуса закрывает терминал	bigger: the status bar covers the terminal
+больше — строка статуса тормозит отрисовку	bigger: the status bar slows rendering
+больше — отступы бара могут занять всё окно	bigger: bar margins can take the whole window
+больше — зацикленный импорт читается дольше	bigger: looped imports are read longer
+больше — картинка fetch заполняет весь экран	bigger: the fetch picture fills the screen
+больше — дольше подбираются цвета по картинке	bigger: colors from a picture take longer
+меньше — медленнее отрисовка; больше — растёт память	smaller: slower rendering; bigger: more memory
+меньше — угловатые буквы; больше — медленнее	smaller: jagged letters; bigger: slower
+больше — журналы занимают память	bigger: logs use memory
+больше — одна строка журнала занимает память	bigger: one log line uses memory
+меньше — журналы отстают	smaller: logs lag behind
+больше — вывод docker может занять всю память	bigger: docker output can fill all memory
+больше — клиент view --send может занять память	bigger: a view --send client can use up memory
+больше — дольше открываются таблицы	bigger: tables open longer
+  -- защитные пределы: раскомментируйте строку, чтобы изменить	  -- safety limits: uncomment a line to change it
+меньше — долгие запросы view обрываются; больше — зависший держит программу	smaller: long view queries are cut; bigger: a stuck one holds the program
+больше — результат запроса может занять всю память	bigger: a query result can fill all memory
+больше — сложный поиск может занять всю память	bigger: a complex search can fill all memory
+меньше — выше нагрузка на процессор	smaller: more CPU and GPU load
+секунды ожидания окна view --remote	seconds to wait for a view --remote window
+секунды ожидания ответа view --send	seconds to wait for a view --send reply
+меньше — выше нагрузка; больше — экраны view и docker отстают	smaller: more load; bigger: view and docker screens lag
+больше — после паузы курсор прыгает	bigger: the cursor jumps after a pause
+больше — длинные подписи плагинов тормозят отрисовку	bigger: long plugin labels slow rendering
+больше — анимации картинок идут рывками	bigger: image animations stutter
+больше — история может занять всю память	bigger: scrollback can fill all memory
+больше — сохранённая сессия занимает диск	bigger: a saved session fills the disk

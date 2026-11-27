@@ -62,7 +62,7 @@ pub fn search_pattern(query: &str, regex: bool) -> Option<Regex> {
     };
     RegexBuilder::new(&source)
         .case_insensitive(!query.chars().any(char::is_uppercase))
-        .size_limit(1 << 20)
+        .size_limit(dimaster_limits::REGEX_BYTES.size())
         .build()
         .ok()
 }

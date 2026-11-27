@@ -12,10 +12,7 @@ use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{Sender, channel};
 use std::thread;
-use std::time::Duration;
 
-const MAX_REQUEST: u64 = 1 << 20;
-const TIMEOUT: Duration = Duration::from_secs(3);
 const USAGE: &str = "dimaster ctl [list | info | get-text | send-text <текст> | action <имя> | set-title <текст> | reload | new-window]";
 
 /// Запрос, который выполняет окно.
@@ -76,10 +73,12 @@ fn parse(raw: &[u8]) -> Vec<String> {
 }
 
 fn serve(mut stream: UnixStream, deliver: &impl Fn(Request)) -> io::Result<()> {
-    stream.set_read_timeout(Some(TIMEOUT))?;
-    stream.set_write_timeout(Some(TIMEOUT))?;
+    stream.set_read_timeout(Some(dimaster_limits::REMOTE_TIMEOUT.secs()))?;
+    stream.set_write_timeout(Some(dimaster_limits::REMOTE_TIMEOUT.secs()))?;
     let mut raw = Vec::new();
-    (&mut stream).take(MAX_REQUEST).read_to_end(&mut raw)?;
+    (&mut stream)
+        .take(dimaster_limits::REMOTE_REQUEST_BYTES.get())
+        .read_to_end(&mut raw)?;
     if raw.is_empty() {
         return Ok(());
     }
@@ -89,7 +88,7 @@ fn serve(mut stream: UnixStream, deliver: &impl Fn(Request)) -> io::Result<()> {
         reply,
     });
     let result = answer
-        .recv_timeout(TIMEOUT)
+        .recv_timeout(dimaster_limits::REMOTE_TIMEOUT.secs())
         .unwrap_or_else(|_| Err(tr("окно не ответило")));
     match result {
         Ok(text) => write!(stream, "ok\n{text}"),
@@ -114,7 +113,7 @@ pub(crate) fn listen(deliver: impl Fn(Request) + Send + 'static) -> Option<Serve
 
 fn call(socket: &Path, args: &[String]) -> io::Result<String> {
     let mut stream = UnixStream::connect(socket)?;
-    stream.set_read_timeout(Some(TIMEOUT * 2))?;
+    stream.set_read_timeout(Some(dimaster_limits::REMOTE_TIMEOUT.secs() * 2))?;
     stream.write_all(args.join("\0").as_bytes())?;
     stream.shutdown(std::net::Shutdown::Write)?;
     let mut answer = String::new();

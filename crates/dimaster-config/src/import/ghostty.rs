@@ -136,7 +136,7 @@ fn behavior_flags(key: &str, value: &str, config: &mut Config) {
     match key {
         "scrollback-limit" => {
             if let Ok(v) = value.parse::<usize>() {
-                config.scrollback = v.min(1_000_000);
+                config.scrollback = v.min(dimaster_limits::SCROLLBACK_MAX.size());
             }
         }
         "clipboard-write" => config.clipboard_write = !matches!(value, "deny" | "false"),

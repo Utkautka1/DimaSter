@@ -4,10 +4,6 @@ use std::collections::BTreeMap;
 
 use crate::Image;
 
-const MAX_SIDE: usize = 4096;
-// сколько раз можно закрасить пиксель: повторы поверх тех же мест не растят
-// картинку, но без предела подвешивают терминал на минуты
-const PAINT_BUDGET: usize = 8_000_000;
 // первые 16 регистров VT340
 const DEFAULT_COLORS: [u32; 16] = [
     0x000000, 0x3333cc, 0xcc2121, 0x33cc33, 0xcc33cc, 0x33cccc, 0xcccc33, 0x878787, 0x424242,
@@ -91,9 +87,9 @@ impl Canvas {
 
     fn paint(&mut self, sixel: u8, repeat: usize) {
         let bits = sixel - b'?';
-        let end = (self.x + repeat).min(MAX_SIDE);
+        let end = (self.x + repeat).min(dimaster_limits::SIXEL_SIDE.size());
         let top = self.band * 6;
-        if top + 6 <= MAX_SIDE {
+        if top + 6 <= dimaster_limits::SIXEL_SIDE.size() {
             let rgb = self.rgb();
             self.painted += (end - self.x) * bits.count_ones() as usize;
             for row in (0..6).filter(|row| bits & (1 << row) != 0) {
@@ -110,7 +106,8 @@ impl Canvas {
         match byte {
             b'#' => self.select(&numbers(data)),
             b'!' => {
-                let repeat = number(data).clamp(1, MAX_SIDE as u32) as usize;
+                let repeat =
+                    number(data).clamp(1, dimaster_limits::SIXEL_SIDE.size() as u32) as usize;
                 if let Some((&sixel @ b'?'..=b'~', rest)) = data.split_first() {
                     *data = rest;
                     self.paint(sixel, repeat);
@@ -119,7 +116,7 @@ impl Canvas {
             // растровые атрибуты задают минимальный размер картинки
             b'"' => {
                 if let [_, _, width, height] = numbers(data)[..] {
-                    let clamp = |v: u32| (v as usize).min(MAX_SIDE);
+                    let clamp = |v: u32| (v as usize).min(dimaster_limits::SIXEL_SIDE.size());
                     self.size = (
                         self.size.0.max(clamp(width)),
                         self.size.1.max(clamp(height)),
@@ -160,7 +157,9 @@ pub fn decode_sixel(mut data: &[u8]) -> Option<Image> {
     while let Some((&byte, rest)) = data.split_first() {
         data = rest;
         canvas.command(byte, &mut data);
-        if canvas.pixels.len() > 4_000_000 || canvas.painted > PAINT_BUDGET {
+        if canvas.pixels.len() > dimaster_limits::SIXEL_PIXELS.size()
+            || canvas.painted > dimaster_limits::SIXEL_PAINT_BUDGET.size()
+        {
             break;
         }
     }

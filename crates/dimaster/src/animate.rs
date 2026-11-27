@@ -7,8 +7,6 @@ use std::time::{Duration, Instant};
 
 use dimaster_config::{CursorLook, Effects};
 
-const FRAME: Duration = Duration::from_millis(16);
-
 /// Что нарисовать в этом кадре.
 #[derive(Debug, Default)]
 pub(crate) struct Pose {
@@ -57,6 +55,16 @@ impl Animator {
         self.offset = (self.offset + pixels).clamp(-limit, limit);
     }
 
+    // секунды с прошлого кадра; после простоя не делаем один огромный шаг
+    fn step(&self, now: Instant) -> f32 {
+        let longest = dimaster_limits::ANIMATION_STEP_MS.millis();
+        match self.moving {
+            true => now.duration_since(self.last).min(longest),
+            false => dimaster_limits::ANIMATION_FRAME_MS.millis(),
+        }
+        .as_secs_f32()
+    }
+
     pub(crate) fn tick(
         &mut self,
         target: (f32, f32),
@@ -64,9 +72,7 @@ impl Animator {
         focused: bool,
         now: Instant,
     ) -> Pose {
-        // после простоя не делаем один огромный шаг
-        let elapsed = now.duration_since(self.last).min(Duration::from_millis(50));
-        let step = if self.moving { elapsed } else { FRAME }.as_secs_f32();
+        let step = self.step(now);
         let factor = 1.0 - (-step * self.look.speed).exp();
         self.last = now;
         let (cursor, trail) = self.move_cursor(target, effects, (factor, step));
@@ -161,7 +167,7 @@ impl Animator {
         now: Instant,
     ) -> Option<Instant> {
         if self.moving || (self.look.pulse && focused) {
-            return Some(now + FRAME);
+            return Some(now + dimaster_limits::ANIMATION_FRAME_MS.millis());
         }
         (effects.cursor_blink && focused).then(|| {
             let blink = self.blink();
@@ -182,20 +188,21 @@ mod tests {
     #[test]
     fn cursor_converges_and_stops() {
         let start = Instant::now();
+        let frame = dimaster_limits::ANIMATION_FRAME_MS.millis();
         let mut animator = Animator::new(start);
         let effects = Effects {
             cursor_trail: true,
             ..Effects::default()
         };
         animator.tick((0.0, 0.0), effects, true, start);
-        let first = animator.tick((0.0, 20.0), effects, true, start + FRAME);
+        let first = animator.tick((0.0, 20.0), effects, true, start + frame);
         assert!(first.cursor.1 > 0.0 && first.cursor.1 < 20.0);
         assert!(!first.trail.is_empty());
         let end = (2..60)
-            .map(|i| animator.tick((0.0, 20.0), effects, true, start + FRAME * i))
+            .map(|i| animator.tick((0.0, 20.0), effects, true, start + frame * i))
             .last();
         assert_eq!(end.unwrap().cursor, (0.0, 20.0));
-        assert_eq!(animator.next_frame(effects, true, start + FRAME * 60), None);
+        assert_eq!(animator.next_frame(effects, true, start + frame * 60), None);
     }
 
     #[test]
@@ -221,7 +228,12 @@ mod tests {
         (animator.look.linear, animator.look.speed) = (true, 100.0);
         let effects = Effects::default();
         animator.tick((0.0, 0.0), effects, true, start);
-        let first = animator.tick((0.0, 20.0), effects, true, start + FRAME);
+        let first = animator.tick(
+            (0.0, 20.0),
+            effects,
+            true,
+            start + dimaster_limits::ANIMATION_FRAME_MS.millis(),
+        );
         assert!((first.cursor.1 - 1.6).abs() < 0.01, "{:?}", first.cursor);
     }
 }

@@ -8,11 +8,6 @@ use dimaster_i18n::t;
 use crate::settings;
 use crate::view::View;
 
-// сколько строк истории видит обработчик
-const HISTORY_LINES: u64 = 1000;
-// столько разных таблиц `dimaster.set` помнится одновременно
-const MAX_OVERRIDES: usize = 64;
-
 #[derive(Debug)]
 struct Timer {
     due: Instant,
@@ -33,7 +28,7 @@ pub(crate) struct Hooks {
 fn remember(overrides: &mut Vec<String>, literal: String) {
     overrides.retain(|old| *old != literal);
     overrides.push(literal);
-    if overrides.len() > MAX_OVERRIDES {
+    if overrides.len() > dimaster_limits::PLUGIN_OVERRIDES.size() {
         overrides.remove(0);
     }
 }
@@ -60,7 +55,10 @@ impl View {
     // история собирается только там, где обработчик может её спросить
     pub(crate) fn full_snapshot(&self) -> Snapshot {
         let range = self.term.line_range();
-        let from = range.end.saturating_sub(HISTORY_LINES).max(range.start);
+        let from = range
+            .end
+            .saturating_sub(dimaster_limits::PLUGIN_HISTORY_LINES.get())
+            .max(range.start);
         let lines: Vec<String> = (from..range.end)
             .filter_map(|line| self.term.line(line).map(|row| row.text()))
             .collect();
@@ -138,6 +136,6 @@ mod tests {
         }
         assert_eq!(list, ["b", "a"]);
         (0..100).for_each(|i| remember(&mut list, i.to_string()));
-        assert_eq!(list.len(), MAX_OVERRIDES);
+        assert_eq!(list.len(), dimaster_limits::PLUGIN_OVERRIDES.size());
     }
 }

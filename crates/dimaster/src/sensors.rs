@@ -18,9 +18,6 @@ use crate::system;
 
 // тактов в секунде в /proc/<pid>/stat на всех распространённых ядрах
 const TICKS: f64 = 100.0;
-// дольше этого git и docker не ждут: иначе виджеты замирают
-const TIMEOUT: Duration = Duration::from_secs(5);
-
 pub(crate) type Facts = Vec<(String, String)>;
 
 /// Что нужно знать потоку сбора; обновляется окном.
@@ -85,7 +82,7 @@ fn foreground(shell: u32) -> Option<(String, u64, u64)> {
 fn output(program: &str, args: &[&str], directory: &Path) -> Option<String> {
     let mut command = Command::new(program);
     command.args(args).current_dir(directory);
-    capture(command, TIMEOUT).ok()
+    capture(command, dimaster_limits::SENSOR_TIMEOUT.secs()).ok()
 }
 
 // каталог .git этого репозитория; в worktree вместо него файл со ссылкой

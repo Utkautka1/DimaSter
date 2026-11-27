@@ -8,9 +8,6 @@ use std::collections::BTreeMap;
 use super::Placement;
 use crate::terminal::State;
 
-// суммарный объём пикселей всех различных картинок
-const LIMIT: usize = 256 * 1024 * 1024;
-
 // номера растут со временем, поэтому порядок ключей — порядок появления
 fn doomed<'a>(placements: impl Iterator<Item = &'a Placement>) -> Option<u64> {
     let sizes: BTreeMap<u64, usize> = placements
@@ -19,7 +16,7 @@ fn doomed<'a>(placements: impl Iterator<Item = &'a Placement>) -> Option<u64> {
     let mut excess = sizes
         .values()
         .sum::<usize>()
-        .checked_sub(LIMIT)
+        .checked_sub(dimaster_limits::IMAGE_DECODE_BYTES.size())
         .filter(|e| *e > 0)?;
     sizes.into_iter().find_map(|(serial, bytes)| {
         excess = excess.saturating_sub(bytes);

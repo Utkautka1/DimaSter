@@ -21,9 +21,6 @@ pub struct Bitmap {
 
 type Point = (f32, f32);
 
-// на столько отрезков делится кривая Безье; хватает для кеглей до ~100 px
-const CURVE_STEPS: u16 = 8;
-
 /// Собирает контур в пиксельных координатах как набор отрезков.
 #[derive(Debug, Default)]
 pub(crate) struct Outline {
@@ -52,8 +49,8 @@ impl Outline {
     }
 
     fn curve(&mut self, at: impl Fn(f32) -> Point) {
-        for step in 1..=CURVE_STEPS {
-            let point = at(f32::from(step) / f32::from(CURVE_STEPS));
+        for step in 1..=dimaster_limits::CURVE_STEPS.u16() {
+            let point = at(f32::from(step) / f32::from(dimaster_limits::CURVE_STEPS.u16()));
             self.push(point);
         }
     }

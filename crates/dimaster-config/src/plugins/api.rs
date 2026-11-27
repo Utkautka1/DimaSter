@@ -7,12 +7,9 @@ use mlua::{Lua, Table};
 
 use super::{Effect, Shared, Snapshot};
 
-// очередь ограничена, чтобы цикл в плагине не съел память
-const MAX_EFFECTS: usize = 256;
-
 fn push(shared: &Shared, effect: Effect) {
     let mut effects = shared.effects.borrow_mut();
-    if effects.len() < MAX_EFFECTS {
+    if effects.len() < dimaster_limits::PLUGIN_EFFECTS.size() {
         effects.push(effect);
     }
 }

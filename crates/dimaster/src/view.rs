@@ -33,12 +33,6 @@ use crate::smart::Assist;
 use crate::status::Status;
 use crate::syntax::CommandCache;
 
-// дольше этого синхронизированный вывод не задерживает кадр: программа могла упасть
-const SYNC_LIMIT: Duration = Duration::from_millis(150);
-
-// композитор присылает окончательные размер и масштаб не сразу после создания окна
-const SETTLE: Duration = Duration::from_millis(60);
-
 // заголовок, каталог и активный экран на прошлом пробуждении
 #[derive(Debug, Default)]
 struct Seen {
@@ -164,7 +158,7 @@ impl View {
             seen: Seen::default(),
             session: None,
             args: args.to_vec(),
-            start_at: Instant::now() + SETTLE,
+            start_at: Instant::now() + dimaster_limits::START_SETTLE_MS.millis(),
             modifiers: ModifiersState::empty(),
             scroll: 0,
             pointer: Pointer::default(),
@@ -319,8 +313,8 @@ impl View {
     pub(crate) fn refresh(&mut self) -> Option<Instant> {
         if self.term.modes().synchronized {
             let since = *self.sync_since.get_or_insert_with(Instant::now);
-            if since.elapsed() < SYNC_LIMIT {
-                return Some(since + SYNC_LIMIT);
+            if since.elapsed() < dimaster_limits::SYNC_UPDATE_MS.millis() {
+                return Some(since + dimaster_limits::SYNC_UPDATE_MS.millis());
             }
         }
         if self.sync_since.take().is_some() || !self.term.modes().synchronized {
@@ -351,11 +345,11 @@ impl View {
         let picture = self
             .renderer
             .next_frame()
-            .map(|w| now + w.max(Duration::from_millis(16)));
+            .map(|w| now + w.max(dimaster_limits::MIN_WAKE_MS.millis()));
         let glow = self
             .assist
             .glow_since
-            .map(|_| now + Duration::from_millis(40));
+            .map(|_| now + dimaster_limits::REDRAW_WAIT_MS.millis());
         let motion = self
             .animator
             .next_frame(self.config.effects, self.focused, now);
@@ -419,7 +413,7 @@ impl View {
             .set_cell_pixels(metrics.cell_width as usize, metrics.cell_height as usize);
         match &self.session {
             Some(session) => session.resize(window_size(size)),
-            None => self.start_at = Instant::now() + SETTLE,
+            None => self.start_at = Instant::now() + dimaster_limits::START_SETTLE_MS.millis(),
         }
         self.redraw_canvas();
         self.window.request_redraw();

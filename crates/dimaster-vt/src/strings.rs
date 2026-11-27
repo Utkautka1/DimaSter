@@ -1,8 +1,5 @@
 //! Буфер строковых последовательностей OSC, DCS и APC.
 
-// 16 МиБ: картинки передаются частями, но Sixel приходит одним куском.
-const MAX_STRING: usize = 16 * 1024 * 1024;
-
 /// Тип открытой строковой последовательности.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum StringKind {
@@ -36,7 +33,9 @@ impl StringBuf {
     }
 
     pub(crate) fn push(&mut self, byte: u8) {
-        if self.kind != StringKind::Ignored && self.data.len() < MAX_STRING {
+        if self.kind != StringKind::Ignored
+            && self.data.len() < dimaster_limits::ESCAPE_STRING_BYTES.size()
+        {
             self.data.push(byte);
         }
     }

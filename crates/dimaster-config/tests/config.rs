@@ -82,6 +82,7 @@ fn customize_help(config: &mut Config) {
     config.tuning.suggest_line = Vec::new();
     config.tuning.video_fps = 30;
     config.tuning.memory_commands = 7;
+    config.limits = vec![("clipboard_bytes".into(), 5), ("plugin_depth".into(), 9)];
     config.help.enabled = false;
     config.help.duration = 500;
     config.help.welcome = vec!["a \"b\"".into()];

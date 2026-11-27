@@ -8,9 +8,6 @@ use mlua::{Function, Table, Value};
 use super::{Plugins, Snapshot};
 use crate::parse_color;
 
-// защита от цикла, который нарисовал бы миллион фигур
-const MAX_SHAPES: usize = 2000;
-const MAX_POINTS: usize = 64;
 // пиксели в обе стороны: отрицательные отсчитываются от правого или нижнего края
 const LIMIT: f32 = 20_000.0;
 
@@ -68,7 +65,11 @@ fn paint(table: &Table) -> Paint {
 // плоский список `{ x1, y1, x2, y2, ... }`
 fn points(table: &Table) -> Vec<(f32, f32)> {
     let list: Vec<f32> = table.get("points").unwrap_or_default();
-    let pairs = list.as_chunks::<2>().0.iter().take(MAX_POINTS);
+    let pairs = list
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .take(dimaster_limits::PLUGIN_POINTS.size());
     pairs
         .map(|p| (p[0].clamp(-LIMIT, LIMIT), p[1].clamp(-LIMIT, LIMIT)))
         .collect()
@@ -115,7 +116,9 @@ fn collect(table: &Table, depth: u8, out: &mut Vec<Shape>) {
     }
     for value in table.sequence_values::<Value>().flatten() {
         match value {
-            Value::Table(inner) if depth < 4 && out.len() < MAX_SHAPES => {
+            Value::Table(inner)
+                if depth < 4 && out.len() < dimaster_limits::PLUGIN_SHAPES.size() =>
+            {
                 collect(&inner, depth + 1, out)
             }
             _ => {}
@@ -137,7 +140,7 @@ impl Plugins {
             Ok(None) => {}
             Err(e) => log::warn!("draw.lua: {e}"),
         }
-        shapes.truncate(MAX_SHAPES);
+        shapes.truncate(dimaster_limits::PLUGIN_SHAPES.size());
         shapes
     }
 }

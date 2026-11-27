@@ -8,13 +8,6 @@ use std::thread;
 
 use dimaster_vt::{Parser, Perform};
 
-// сколько строк помнит экран; старые вытесняются
-const KEPT: usize = 10_000;
-// длиннее строки обрываются: двоичный вывод не должен раздувать память
-const LINE: u64 = 16 * 1024;
-// читатель ждёт экран, а не копит очередь без предела
-const QUEUE: usize = 1024;
-
 #[derive(Default)]
 struct Plain(String);
 
@@ -42,7 +35,7 @@ fn forward(stream: impl Read + Send + 'static, send: SyncSender<String>) {
         let mut reader = BufReader::new(stream);
         let mut line = Vec::new();
         while (&mut reader)
-            .take(LINE)
+            .take(dimaster_limits::DOCKER_LOG_LINE_BYTES.get())
             .read_until(b'\n', &mut line)
             .unwrap_or(0)
             > 0
@@ -69,7 +62,7 @@ impl Tail {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()?;
-        let (send, incoming) = sync_channel(QUEUE);
+        let (send, incoming) = sync_channel(dimaster_limits::DOCKER_LOG_QUEUE.size());
         if let Some(out) = child.stdout.take() {
             forward(out, send.clone());
         }
@@ -86,8 +79,12 @@ impl Tail {
     /// Забирает пришедшее; `true` — появились новые строки.
     pub(crate) fn poll(&mut self) -> bool {
         let mut fresh = false;
-        for line in self.incoming.try_iter().take(QUEUE) {
-            if self.lines.len() == KEPT {
+        for line in self
+            .incoming
+            .try_iter()
+            .take(dimaster_limits::DOCKER_LOG_QUEUE.size())
+        {
+            if self.lines.len() == dimaster_limits::DOCKER_LOG_LINES.size() {
                 self.lines.pop_front();
             }
             self.lines.push_back(line);

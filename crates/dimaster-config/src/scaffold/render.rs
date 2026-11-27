@@ -1,6 +1,7 @@
 //! Генерация файлов со значениями.
 
 use dimaster_i18n::tr;
+use dimaster_limits::{ALL, Limit};
 use std::fmt::Write;
 use std::path::Path;
 
@@ -301,6 +302,26 @@ fn tuning(t: &Tuning) -> String {
     )
 }
 
+// изменённые строки действуют, остальные показывают, что вообще можно менять
+fn limit_line(limit: &Limit, chosen: &[(String, u64)]) -> String {
+    let found = chosen.iter().find(|c| c.0 == limit.name);
+    let (mark, value) = match found {
+        Some(c) => ("", c.1),
+        None => ("-- ", limit.default),
+    };
+    format!(
+        "    -- {}\n    {mark}{} = {value},\n",
+        tr(limit.risk),
+        limit.name
+    )
+}
+
+fn limits(chosen: &[(String, u64)]) -> String {
+    let lines: String = ALL.iter().map(|l| limit_line(l, chosen)).collect();
+    let title = tr("  -- защитные пределы: раскомментируйте строку, чтобы изменить");
+    format!("{title}\n  limits = {{\n{lines}  }},\n")
+}
+
 // мышь и буфер обмена
 fn interaction(config: &Config) -> String {
     format!(
@@ -335,6 +356,7 @@ pub(super) fn behavior(config: &Config) -> String {
             + &smart(&config.smart, config.scrollbar)
             + &help(&config.help)
             + &tuning(&config.tuning)
+            + &limits(&config.limits)
             + &widgets(config)
             + &environment(config),
         config.remote_control,

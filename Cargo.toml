@@ -9,6 +9,7 @@ license = "MIT"
 
 [workspace.dependencies]
 dimaster-vt = { path = "crates/dimaster-vt" }
+dimaster-limits = { path = "crates/dimaster-limits" }
 dimaster-grid = { path = "crates/dimaster-grid" }
 dimaster-pty = { path = "crates/dimaster-pty" }
 dimaster-font = { path = "crates/dimaster-font" }

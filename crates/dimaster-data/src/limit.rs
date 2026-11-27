@@ -20,8 +20,8 @@ pub struct Limits {
 impl Default for Limits {
     fn default() -> Self {
         Self {
-            time: Duration::from_secs(60),
-            bytes: 1 << 30,
+            time: dimaster_limits::TABLE_QUERY_SECS.secs(),
+            bytes: dimaster_limits::TABLE_RESULT_BYTES.size(),
         }
     }
 }

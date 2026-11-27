@@ -8,7 +8,6 @@ use rustybuzz::ttf_parser::{Face, GlyphId, OutlineBuilder, RgbaColor, Transform}
 use crate::raster::Area;
 use crate::{Bitmap, Metrics};
 
-const CURVE_STEPS: u16 = 8;
 type LineSeg = ((f32, f32), (f32, f32));
 
 /// `None`, если глиф не описан в таблице COLR.
@@ -209,8 +208,10 @@ impl PathBuilder<'_> {
     }
 
     fn curve(&mut self, at: impl Fn(f32) -> (f32, f32)) {
-        for step in 1..=CURVE_STEPS {
-            self.push(at(f32::from(step) / f32::from(CURVE_STEPS)));
+        for step in 1..=dimaster_limits::CURVE_STEPS.u16() {
+            self.push(at(
+                f32::from(step) / f32::from(dimaster_limits::CURVE_STEPS.u16())
+            ));
         }
     }
 }

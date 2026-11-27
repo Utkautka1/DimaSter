@@ -8,6 +8,7 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+dimaster-limits.workspace = true
 dimaster-i18n.workspace = true
 mlua.workspace = true
 toml.workspace = true

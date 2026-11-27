@@ -2,9 +2,6 @@
 
 use crate::inflate;
 
-// защита от поддельного заголовка с гигантскими размерами
-const MAX_SIDE: usize = 8192;
-
 /// Картинка в RGBA без предумножения альфы.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Image {
@@ -33,7 +30,8 @@ impl Header {
         let side = |at: usize| Some(u32::from_be_bytes(raw.get(at..at + 4)?.try_into().ok()?));
         let (width, height) = (side(0)? as usize, side(4)? as usize);
         let (depth, color, interlace) = (usize::from(*raw.get(8)?), *raw.get(9)?, *raw.get(12)?);
-        let sizes = (1..=MAX_SIDE).contains(&width) && (1..=MAX_SIDE).contains(&height);
+        let sizes = (1..=dimaster_limits::PNG_SIDE.size()).contains(&width)
+            && (1..=dimaster_limits::PNG_SIDE.size()).contains(&height);
         let depth_ok = depth == 8 || color == 3 && matches!(depth, 1 | 2 | 4);
         (sizes && depth_ok && interlace == 0).then_some(Self {
             width,

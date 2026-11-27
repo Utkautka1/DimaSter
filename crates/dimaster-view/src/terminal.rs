@@ -2,7 +2,6 @@
 //! через OSC 52.
 
 use std::io::{self, Write};
-use std::time::Duration;
 
 use crossterm::event::{self, Event, KeyEventKind};
 use crossterm::terminal::{self, EnterAlternateScreen, LeaveAlternateScreen};
@@ -47,7 +46,7 @@ fn work(app: &mut App, out: &mut impl Write, server: Option<&Server>) -> io::Res
             draw(app, out)?;
         }
         // с сокетом приходится просыпаться и без нажатий
-        stale = server.is_none() || event::poll(Duration::from_millis(100))?;
+        stale = server.is_none() || event::poll(dimaster_limits::TUI_POLL_MS.millis())?;
         if stale {
             match event::read()? {
                 Event::Key(key) if key.kind != KeyEventKind::Release => app.press(key),

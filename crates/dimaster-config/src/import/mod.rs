@@ -11,9 +11,6 @@ use std::path::{Path, PathBuf};
 
 use crate::Config;
 
-// вложенные include глубже этого — почти наверняка цикл
-const MAX_DEPTH: u8 = 4;
-
 /// Терминал, из которого можно взять настройки.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Source {
@@ -45,8 +42,12 @@ impl Source {
         let text = std::fs::read_to_string(&path)?;
         let directory = path.parent().unwrap_or(config_home);
         match self {
-            Self::Ghostty => ghostty::apply(&text, directory, config, MAX_DEPTH),
-            Self::Kitty => kitty::apply(&text, directory, config, MAX_DEPTH),
+            Self::Ghostty => {
+                ghostty::apply(&text, directory, config, dimaster_limits::IMPORT_DEPTH.u8())
+            }
+            Self::Kitty => {
+                kitty::apply(&text, directory, config, dimaster_limits::IMPORT_DEPTH.u8())
+            }
             Self::Alacritty => alacritty::apply(&text, config),
         }
         Ok(())

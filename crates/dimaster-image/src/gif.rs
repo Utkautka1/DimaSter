@@ -2,9 +2,6 @@
 
 use crate::{Animation, Frame};
 
-const MAX_SIDE: usize = 4096;
-// суммарный объём кадров; длинные гифки обрезаются
-const MAX_BYTES: usize = 256 * 1024 * 1024;
 const MAX_CODES: usize = 4096;
 
 struct Reader<'a>(&'a [u8]);
@@ -211,7 +208,8 @@ impl<'a> Decoder<'a> {
         let (width, height) = (reader.word()?, reader.word()?);
         let flags = reader.byte()?;
         reader.take(2)?;
-        let sizes = (1..=MAX_SIDE).contains(&width) && (1..=MAX_SIDE).contains(&height);
+        let sizes = (1..=dimaster_limits::GIF_SIDE.size()).contains(&width)
+            && (1..=dimaster_limits::GIF_SIDE.size()).contains(&height);
         if !signature.starts_with(b"GIF8") || !sizes {
             return None;
         }
@@ -298,7 +296,7 @@ impl<'a> Decoder<'a> {
 
     // повреждённый хвост не отбрасывает уже прочитанные кадры
     fn run(mut self) -> Option<Animation> {
-        while self.animation.bytes() + self.canvas.len() <= MAX_BYTES {
+        while self.animation.bytes() + self.canvas.len() <= dimaster_limits::GIF_BYTES.size() {
             let step = match self.reader.byte() {
                 Some(0x21) => self.extension(),
                 Some(0x2c) => self.image(),

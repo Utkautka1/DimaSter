@@ -2,7 +2,6 @@
 //! терминала программе внутри контейнера.
 
 use std::io::{self, Write};
-use std::time::Duration;
 
 use crossterm::event::{self, Event, KeyEventKind};
 use crossterm::terminal::{self, EnterAlternateScreen, LeaveAlternateScreen};
@@ -58,7 +57,7 @@ fn work(app: &mut App, out: &mut impl Write) -> io::Result<()> {
             draw(app, out)?;
         }
         // просыпаемся и без нажатий: списки и логи приходят из потоков
-        stale = event::poll(Duration::from_millis(100))?;
+        stale = event::poll(dimaster_limits::TUI_POLL_MS.millis())?;
         if stale {
             match event::read()? {
                 Event::Key(key) if key.kind != KeyEventKind::Release => app.press(key),

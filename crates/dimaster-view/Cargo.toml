@@ -8,6 +8,7 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+dimaster-limits.workspace = true
 crossterm.workspace = true
 dimaster-config.workspace = true
 dimaster-data.workspace = true

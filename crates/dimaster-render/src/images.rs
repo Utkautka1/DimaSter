@@ -3,9 +3,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use dimaster_grid::{
-    MAX_IMAGE_ROWS, Picture, PlaceholderCell, Placement, Row, Terminal, placeholder_info,
-};
+use dimaster_grid::{Picture, PlaceholderCell, Placement, Row, Terminal, placeholder_info};
 
 use crate::frame::{Builder, Quad};
 
@@ -82,7 +80,7 @@ impl Builder<'_> {
     /// Картинки, начавшиеся выше экрана, тоже могут в него свисать, плюс плейсхолдеры.
     pub(crate) fn images(&mut self, term: &Terminal, first: u64) {
         let rows = term.screen().rows().len() as u64;
-        let start = first.saturating_sub(MAX_IMAGE_ROWS as u64);
+        let start = first.saturating_sub(dimaster_limits::IMAGE_ROWS.size() as u64);
         for line in start..first + rows {
             let Some(row) = term.line(line) else { continue };
             let offset = line as i64 - first as i64;

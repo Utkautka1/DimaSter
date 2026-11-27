@@ -8,12 +8,8 @@ use std::io::{self, BufRead, BufReader, Read, Write};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{Receiver, Sender, channel};
-use std::time::Duration;
 
 const PREFIX: &str = "dimaster-view-";
-// длиннее команды не бывают
-const LIMIT: u64 = 64 * 1024;
-
 /// Присланная команда и куда ответить.
 pub(crate) struct Request {
     pub(crate) line: String,
@@ -46,9 +42,10 @@ fn runtime() -> io::Result<PathBuf> {
 
 fn receive(stream: UnixStream, requests: &Sender<Request>) -> io::Result<()> {
     // молчащий клиент не должен останавливать остальных
-    stream.set_read_timeout(Some(Duration::from_secs(2)))?;
+    stream.set_read_timeout(Some(dimaster_limits::VIEW_CONNECT_SECS.secs()))?;
     let mut line = String::new();
-    BufReader::new((&stream).take(LIMIT)).read_line(&mut line)?;
+    BufReader::new((&stream).take(dimaster_limits::VIEW_COMMAND_BYTES.get()))
+        .read_line(&mut line)?;
     let request = Request {
         line: line.trim_end().to_owned(),
         reply: stream,
@@ -95,7 +92,7 @@ fn send_to(directory: &Path, line: &str) -> io::Result<String> {
         .iter()
         .find_map(|p| UnixStream::connect(p).ok())
         .ok_or_else(|| io::Error::from(io::ErrorKind::NotFound))?;
-    stream.set_read_timeout(Some(Duration::from_secs(60)))?;
+    stream.set_read_timeout(Some(dimaster_limits::VIEW_REPLY_SECS.secs()))?;
     writeln!(stream, "{line}")?;
     let mut answer = String::new();
     stream.read_to_string(&mut answer)?;

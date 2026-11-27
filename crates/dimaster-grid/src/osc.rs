@@ -7,9 +7,6 @@ use crate::PromptMark;
 use crate::terminal::State;
 use crate::untrusted::clean;
 
-// больше мегабайта в буфер обмена из программы не принимаем
-const CLIPBOARD_LIMIT: usize = 1 << 20;
-
 impl State {
     pub(crate) fn handle_osc(&mut self, data: &[u8]) {
         // картинки идут мегабайтами base64 — не перекодируем их в строку
@@ -73,7 +70,7 @@ impl State {
         let Some((target, data)) = value.split_once(';') else {
             return;
         };
-        let decoded = (data != "?" && data.len() <= CLIPBOARD_LIMIT)
+        let decoded = (data != "?" && data.len() <= dimaster_limits::CLIPBOARD_BYTES.size())
             .then(|| decode_base64(data.as_bytes()))
             .flatten()
             .and_then(|bytes| String::from_utf8(bytes).ok());

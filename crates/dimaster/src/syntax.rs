@@ -5,12 +5,9 @@
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use dimaster_grid::{Color, Flags, Match, Point, PromptMark, Span, Terminal};
-
-// Как часто перечитывать каталоги `$PATH`, чтобы не делать лишних stat при наборе текста.
-const PATH_TTL: Duration = Duration::from_secs(5);
 
 // Встроенные команды POSIX/bash/zsh/fish (отсортировано для binary_search).
 const BUILTINS: &[&str] = &[
@@ -116,9 +113,9 @@ pub(crate) struct CommandCache {
 impl CommandCache {
     fn refresh(&mut self) {
         let path = std::env::var("PATH").unwrap_or_default();
-        let fresh = self
-            .updated
-            .is_some_and(|t| t.elapsed() < PATH_TTL && path == self.last_path);
+        let fresh = self.updated.is_some_and(|t| {
+            t.elapsed() < dimaster_limits::PATH_CACHE_SECS.secs() && path == self.last_path
+        });
         if fresh {
             return;
         }

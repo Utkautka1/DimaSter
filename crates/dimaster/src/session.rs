@@ -79,9 +79,6 @@ pub(crate) struct Output {
     pub(crate) wake: Box<dyn Fn() + Send>,
 }
 
-// сколько ждущих записи байтов терпим, прежде чем отбрасывать ответы
-const REPLY_BACKLOG: usize = 1 << 20;
-
 /// Очередь к потоку записи и объём того, что в ней ждёт.
 #[derive(Clone)]
 struct Input {
@@ -97,7 +94,8 @@ impl Input {
 
     // программа, которая спрашивает, но не читает, не должна растить память
     fn reply(&self, bytes: Vec<u8>) -> bool {
-        self.queued.load(Ordering::Relaxed) > REPLY_BACKLOG || self.send(bytes)
+        self.queued.load(Ordering::Relaxed) > dimaster_limits::REPLY_BACKLOG_BYTES.size()
+            || self.send(bytes)
     }
 }
 

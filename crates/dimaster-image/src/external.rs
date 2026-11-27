@@ -6,12 +6,9 @@
 use std::io::{Read, Write};
 use std::process::{Child, Command, Stdio};
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use crate::{Animation, decode_png};
-
-const TIMEOUT: Duration = Duration::from_secs(5);
-const MAX_OUTPUT: u64 = 128 * 1024 * 1024;
 
 pub(crate) fn decode(data: &[u8]) -> Option<Animation> {
     let mut child = spawn_ffmpeg()?;
@@ -24,7 +21,7 @@ pub(crate) fn decode(data: &[u8]) -> Option<Animation> {
         let mut png = Vec::new();
         output
             .by_ref()
-            .take(MAX_OUTPUT)
+            .take(dimaster_limits::DECODER_OUTPUT_BYTES.get())
             .read_to_end(&mut png)
             .map(|_| png)
     });
@@ -55,13 +52,13 @@ fn spawn_ffmpeg() -> Option<Child> {
 
 // вызывающий поток ждёт результата: подвисший ffmpeg нельзя ждать бесконечно
 fn wait_or_kill(child: &mut Child) {
-    let deadline = Instant::now() + TIMEOUT;
+    let deadline = Instant::now() + dimaster_limits::DECODER_TIMEOUT.secs();
     while matches!(child.try_wait(), Ok(None)) {
         if Instant::now() > deadline {
             let _ = child.kill();
             let _ = child.wait();
             return;
         }
-        thread::sleep(Duration::from_millis(5));
+        thread::sleep(dimaster_limits::DECODER_POLL_MS.millis());
     }
 }

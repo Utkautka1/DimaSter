@@ -7,9 +7,6 @@ use dimaster_image::Animation;
 
 use super::{Pending, Picture, VirtualPlacement};
 
-// суммарный объём хранимых пикселей; он же предел кадров одной анимации
-pub(super) const LIMIT: usize = 256 * 1024 * 1024;
-
 #[derive(Debug, Default)]
 pub(crate) struct Store {
     images: HashMap<u32, Arc<Picture>>,
@@ -42,7 +39,7 @@ impl Store {
             .collect();
         let mut total: usize = sizes.values().sum();
         for (serial, bytes) in sizes {
-            if total <= LIMIT {
+            if total <= dimaster_limits::IMAGE_MEMORY_BYTES.size() {
                 return;
             }
             self.forget(serial);
