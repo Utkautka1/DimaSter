@@ -3,14 +3,13 @@
 use dimaster_grid::Terminal;
 use winit::keyboard::{Key, ModifiersState, NamedKey};
 
-const PAIRS: [(char, char); 5] = [('(', ')'), ('[', ']'), ('{', '}'), ('"', '"'), ('\'', '\'')];
-
 /// Возвращает байты автопары/перешагивания/удаления или `None`, если ввод обычный.
 pub(crate) fn handle(
     term: &Terminal,
     key: &Key,
     text: Option<&str>,
     mods: ModifiersState,
+    pairs: &[(char, char)],
 ) -> Option<Vec<u8>> {
     if term.is_alternate() || !crate::syntax::editing_command(term) {
         return None;
@@ -20,13 +19,13 @@ pub(crate) fn handle(
     }
     let (left, under) = neighbors(term);
     if matches!(key, Key::Named(NamedKey::Backspace)) {
-        return is_pair(left, under).then(|| b"\x1b[C\x7f\x7f".to_vec());
+        return is_pair(left, under, pairs).then(|| b"\x1b[C\x7f\x7f".to_vec());
     }
     let ch = single_char(text)?;
-    if closing_for(ch).is_some() && can_close_skip(ch, under) {
+    if can_close_skip(ch, under, pairs) {
         return Some(b"\x1b[C".to_vec());
     }
-    let close = PAIRS.iter().find(|(o, _)| *o == ch).map(|(_, c)| *c)?;
+    let close = pairs.iter().find(|(o, _)| *o == ch).map(|(_, c)| *c)?;
     can_open(ch, left, under).then(|| vec![ch as u8, close as u8, 0x1b, b'[', b'D'])
 }
 
@@ -51,19 +50,15 @@ fn neighbors(term: &Terminal) -> (Option<char>, Option<char>) {
     (left, under)
 }
 
-fn is_pair(left: Option<char>, under: Option<char>) -> bool {
+fn is_pair(left: Option<char>, under: Option<char>, pairs: &[(char, char)]) -> bool {
     let (Some(l), Some(u)) = (left, under) else {
         return false;
     };
-    PAIRS.contains(&(l, u))
+    pairs.contains(&(l, u))
 }
 
-fn closing_for(ch: char) -> Option<char> {
-    PAIRS.iter().find(|(_, c)| *c == ch).map(|(o, _)| *o)
-}
-
-fn can_close_skip(ch: char, under: Option<char>) -> bool {
-    under == Some(ch) && closing_for(ch).is_some()
+fn can_close_skip(ch: char, under: Option<char>, pairs: &[(char, char)]) -> bool {
+    under == Some(ch) && pairs.iter().any(|(_, c)| *c == ch)
 }
 
 fn can_open(ch: char, left: Option<char>, under: Option<char>) -> bool {
@@ -81,6 +76,7 @@ fn can_open(ch: char, left: Option<char>, under: Option<char>) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use dimaster_config::Tuning;
     use dimaster_grid::Size;
 
     fn prompt_term(line: &str) -> Terminal {
@@ -90,24 +86,22 @@ mod tests {
         term
     }
 
+    fn typed(term: &Terminal, key: &Key, text: Option<&str>) -> Option<Vec<u8>> {
+        let (mods, pairs) = (ModifiersState::empty(), Tuning::default().pairs);
+        handle(term, key, text, mods, &pairs)
+    }
+
     #[test]
     fn opens_skips_and_deletes_pairs() {
-        let none = ModifiersState::empty();
         let term = prompt_term("echo ");
         let open_q = Key::Character("\"".into());
-        assert_eq!(
-            handle(&term, &open_q, Some("\""), none).unwrap(),
-            b"\"\"\x1b[D"
-        );
+        assert_eq!(typed(&term, &open_q, Some("\"")).unwrap(), b"\"\"\x1b[D");
         let inside = prompt_term("echo \"\"\x1b[D");
-        assert_eq!(
-            handle(&inside, &open_q, Some("\""), none).unwrap(),
-            b"\x1b[C"
-        );
+        assert_eq!(typed(&inside, &open_q, Some("\"")).unwrap(), b"\x1b[C");
         let bs = Key::Named(NamedKey::Backspace);
-        assert_eq!(handle(&inside, &bs, None, none).unwrap(), b"\x1b[C\x7f\x7f");
+        assert_eq!(typed(&inside, &bs, None).unwrap(), b"\x1b[C\x7f\x7f");
         // Внутри слова одинарную кавычку не дублируем
         let word = prompt_term("echo don");
-        assert!(handle(&word, &Key::Character("'".into()), Some("'"), none).is_none());
+        assert!(typed(&word, &Key::Character("'".into()), Some("'")).is_none());
     }
 }

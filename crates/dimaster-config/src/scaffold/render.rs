@@ -5,7 +5,7 @@ use std::fmt::Write;
 use std::path::Path;
 
 use crate::color::format_color;
-use crate::{Config, Help, Smart, Theme};
+use crate::{Config, Help, Smart, Theme, Tuning};
 
 // строка Lua: экранируются только символы, ломающие литерал
 fn quote(text: &str) -> String {
@@ -241,6 +241,37 @@ fn help(h: &Help) -> String {
     )
 }
 
+fn tuning_numbers(t: &Tuning) -> String {
+    format!(
+        "    multi_click = {},\n    drag_scroll_step = {},\n    double_alt = {},\n    glow_period = {},\n    bell_flash = {},\n    autosave = {},\n    history_commands = {},\n    history_dirs = {},\n    picker_files = {},\n    picker_depth = {},\n",
+        t.multi_click,
+        t.drag_scroll_step,
+        t.double_alt,
+        t.glow_period,
+        t.bell_flash,
+        t.autosave,
+        t.history_commands,
+        t.history_dirs,
+        t.picker_files,
+        t.picker_depth,
+    )
+}
+
+// тайминги и пределы
+fn tuning(t: &Tuning) -> String {
+    let pair = |p: &(char, char)| quote(&String::from_iter([p.0, p.1]));
+    format!(
+        "  tuning = {{\n{}    picker_skip = {},\n    hint_letters = {},\n    pairs = {},\n    \
+         presentation_zoom = {},\n    restored_marker = {},\n  }},\n",
+        tuning_numbers(t),
+        list(&t.picker_skip, |s| quote(s)),
+        quote(&t.hint_letters),
+        list(&t.pairs, pair),
+        t.presentation_zoom,
+        quote(&tr(&t.restored_marker)),
+    )
+}
+
 // мышь и буфер обмена
 fn interaction(config: &Config) -> String {
     format!(
@@ -274,6 +305,7 @@ pub(super) fn behavior(config: &Config) -> String {
         interaction(config)
             + &smart(&config.smart, config.scrollbar)
             + &help(&config.help)
+            + &tuning(&config.tuning)
             + &widgets(config)
             + &environment(config),
         config.remote_control,

@@ -3,9 +3,6 @@
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-const MAX_COMMANDS: usize = 1000;
-const MAX_DIRS: usize = 300;
-
 /// Индекс частых директорий и сохранённых команд.
 #[derive(Debug, Default)]
 pub(crate) struct AssistStore {
@@ -35,15 +32,15 @@ impl AssistStore {
         }
     }
 
-    pub(crate) fn record_command(&mut self, command: &str) {
+    pub(crate) fn record_command(&mut self, command: &str, kept: usize) {
         let cmd = clean_line(command.trim());
         if cmd.is_empty() {
             return;
         }
         self.commands.retain(|c| c != &cmd);
         self.commands.push(cmd);
-        if self.commands.len() > MAX_COMMANDS {
-            let drain = self.commands.len() - MAX_COMMANDS;
+        if self.commands.len() > kept {
+            let drain = self.commands.len() - kept;
             self.commands.drain(..drain);
         }
         if let Some(dir) = data_dir() {
@@ -51,7 +48,7 @@ impl AssistStore {
         }
     }
 
-    pub(crate) fn bump_dir(&mut self, path: &Path) {
+    pub(crate) fn bump_dir(&mut self, path: &Path, kept: usize) {
         let raw = clean_line(&path.to_string_lossy());
         if raw.is_empty() {
             return;
@@ -63,7 +60,7 @@ impl AssistStore {
             .map_or(0, |i| self.dirs.remove(i).0);
         self.dirs.push((prev.saturating_add(1), raw));
         self.dirs.sort_by_key(|a| std::cmp::Reverse(a.0));
-        self.dirs.truncate(MAX_DIRS);
+        self.dirs.truncate(kept);
         if let Some(dir) = data_dir() {
             let lines: Vec<String> = self.dirs.iter().map(|(s, p)| format!("{s}\t{p}")).collect();
             let _ = write_lines(&dir.join("dirs.log"), &lines);

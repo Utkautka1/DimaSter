@@ -125,7 +125,13 @@ impl View {
             return Some(bytes);
         }
         if self.config.smart.autopair {
-            return crate::autopair::handle(&self.term, key, text, self.modifiers);
+            return crate::autopair::handle(
+                &self.term,
+                key,
+                text,
+                self.modifiers,
+                &self.config.tuning.pairs,
+            );
         }
         None
     }
@@ -249,7 +255,13 @@ impl View {
     // сама по себе клавиша Alt ничего не отправляет
     fn maybe_double_alt(&mut self, key: &Key) {
         let alt = matches!(key, Key::Named(NamedKey::Alt));
-        if self.config.smart.double_alt_sudo && alt && self.assist.alt_tap(Instant::now()) {
+        if self.config.smart.double_alt_sudo
+            && alt
+            && self.assist.alt_tap(
+                Instant::now(),
+                std::time::Duration::from_millis(self.config.tuning.double_alt),
+            )
+        {
             self.sudo_fix();
         }
     }

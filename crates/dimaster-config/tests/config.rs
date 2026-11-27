@@ -75,6 +75,10 @@ fn write_tree(directory: &std::path::Path, config: &Config) {
 }
 
 fn customize_help(config: &mut Config) {
+    config.tuning.multi_click = 250;
+    config.tuning.pairs = vec![('<', '>')];
+    config.tuning.hint_letters = "ab".into();
+    config.tuning.presentation_zoom = 2.5;
     config.help.enabled = false;
     config.help.duration = 500;
     config.help.welcome = vec!["a \"b\"".into()];

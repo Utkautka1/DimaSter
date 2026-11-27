@@ -11,8 +11,6 @@ use winit::window::{CursorIcon, UserAttentionType};
 use crate::desktop;
 use crate::view::View;
 
-// сколько держится вспышка звонка
-pub(crate) const FLASH: Duration = Duration::from_millis(150);
 // чаще этого звонок не повторяется: `yes $'\a'` не должен плодить процессы
 const QUIET: Duration = Duration::from_millis(300);
 const FRAME: u32 = 4;
@@ -68,7 +66,10 @@ impl View {
     // вспышка рамки и полоска выполнения под заголовком
     pub(crate) fn signal_rects(&self) -> Vec<Rect> {
         let mut rects = self.progress_rect().into_iter().collect::<Vec<_>>();
-        let lit = self.ringer.since.is_some_and(|t| t.elapsed() < FLASH);
+        let lit = self
+            .ringer
+            .since
+            .is_some_and(|t| t.elapsed() < Duration::from_millis(self.config.tuning.bell_flash));
         if lit && self.config.bell.flash {
             let size = self.window.inner_size();
             let (w, h, color) = (size.width, size.height, self.config.bell.color);

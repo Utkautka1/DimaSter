@@ -9,10 +9,6 @@ use std::time::{Duration, Instant};
 use crate::store::{self, Saved};
 use crate::view::View;
 
-// как часто сохранять сессию на случай сбоя
-const AUTOSAVE: Duration = Duration::from_secs(30);
-const MARKER: &str = "── сессия восстановлена ──";
-
 /// Переменная, по которой новое окно узнаёт свою сессию.
 pub(crate) const RESTORE_ENV: &str = "DIMASTER_RESTORE";
 
@@ -54,7 +50,10 @@ impl View {
     /// Показывает сохранённую историю и запоминает каталог для shell.
     pub(crate) fn restore(&mut self, saved: Saved) {
         if !saved.lines.is_empty() {
-            let (lines, marker) = (saved.lines.join("\r\n"), tr(MARKER));
+            let (lines, marker) = (
+                saved.lines.join("\r\n"),
+                tr(&self.config.tuning.restored_marker),
+            );
             let text = format!("{lines}\r\n\x1b[2m{marker}\x1b[0m\r\n");
             self.term.advance(text.as_bytes());
         }
@@ -72,11 +71,12 @@ impl View {
 
     fn snapshot_session(&self) -> Saved {
         let screen = self.term.screen();
+        let marker = &self.config.tuning.restored_marker;
         let mut lines: Vec<String> = screen
             .history()
             .map(|r| r.text())
             .chain(screen.rows().iter().map(|r| r.text()))
-            .filter(|l| l != MARKER && *l != tr(MARKER))
+            .filter(|l| l != marker && *l != tr(marker))
             .collect();
         while lines.last().is_some_and(String::is_empty) {
             lines.pop();
@@ -104,7 +104,7 @@ impl View {
     }
 
     pub(crate) fn autosave(&mut self) {
-        if self.saved_at.elapsed() >= AUTOSAVE {
+        if self.saved_at.elapsed() >= Duration::from_secs(self.config.tuning.autosave) {
             self.save_session();
         }
     }

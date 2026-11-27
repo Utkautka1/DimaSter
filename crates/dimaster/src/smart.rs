@@ -8,11 +8,6 @@ use dimaster_render::Rect;
 use crate::desktop;
 use crate::view::View;
 
-// два нажатия Alt за это время — это «двойной Alt»
-const DOUBLE_TAP: Duration = Duration::from_millis(350);
-// период пульсации рамки, секунды
-const PULSE: f32 = 1.6;
-
 /// Что окно помнит между командами.
 #[derive(Debug, Default)]
 pub(crate) struct Assist {
@@ -25,10 +20,10 @@ pub(crate) struct Assist {
 
 impl Assist {
     /// `true` на втором чистом нажатии Alt.
-    pub(crate) fn alt_tap(&mut self, now: Instant) -> bool {
+    pub(crate) fn alt_tap(&mut self, now: Instant, window: Duration) -> bool {
         let double = self
             .last_alt
-            .is_some_and(|t| now.duration_since(t) < DOUBLE_TAP);
+            .is_some_and(|t| now.duration_since(t) < window);
         self.last_alt = (!double).then_some(now);
         double
     }
@@ -39,8 +34,8 @@ impl Assist {
 }
 
 // ширина рамки плавно растёт и убывает
-fn pulse_width(elapsed: f32) -> u32 {
-    let wave = (elapsed / PULSE * std::f32::consts::TAU).sin();
+fn pulse_width(elapsed: f32, period: f32) -> u32 {
+    let wave = (elapsed / period * std::f32::consts::TAU).sin();
     (4.0 + wave * 3.0).round() as u32
 }
 
@@ -80,7 +75,8 @@ impl View {
         self.help_with(&last);
         let (command, exit, seconds) = (last.command, last.exit, last.duration);
         if exit != 127 {
-            self.history_store.record_command(&command);
+            self.history_store
+                .record_command(&command, self.config.tuning.history_commands);
         }
         self.plugin_command(&command, exit, seconds.as_secs_f64());
         let limit = self.config.smart.long_command;
@@ -108,7 +104,10 @@ impl View {
             return Vec::new();
         };
         let size = self.window.inner_size();
-        let thickness = pulse_width(since.elapsed().as_secs_f32());
+        let thickness = pulse_width(
+            since.elapsed().as_secs_f32(),
+            self.config.tuning.glow_period as f32 / 1000.0,
+        );
         frame(
             size.width,
             size.height,
@@ -142,11 +141,12 @@ mod tests {
     #[test]
     fn double_alt_needs_two_clean_taps() {
         let (mut assist, now) = (Assist::default(), Instant::now());
-        assert!(!assist.alt_tap(now));
-        assert!(assist.alt_tap(now + Duration::from_millis(100)));
-        assert!(!assist.alt_tap(now + Duration::from_millis(150)));
+        let window = Duration::from_millis(350);
+        assert!(!assist.alt_tap(now, window));
+        assert!(assist.alt_tap(now + Duration::from_millis(100), window));
+        assert!(!assist.alt_tap(now + Duration::from_millis(150), window));
         assist.other_key();
-        assert!(!assist.alt_tap(now + Duration::from_millis(200)));
-        assert!((1..=7).contains(&pulse_width(0.4)));
+        assert!(!assist.alt_tap(now + Duration::from_millis(200), window));
+        assert!((1..=7).contains(&pulse_width(0.4, 1.6)));
     }
 }

@@ -159,6 +159,8 @@ classDiagram
     Commands *-- SmartOptions
     class Help { enabled; duration; welcome; typo; denied; skip; managers }
     View ..> Help : help_with(Finished)
+    class Tuning { timings; limits; hint_letters; pairs }
+    View ..> Tuning
     View *-- Assist
     class Status { target; facts; line }
     class Sampler { versions; previous; ticks; +sample(target) }

@@ -9,7 +9,9 @@ use mlua::{Lua, Table, Value};
 use crate::import::ghostty_theme;
 use crate::theme::builtin_source;
 use crate::{Config, CopyOnSelect, Decorations, Effects, Theme, WindowConfig, parse_color};
-use crate::{context, cursor, help, load_keys, load_smart, load_ui, programs, snippets, widgets};
+use crate::{
+    context, cursor, help, load_keys, load_smart, load_ui, programs, snippets, tuning, widgets,
+};
 
 /// Понятное человеку описание того, что не так в конфиге.
 #[derive(Debug)]
@@ -315,6 +317,17 @@ fn apply_interface(table: &Table, config: &mut Config) -> Result<(), ConfigError
 }
 
 // вложенные таблицы window и effects, управление и сессии
+// приветствие с советами и тонкая настройка
+fn apply_extras(table: &Table, config: &mut Config) -> Result<(), ConfigError> {
+    if let Some(help_table) = table.get::<Option<Table>>("help")? {
+        help::apply(&help_table, &mut config.help)?;
+    }
+    if let Some(tuning_table) = table.get::<Option<Table>>("tuning")? {
+        tuning::apply(&tuning_table, &mut config.tuning)?;
+    }
+    Ok(())
+}
+
 fn apply_sections(table: &Table, config: &mut Config) -> Result<(), ConfigError> {
     if let Some(window) = table.get::<Option<Table>>("window")? {
         apply_window(&window, &mut config.window)?;
@@ -326,9 +339,7 @@ fn apply_sections(table: &Table, config: &mut Config) -> Result<(), ConfigError>
     if let Some(smart) = table.get::<Option<Table>>("smart")? {
         load_smart::apply(&smart, &mut config.smart)?;
     }
-    if let Some(table) = table.get::<Option<Table>>("help")? {
-        help::apply(&table, &mut config.help)?;
-    }
+    apply_extras(table, config)?;
     flag(table, "scrollbar", &mut config.scrollbar)?;
     apply_env(table, config)?;
     apply_interface(table, config)?;

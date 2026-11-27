@@ -2,12 +2,12 @@
 
 use std::path::PathBuf;
 
-use crate::Help;
 use crate::Snippet;
 use crate::keys::default_bindings;
 use crate::{
     Bell, Binding, CursorLook, Effects, Programs, Smart, Theme, Ui, Widgets, WindowConfig,
 };
+use crate::{Help, Tuning};
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum CursorStyle {
@@ -122,6 +122,8 @@ pub struct Config {
     pub smart: Smart,
     /// Приветствие и советы при ошибке.
     pub help: Help,
+    /// Тайминги и пределы.
+    pub tuning: Tuning,
     /// Свои команды для списка сниппетов.
     pub snippets: Vec<Snippet>,
     /// Полоса прокрутки с метками команд.
@@ -172,6 +174,7 @@ impl Default for Config {
             confirm_close: false,
             smart: Smart::default(),
             help: Help::default(),
+            tuning: Tuning::default(),
             snippets: Vec::new(),
             scrollbar: true,
             widgets: Widgets::default(),

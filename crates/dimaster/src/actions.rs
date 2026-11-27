@@ -103,7 +103,7 @@ impl View {
     }
 
     pub(crate) fn open_hints(&mut self) {
-        let hints = hint::Hints::collect(&self.term, self.scroll);
+        let hints = hint::Hints::collect(&self.term, self.scroll, &self.config.tuning.hint_letters);
         if !hints.targets.is_empty() {
             self.mode = Mode::Hint(hints);
             self.window.request_redraw();
@@ -138,7 +138,7 @@ impl View {
             .or_else(|| self.shell_directory())
             .unwrap_or_else(|| std::path::PathBuf::from("."));
         let items = match kind {
-            picker::Kind::Files => picker::collect_files(&root),
+            picker::Kind::Files => picker::collect_files(&root, &self.config.tuning),
             picker::Kind::Dirs => picker::merge_dirs(&root, &self.history_store.dirs),
             // остальные списки открывает launcher
             _ => return,

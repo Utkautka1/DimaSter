@@ -2,12 +2,10 @@
 
 use std::path::{Path, PathBuf};
 
+use dimaster_config::Tuning;
+
 use super::Press;
 use super::launch::{self, Command};
-
-const MAX_FILES: usize = 1500;
-const MAX_DEPTH: usize = 5;
-const SKIP_DIRS: [&str; 4] = [".git", "target", "node_modules", ".cache"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Kind {
@@ -76,25 +74,25 @@ pub(crate) fn shell_escape(text: &str) -> String {
     format!("'{}'", text.replace('\'', "'\\''"))
 }
 
-pub(crate) fn collect_files(root: &Path) -> Vec<String> {
+pub(crate) fn collect_files(root: &Path, limits: &Tuning) -> Vec<String> {
     let mut out = Vec::new();
-    walk(root, Path::new(""), 0, &mut out);
+    walk(root, Path::new(""), 0, &mut out, limits);
     out.sort();
     out
 }
 
-fn walk(base: &Path, rel: &Path, depth: usize, out: &mut Vec<String>) {
-    if depth > MAX_DEPTH || out.len() >= MAX_FILES {
+fn walk(base: &Path, rel: &Path, depth: usize, out: &mut Vec<String>, limits: &Tuning) {
+    if depth > limits.picker_depth || out.len() >= limits.picker_files {
         return;
     }
     let Ok(entries) = std::fs::read_dir(base.join(rel)) else {
         return;
     };
     for entry in entries.flatten() {
-        if out.len() >= MAX_FILES {
+        if out.len() >= limits.picker_files {
             break;
         }
-        visit_entry(base, rel, depth, entry, out);
+        visit_entry(base, rel, depth, entry, out, limits);
     }
 }
 
@@ -104,13 +102,14 @@ fn visit_entry(
     depth: usize,
     entry: std::fs::DirEntry,
     out: &mut Vec<String>,
+    limits: &Tuning,
 ) {
     let name = entry.file_name();
     let Some(name_str) = name.to_str() else {
         return;
     };
     let is_dir = entry.file_type().is_ok_and(|t| t.is_dir());
-    if is_dir && SKIP_DIRS.contains(&name_str) {
+    if is_dir && limits.picker_skip.iter().any(|s| s == name_str) {
         return;
     }
     let next = rel.join(&name);
@@ -121,7 +120,7 @@ fn visit_entry(
         display
     });
     if is_dir {
-        walk(base, &next, depth + 1, out);
+        walk(base, &next, depth + 1, out, limits);
     }
 }
 

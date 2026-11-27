@@ -4,8 +4,6 @@ use dimaster_grid::{Point, Terminal};
 
 use super::Press;
 
-const ALPHABET: &[u8; 26] = b"asdfghjklqwertyuiopzxcvbnm";
-
 #[derive(Debug, Clone)]
 pub(crate) struct Target {
     pub(crate) label: String,
@@ -29,10 +27,10 @@ pub(crate) enum Outcome {
 }
 
 // если целей больше букв, все метки двухбуквенные — иначе выбор неоднозначен
-fn label(index: usize, total: usize) -> String {
-    let letter = |i: usize| char::from(ALPHABET[i % ALPHABET.len()]);
-    match total > ALPHABET.len() {
-        true => [letter(index / ALPHABET.len()), letter(index)]
+fn label(index: usize, total: usize, letters: &[u8]) -> String {
+    let letter = |i: usize| char::from(letters[i % letters.len()]);
+    match total > letters.len() {
+        true => [letter(index / letters.len()), letter(index)]
             .iter()
             .collect(),
         false => letter(index).to_string(),
@@ -40,17 +38,18 @@ fn label(index: usize, total: usize) -> String {
 }
 
 impl Hints {
-    pub(crate) fn collect(term: &Terminal, scroll: usize) -> Self {
+    pub(crate) fn collect(term: &Terminal, scroll: usize, letters: &str) -> Self {
+        let letters = letters.as_bytes();
         let first = term.visible_line(scroll);
         let lines = first..first + term.screen().rows().len() as u64;
         let mut found = term.links_in(lines);
-        found.truncate(ALPHABET.len() * ALPHABET.len());
+        found.truncate(letters.len() * letters.len());
         let total = found.len();
         let targets = found
             .into_iter()
             .enumerate()
             .map(|(i, (range, text))| Target {
-                label: label(i, total),
+                label: label(i, total, letters),
                 at: range.start,
                 text,
             })
@@ -96,11 +95,13 @@ mod tests {
 
     use super::*;
 
+    const LETTERS: &str = "asdfghjklqwertyuiopzxcvbnm";
+
     #[test]
     fn letters_pick_links() {
         let mut term = Terminal::new(Size { rows: 3, cols: 40 });
         term.advance(b"https://a.example\r\nsee /etc/hosts");
-        let mut hints = Hints::collect(&term, 0);
+        let mut hints = Hints::collect(&term, 0, LETTERS);
         assert_eq!(hints.targets.len(), 2);
         assert_eq!(
             hints.press(Press::Char('S')),
@@ -111,6 +112,6 @@ mod tests {
             hints.press(Press::Char('a')),
             Outcome::Open("https://a.example".into())
         );
-        assert_eq!(label(27, 40), "ss");
+        assert_eq!(label(27, 40, LETTERS.as_bytes()), "ss");
     }
 }

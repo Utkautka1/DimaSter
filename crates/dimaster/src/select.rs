@@ -11,11 +11,6 @@ use crate::keys;
 use crate::modes::{Mode, paste::PasteConfirm};
 use crate::view::View;
 
-// повторное нажатие в той же клетке за это время считается двойным
-const MULTI_CLICK: Duration = Duration::from_millis(400);
-// шаг автопрокрутки при удержании мыши за краем экрана
-const DRAG_SCROLL_STEP: Duration = Duration::from_millis(45);
-
 /// Счётчик кликов и текущее выделение.
 #[derive(Debug, Default)]
 pub(crate) struct Selecting {
@@ -27,10 +22,10 @@ pub(crate) struct Selecting {
 }
 
 impl Selecting {
-    fn press(&mut self, point: Point, block: bool, now: Instant) {
+    fn press(&mut self, point: Point, block: bool, now: Instant, window: Duration) {
         let repeated = self
             .last_click
-            .is_some_and(|(at, last)| last == point && now.duration_since(at) < MULTI_CLICK);
+            .is_some_and(|(at, last)| last == point && now.duration_since(at) < window);
         self.clicks = if repeated { self.clicks % 3 + 1 } else { 1 };
         self.last_click = Some((now, point));
         self.dragging = true;
@@ -88,8 +83,12 @@ impl View {
 
     pub(crate) fn select_press(&mut self) {
         let point = self.point(self.pointer.cell);
-        self.selecting
-            .press(point, self.modifiers.alt_key(), Instant::now());
+        self.selecting.press(
+            point,
+            self.modifiers.alt_key(),
+            Instant::now(),
+            Duration::from_millis(self.config.tuning.multi_click),
+        );
         self.window.request_redraw();
     }
 
@@ -132,7 +131,8 @@ impl View {
         if ready {
             self.scroll_by(dir);
             self.select_drag();
-            self.selecting.drag_scroll_at = Some(now + DRAG_SCROLL_STEP);
+            self.selecting.drag_scroll_at =
+                Some(now + Duration::from_millis(self.config.tuning.drag_scroll_step));
         }
         self.selecting.drag_scroll_at
     }
@@ -190,7 +190,7 @@ mod tests {
         let point = Point { line: 0, col: 1 };
         let mut kinds = Vec::new();
         for _ in 0..4 {
-            state.press(point, false, now);
+            state.press(point, false, now, Duration::from_millis(400));
             kinds.push(state.selection.map(|s| s.kind));
         }
         let expected = [
@@ -206,7 +206,7 @@ mod tests {
     fn drag_creates_selection_only_after_leaving_cell() {
         let mut state = Selecting::default();
         let start = Point { line: 0, col: 1 };
-        state.press(start, false, Instant::now());
+        state.press(start, false, Instant::now(), Duration::from_millis(400));
         assert!(!state.drag(start));
         assert!(state.drag(Point { line: 1, col: 0 }));
         assert_eq!(state.selection.unwrap().anchor, start);

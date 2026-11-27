@@ -4,13 +4,10 @@ use dimaster_config::{Config, Decorations};
 
 use crate::view::View;
 
-// на сколько пунктов крупнее
-const ZOOM: f32 = 4.0;
-
 /// Настройки для показа на экране на основе обычных.
 pub(crate) fn derive(config: &Config, window_width: u32) -> Config {
     let mut shown = config.clone();
-    shown.font_size += ZOOM;
+    shown.font_size += config.tuning.presentation_zoom;
     shown.padding = (window_width / 10, config.padding.1.max(24));
     shown.window.decorations = Decorations::None;
     shown.scrollbar = false;
@@ -41,7 +38,7 @@ mod tests {
         let shown = derive(&base, 1000);
         assert_eq!(
             (shown.font_size, shown.padding.0),
-            (base.font_size + ZOOM, 100)
+            (base.font_size + 4.0, 100)
         );
         assert!(!shown.scrollbar);
         assert_eq!(shown.window.decorations, Decorations::None);

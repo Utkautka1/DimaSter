@@ -27,7 +27,7 @@ use crate::select::Selecting;
 use crate::session::{Launch, Output, Session};
 use crate::settings;
 use crate::shared::{Held, Signals};
-use crate::signals::{FLASH, Ringer};
+use crate::signals::Ringer;
 use crate::skins::Look;
 use crate::smart::Assist;
 use crate::status::Status;
@@ -296,7 +296,8 @@ impl View {
             self.seen.cwd = self.term.cwd().map(str::to_owned);
             let cwd = self.seen.cwd.clone().unwrap_or_default();
             if !cwd.is_empty() {
-                self.history_store.bump_dir(std::path::Path::new(&cwd));
+                self.history_store
+                    .bump_dir(std::path::Path::new(&cwd), self.config.tuning.history_dirs);
             }
             self.emit("cwd", &cwd);
         }
@@ -359,7 +360,11 @@ impl View {
             .animator
             .next_frame(self.config.effects, self.focused, now);
         // кадр, который погасит вспышку звонка
-        let flash = self.ringer.since.map(|t| t + FLASH).filter(|&t| t > now);
+        let flash = self
+            .ringer
+            .since
+            .map(|t| t + Duration::from_millis(self.config.tuning.bell_flash))
+            .filter(|&t| t > now);
         let notice = self.notice.expires(now);
         self.animate_at = [picture, motion, glow, flash, notice]
             .into_iter()

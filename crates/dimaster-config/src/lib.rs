@@ -28,6 +28,7 @@ mod smart;
 mod snippets;
 mod styles;
 mod theme;
+mod tuning;
 mod ui;
 mod viewer;
 mod widgets;
@@ -54,6 +55,7 @@ pub use smart::Smart;
 pub use snippets::Snippet;
 pub use styles::{Scene, Style, style, style_bar, styles};
 pub use theme::{Theme, builtin_names};
+pub use tuning::Tuning;
 pub use ui::{
     Align, Anchor, HistoryStyle, Marks, MonitorStyle, NoticeStyle, PaletteStyle, PanelStyle, Strip,
 };
