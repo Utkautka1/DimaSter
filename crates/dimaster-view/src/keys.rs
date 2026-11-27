@@ -107,7 +107,8 @@ fn movement(app: &mut App, action: &str) -> bool {
 
 // выбранная запись в буфер обмена, значения через табуляцию
 fn copy(app: &mut App) {
-    let values: Vec<String> = app.sheet().record().into_iter().map(|p| p.1).collect();
+    let record = app.sheets[app.active].record(&app.db);
+    let values: Vec<String> = record.into_iter().map(|p| p.1).collect();
     app.copied = Some(values.join("\t"));
     app.message = dimaster_i18n::tr("Строка скопирована");
 }
@@ -183,7 +184,7 @@ fn typing(app: &mut App, code: KeyCode) {
         KeyCode::Enter => return submit(app),
         KeyCode::Esc => {
             if app.mode == Mode::Search {
-                app.sheet().search("");
+                app.search("");
             }
             app.mode = Mode::Table;
             return;
@@ -194,7 +195,7 @@ fn typing(app: &mut App, code: KeyCode) {
     }
     if app.mode == Mode::Search {
         let query = app.input.clone();
-        app.sheet().search(&query);
+        app.search(&query);
     }
 }
 
@@ -260,6 +261,10 @@ mod tests {
         App::new(db).expect("приложение")
     }
 
+    fn record(app: &App) -> Vec<(&str, String)> {
+        app.sheets[app.active].record(&app.db)
+    }
+
     fn type_keys(app: &mut App, text: &str) {
         for ch in text.chars() {
             let code = match ch {
@@ -274,12 +279,12 @@ mod tests {
     fn commands_refine_the_result() {
         let mut app = app();
         type_keys(&mut app, "o age\n");
-        assert_eq!(app.sheet().record()[0].1, "bob");
+        assert_eq!(record(&app)[0].1, "bob");
         type_keys(&mut app, ":q SELECT name FROM _ WHERE age > 30\n");
-        assert_eq!(app.sheet().record(), [("name", "ann".to_owned())]);
+        assert_eq!(record(&app), [("name", "ann".to_owned())]);
         type_keys(&mut app, ":f nonsense\n");
         assert!(app.message.contains("nonsense"));
-        assert_eq!(app.sheet().table.rows.len(), 1);
+        assert_eq!(app.sheet().data.len(), 1);
     }
 
     #[test]
@@ -303,7 +308,7 @@ mod tests {
         type_keys(&mut app, "q");
         assert_eq!((app.mode, app.done), (Mode::Table, false));
         assert_eq!(app.remote("o age"), "ok");
-        assert_eq!(app.sheet().record()[0].1, "bob");
+        assert_eq!(record(&app)[0].1, "bob");
         assert!(app.remote("nope").starts_with("error"));
         app.remote("quit");
         assert!(app.done);

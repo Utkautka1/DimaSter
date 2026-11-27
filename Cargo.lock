@@ -1016,6 +1016,7 @@ dependencies = [
  "dimaster-render",
  "dimaster-view",
  "env_logger",
+ "libc",
  "log",
  "notify",
  "parking_lot",

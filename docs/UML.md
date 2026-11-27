@@ -263,14 +263,16 @@ classDiagram
 
 ```mermaid
 classDiagram
-    class Database { +load(path) +query(sql) +table(name) +set_limits(limits) }
+    class Database { +load(path) +query(sql) +table(name) +set_limits(limits) +open_table(name) +open(sql) +fetch(rows, indexes) +scan(rows, visit) +close(rows) }
+    class Rows { columns; len; source }
+    Database ..> Rows
     class Limits { time; bytes }
     class Watchdog { +start(connection, time) }
     Database *-- Limits
     Database ..> Watchdog : query
     class Table { name; columns; rows }
     class App { sheets; active; mode; +press(key) }
-    class Sheet { sql; table; columns; shown; +search() +apply() }
+    class Sheet { sql; data; sample; columns; found; +search() +apply() +page() }
     class Viewer { settings; +columns() +cell() +status() }
     class Plot { Histogram; Scatter }
     class Server { requests }
@@ -279,7 +281,7 @@ classDiagram
     App *-- Database
     App *-- Sheet
     App --> Viewer : view.lua
-    Sheet --> Table
+    Sheet --> Rows
     Database ..> Table
 ```
 

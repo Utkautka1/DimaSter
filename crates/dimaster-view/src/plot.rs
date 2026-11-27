@@ -1,10 +1,11 @@
 //! Графики из колонок текущей таблицы: гистограмма блоками и точки
 //! шрифтом Брайля (в знакоместе 2×4 точки).
 
-use dimaster_data::{Table, Value};
+use dimaster_data::{Database, Rows, Value};
 use dimaster_i18n::t;
 
 use crate::render::fitted;
+use crate::sheet::Sheet;
 
 /// Что нарисовать; номера — колонки результата.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -21,26 +22,40 @@ fn number(value: &Value) -> Option<f64> {
     }
 }
 
-fn column(table: &Table, name: &str) -> Result<usize, String> {
-    let found = table
+// есть ли в колонке хоть одно число
+fn column(db: &Database, data: &Rows, name: &str) -> Result<usize, String> {
+    let found = data
         .columns
         .iter()
         .position(|c| c.eq_ignore_ascii_case(name));
-    let found = found.filter(|&i| table.rows.iter().any(|r| number(&r[i]).is_some()));
+    let numeric = |i: usize| {
+        let mut any = false;
+        let scanned = db.scan(data, |row| {
+            any |= number(&row[i]).is_some();
+            Ok(())
+        });
+        scanned.is_ok() && any
+    };
+    let found = found.filter(|&i| numeric(i));
     found.ok_or_else(|| t!("Нет числовой колонки: {column}", column = name))
 }
 
 /// Разбирает `hist колонка [столбцов]` и `scatter x y`.
-pub(crate) fn parse(table: &Table, word: &str, rest: &str) -> Option<Result<Plot, String>> {
+pub(crate) fn parse(
+    db: &Database,
+    data: &Rows,
+    word: &str,
+    rest: &str,
+) -> Option<Result<Plot, String>> {
     let mut args = rest.split_whitespace();
     let (first, second) = (args.next().unwrap_or_default(), args.next());
     Some(match word {
-        "hist" => column(table, first).map(|column| Plot::Histogram {
+        "hist" => column(db, data, first).map(|column| Plot::Histogram {
             column,
             bins: second.and_then(|n| n.parse().ok()).filter(|&n| n > 0),
         }),
-        "scatter" => column(table, first)
-            .and_then(|x| Ok((x, column(table, second.unwrap_or_default())?)))
+        "scatter" => column(db, data, first)
+            .and_then(|x| Ok((x, column(db, data, second.unwrap_or_default())?)))
             .map(|(x, y)| Plot::Scatter { x, y }),
         _ => return None,
     })
@@ -107,30 +122,43 @@ fn scatter(points: &[(f64, f64)], width: usize, height: usize) -> Vec<String> {
     lines
 }
 
+// значения строк, прошедших поиск; хранятся только числа графика
+fn collect<T>(db: &Database, sheet: &Sheet, pick: impl Fn(&[Value]) -> Option<T>) -> Vec<T> {
+    let mut wanted = vec![sheet.found().is_none(); sheet.data.len()];
+    for &index in sheet.found().unwrap_or_default() {
+        wanted[index] = true;
+    }
+    let mut wanted = wanted.into_iter();
+    let mut values = Vec::new();
+    // ошибка чтения оставит график по прочитанной части
+    let _ = db.scan(&sheet.data, |row| {
+        if wanted.next() == Some(true) {
+            values.extend(pick(row));
+        }
+        Ok(())
+    });
+    values
+}
+
 /// Строки графика не шире `width` и не выше `height`.
 pub(crate) fn draw(
     plot: &Plot,
-    table: &Table,
-    shown: &[usize],
+    db: &Database,
+    sheet: &Sheet,
     width: usize,
     height: usize,
 ) -> Vec<String> {
-    let rows = shown.iter().map(|&i| &table.rows[i]);
+    let names = &sheet.data.columns;
     let body = height.saturating_sub(2).max(1);
     let (title, lines) = match *plot {
         Plot::Histogram { column, bins } => {
-            let values: Vec<f64> = rows.filter_map(|r| number(&r[column])).collect();
+            let values = collect(db, sheet, |r| number(&r[column]));
             let bins = bins.unwrap_or(20).min(body);
-            (
-                table.columns[column].clone(),
-                histogram(&values, bins, width),
-            )
+            (names[column].clone(), histogram(&values, bins, width))
         }
         Plot::Scatter { x, y } => {
-            let points: Vec<_> = rows
-                .filter_map(|r| Some((number(&r[x])?, number(&r[y])?)))
-                .collect();
-            let title = format!("{} × {}", table.columns[x], table.columns[y]);
+            let points = collect(db, sheet, |r| Some((number(&r[x])?, number(&r[y])?)));
+            let title = format!("{} × {}", names[x], names[y]);
             (title, scatter(&points, width.max(1), body))
         }
     };
@@ -140,21 +168,26 @@ pub(crate) fn draw(
 
 #[cfg(test)]
 mod tests {
+    use dimaster_data::{Format, Options};
+
     use super::*;
 
-    fn table() -> Table {
-        let rows = [["1", "a", "1"], ["2", "b", "4"], ["9", "c", "9"]];
-        let rows = rows.iter().map(|r| r.map(String::from).to_vec()).collect();
-        Table::from_text(["x", "name", "y"].map(String::from).to_vec(), rows)
+    fn table() -> (Database, Rows) {
+        let mut db = Database::new().expect("база");
+        let text = b"x,name,y\n1,a,1\n2,b,4\n9,c,9\n";
+        db.load_bytes("t", Format::Csv, text, &Options::default())
+            .expect("csv");
+        let data = db.open_table("t").expect("таблица");
+        (db, data)
     }
 
     #[test]
     fn only_numeric_columns_are_plotted() {
-        let table = table();
-        let scatter = parse(&table, "scatter", "X y");
+        let (db, data) = table();
+        let scatter = parse(&db, &data, "scatter", "X y");
         assert_eq!(scatter, Some(Ok(Plot::Scatter { x: 0, y: 2 })));
-        assert!(matches!(parse(&table, "hist", "name"), Some(Err(_))));
-        assert_eq!(parse(&table, "order", "x"), None);
+        assert!(matches!(parse(&db, &data, "hist", "name"), Some(Err(_))));
+        assert_eq!(parse(&db, &data, "order", "x"), None);
     }
 
     #[test]

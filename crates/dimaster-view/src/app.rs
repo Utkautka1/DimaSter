@@ -93,9 +93,17 @@ impl App {
         &mut self.sheets[self.active]
     }
 
+    /// Нечёткий поиск по текущей вкладке.
+    pub(crate) fn search(&mut self, query: &str) {
+        if let Err(e) = self.sheets[self.active].search(&self.db, query) {
+            self.message = e.to_string();
+        }
+    }
+
     /// Закрывает вкладку; последняя закрывает программу.
     pub(crate) fn close(&mut self) {
-        self.sheets.remove(self.active);
+        let closed = self.sheets.remove(self.active);
+        self.db.close(closed.data);
         self.done = self.sheets.is_empty();
         self.active = self.active.min(self.sheets.len().saturating_sub(1));
     }

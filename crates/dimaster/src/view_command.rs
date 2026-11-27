@@ -93,5 +93,16 @@ pub(crate) fn run(args: &[String]) -> Result<(), Box<dyn Error>> {
         load_pipe(&mut db, &request.options)?;
     }
     let remote = request.remote || viewer.settings.remote;
-    Ok(dimaster_view::run(App::new(db)?.with(viewer), remote)?)
+    let app = App::new(db)?.with(viewer);
+    release_memory();
+    Ok(dimaster_view::run(app, remote)?)
+}
+
+// разбор файла берёт много временной памяти, а glibc сам её системе не отдаёт
+fn release_memory() {
+    #[cfg(target_env = "gnu")]
+    // SAFETY: вызов не принимает указателей и безопасен в любой момент
+    unsafe {
+        libc::malloc_trim(0);
+    }
 }

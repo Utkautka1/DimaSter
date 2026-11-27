@@ -3,6 +3,7 @@
 //! Базы с диска копируются в память и сразу отсоединяются, а `ATTACH` после
 //! этого запрещён: ни запрос, ни чужой дамп не могут тронуть файлы.
 
+use std::cell::Cell;
 use std::path::Path;
 
 use rusqlite::limits::Limit;
@@ -14,15 +15,17 @@ use crate::limit::{Limits, Watchdog, row_bytes};
 use crate::{DataError, Format, Options, Table, Value, is_leveldb, leveldb};
 
 pub struct Database {
-    connection: Connection,
-    limits: Limits,
+    pub(crate) connection: Connection,
+    pub(crate) limits: Limits,
+    // номер следующей временной таблицы результата
+    views: Cell<u64>,
 }
 
-fn quote(name: &str) -> String {
+pub(crate) fn quote(name: &str) -> String {
     format!("\"{}\"", name.replace('"', "\"\""))
 }
 
-fn value(cell: ValueRef<'_>) -> Value {
+pub(crate) fn value(cell: ValueRef<'_>) -> Value {
     match cell {
         ValueRef::Null => Value::Null,
         ValueRef::Integer(number) => Value::Int(number),
@@ -57,14 +60,30 @@ impl Database {
     pub fn new() -> Result<Self, DataError> {
         let connection = Connection::open_in_memory()?;
         connection.set_limit(Limit::SQLITE_LIMIT_ATTACHED, 0)?;
-        Ok(Self {
+        let database = Self {
             connection,
             limits: Limits::default(),
-        })
+            views: Cell::new(0),
+        };
+        database.bound_temporary()?;
+        Ok(database)
     }
 
-    pub fn set_limits(&mut self, limits: Limits) {
+    pub fn set_limits(&mut self, limits: Limits) -> Result<(), DataError> {
         self.limits = limits;
+        self.bound_temporary()
+    }
+
+    // временные таблицы результатов живут в памяти и не растут сверх предела
+    fn bound_temporary(&self) -> Result<(), DataError> {
+        let pages = (self.limits.bytes / 4096).max(1);
+        let sql = format!("PRAGMA temp_store = MEMORY; PRAGMA temp.max_page_count = {pages};");
+        Ok(self.connection.execute_batch(&sql)?)
+    }
+
+    pub(crate) fn next_view(&self) -> u64 {
+        self.views.set(self.views.get() + 1);
+        self.views.get()
     }
 
     /// Читает файл и возвращает имена добавленных таблиц.

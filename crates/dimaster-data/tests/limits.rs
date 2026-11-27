@@ -22,7 +22,8 @@ fn endless_queries_are_stopped() {
     db.set_limits(Limits {
         time: Duration::from_millis(200),
         bytes: 1 << 16,
-    });
+    })
+    .expect("пределы");
     let rows = db.query(&format!("{ENDLESS} SELECT x FROM n"));
     assert!(matches!(rows, Err(DataError::TooLarge)));
     assert!(
@@ -30,4 +31,7 @@ fn endless_queries_are_stopped() {
             .is_err()
     );
     assert!(db.query("SELECT 1").is_ok());
+    // результат вкладки ограничен так же
+    let stored = db.open(&format!("{ENDLESS} SELECT x FROM n"));
+    assert!(matches!(stored, Err(DataError::TooLarge)));
 }

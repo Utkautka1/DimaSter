@@ -72,7 +72,7 @@ fn widths(sheet: &Sheet, view: &ViewSettings, fit: bool, screen: usize) -> Vec<u
         (_, false) => view.max_width,
     };
     let natural = |column: &ViewColumn| {
-        let rows = sheet.table.rows.iter().take(1000);
+        let rows = sheet.sample.iter();
         let longest = rows.map(|r| size(&r[column.source].text())).max();
         longest
             .unwrap_or(0)
@@ -121,6 +121,8 @@ struct Grid<'a> {
     // ширина колонки номеров вместе с отступом; 0 — номеров нет
     numbers: usize,
     screen: usize,
+    // только строки экрана, начиная с `sheet.top`
+    page: Vec<Vec<Value>>,
 }
 
 impl Grid<'_> {
@@ -180,7 +182,7 @@ impl Grid<'_> {
     // текст и цвет ячейки с учётом `format`; ошибка функции видна в ячейке
     fn content(&self, column: &ViewColumn, row: &[Value]) -> (String, Option<ViewColor>) {
         let raw = row[column.source].text();
-        let names = &self.sheet.table.columns;
+        let names = &self.sheet.data.columns;
         let record: Vec<(&str, String)> = names
             .iter()
             .map(String::as_str)
@@ -204,7 +206,7 @@ impl Grid<'_> {
     }
 
     fn row(&self, at: usize) -> String {
-        let row = &self.sheet.table.rows[self.sheet.shown[at]];
+        let row = &self.page[at - self.sheet.top];
         let style = self.row_style(at);
         let number = (at + 1).to_string();
         self.line(&number, &style, |c, width| self.cell(c, width, row, &style))
@@ -216,7 +218,7 @@ fn arrange(app: &mut App, screen: usize, rows: usize) -> (usize, Vec<(usize, usi
     let view = &app.viewer.settings;
     let sheet = &mut app.sheets[app.active];
     let numbers = match view.row_numbers {
-        true => sheet.shown.len().to_string().len() + 1,
+        true => sheet.len().to_string().len() + 1,
         false => 0,
     };
     let room = screen.saturating_sub(numbers);
@@ -224,6 +226,8 @@ fn arrange(app: &mut App, screen: usize, rows: usize) -> (usize, Vec<(usize, usi
     sheet.top = sheet
         .top
         .clamp((sheet.row + 1).saturating_sub(rows), sheet.row);
+    // курсор мог остаться за концом укоротившегося результата
+    sheet.top = sheet.top.min(sheet.len());
     (numbers, visible(sheet, &widths, view.gap, room))
 }
 
@@ -236,8 +240,9 @@ fn grid(app: &mut App, screen: usize, rows: usize) -> Vec<String> {
         cells,
         numbers,
         screen,
+        page: sheet.page(&app.db, sheet.top, rows),
     };
-    let shown = sheet.top..(sheet.top + rows).min(sheet.shown.len());
+    let shown = sheet.top..sheet.top + grid.page.len();
     let header = grid.view().header.then(|| grid.header());
     header
         .into_iter()
@@ -246,8 +251,8 @@ fn grid(app: &mut App, screen: usize, rows: usize) -> Vec<String> {
 }
 
 // запись столбиком или объектом JSON
-fn record(sheet: &Sheet, as_json: bool, screen: usize) -> Vec<String> {
-    let pairs = sheet.record();
+fn record(app: &App, as_json: bool, screen: usize) -> Vec<String> {
+    let pairs = app.sheets[app.active].record(&app.db);
     let quoted = |s: &str| format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\""));
     if as_json {
         let body = pairs
@@ -269,7 +274,7 @@ fn record(sheet: &Sheet, as_json: bool, screen: usize) -> Vec<String> {
 fn tab_list(app: &App, screen: usize) -> Vec<String> {
     let entry = |(index, sheet): (usize, &Sheet)| {
         let style = if index == app.active { "\x1b[7m" } else { "" };
-        let text = format!(" {} ({})", sheet.title, sheet.table.rows.len());
+        let text = format!(" {} ({})", sheet.title, sheet.data.len());
         format!("{style}{}{RESET}", fitted(&text, screen))
     };
     app.sheets.iter().enumerate().map(entry).collect()
@@ -282,11 +287,11 @@ fn details(app: &App) -> [(&'static str, String); 7] {
         .columns
         .get(sheet.column)
         .map_or("", |c| c.title.as_str());
-    let row = (sheet.row + 1).min(sheet.shown.len());
+    let row = (sheet.row + 1).min(sheet.len());
     [
         ("title", sheet.title.clone()),
         ("row", row.to_string()),
-        ("rows", sheet.shown.len().to_string()),
+        ("rows", sheet.len().to_string()),
         ("column", column.to_owned()),
         ("tab", (app.active + 1).to_string()),
         ("tabs", app.sheets.len().to_string()),
@@ -327,7 +332,7 @@ fn status(app: &App, screen: usize) -> String {
 
 fn chart(app: &App, width: usize, height: usize) -> Vec<String> {
     let sheet = &app.sheets[app.active];
-    let draw = |p| plot::draw(p, &sheet.table, &sheet.shown, width, height);
+    let draw = |p| plot::draw(p, &app.db, sheet, width, height);
     app.plot.as_ref().map(draw).unwrap_or_default()
 }
 
@@ -338,7 +343,7 @@ pub(crate) fn frame(app: &mut App, width: usize, height: usize) -> Vec<String> {
     app.page = body.saturating_sub(header).max(1);
     let mut lines = match app.mode {
         Mode::Record(as_json) => {
-            let all = record(&app.sheets[app.active], as_json, width);
+            let all = record(app, as_json, width);
             app.scroll = app.scroll.min(all.len().saturating_sub(1));
             all.into_iter().skip(app.scroll).collect()
         }

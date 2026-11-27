@@ -1,9 +1,10 @@
 //! Командная строка `:` — `q` запрос, `f` фильтр, `o` порядок, `s` колонки,
 //! `hist` и `scatter`, `schema`, `import` и `export`.
 
+use std::io::{BufWriter, Write};
 use std::path::Path;
 
-use dimaster_data::{Database, Options, Table};
+use dimaster_data::{DataError, Database, Options, Rows, Value};
 use dimaster_i18n::{t, tr};
 
 use crate::app::{App, Mode};
@@ -40,25 +41,29 @@ fn csv_field(text: &str) -> String {
     }
 }
 
-/// Таблица в CSV с заголовком.
-pub(crate) fn to_csv(table: &Table) -> String {
-    let line = |cells: Vec<String>| cells.join(",") + "\n";
-    let mut out = line(table.columns.iter().map(|c| csv_field(c)).collect());
-    for row in &table.rows {
-        out += &line(row.iter().map(|v| csv_field(&v.text())).collect());
-    }
-    out
+fn csv_line<'a>(cells: impl Iterator<Item = &'a str>) -> String {
+    cells.map(csv_field).collect::<Vec<_>>().join(",") + "\n"
+}
+
+/// Пишет результат в CSV с заголовком по строке за раз.
+fn write_csv(db: &Database, data: &Rows, out: &mut impl Write) -> Result<(), DataError> {
+    out.write_all(csv_line(data.columns.iter().map(String::as_str)).as_bytes())?;
+    db.scan(data, |row| {
+        let cells: Vec<String> = row.iter().map(Value::text).collect();
+        Ok(out.write_all(csv_line(cells.iter().map(String::as_str)).as_bytes())?)
+    })?;
+    Ok(out.flush()?)
 }
 
 fn export(app: &mut App, path: &str) -> Result<String, String> {
-    let table = &app.sheet().table;
     // чужой файл не перезаписываем молча
     let file = std::fs::File::options()
         .write(true)
         .create_new(true)
-        .open(path);
-    file.and_then(|mut f| std::io::Write::write_all(&mut f, to_csv(table).as_bytes()))
+        .open(path)
         .map_err(|e| e.to_string())?;
+    let data = &app.sheets[app.active].data;
+    write_csv(&app.db, data, &mut BufWriter::new(file)).map_err(|e| e.to_string())?;
     Ok(t!("Сохранено: {path}", path = path))
 }
 
@@ -77,10 +82,7 @@ fn import(app: &mut App, path: &str) -> Result<String, String> {
 fn schema(db: &Database) -> Result<Sheet, String> {
     let sql = "SELECT t.name AS \"table\", c.name AS \"column\", c.type AS type \
                FROM sqlite_schema t, pragma_table_info(t.name) c WHERE t.type = 'table'";
-    let mut sheet = Sheet::open(db, "sqlite_schema").map_err(|e| e.to_string())?;
-    sheet.apply(db, sql.to_owned()).map_err(|e| e.to_string())?;
-    sheet.title = tr("Схема");
-    Ok(sheet)
+    Sheet::query(db, tr("Схема"), sql.to_owned()).map_err(|e| e.to_string())
 }
 
 /// Выполняет строку команды; `Ok` — сообщение для строки состояния.
@@ -97,7 +99,7 @@ pub(crate) fn run(app: &mut App, line: &str) -> Result<String, String> {
         }
         _ => {}
     }
-    if let Some(parsed) = plot::parse(&app.sheet().table, word, rest) {
+    if let Some(parsed) = plot::parse(&app.db, &app.sheets[app.active].data, word, rest) {
         (app.plot, app.mode) = (Some(parsed?), Mode::Plot);
         return Ok(String::new());
     }

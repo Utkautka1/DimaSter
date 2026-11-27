@@ -16,6 +16,7 @@ mod leveldb;
 mod limit;
 mod logfmt;
 mod markup;
+mod rows;
 mod table;
 
 pub use database::Database;
@@ -23,4 +24,5 @@ pub use error::DataError;
 pub use format::{Format, Options};
 pub use leveldb::is_leveldb;
 pub use limit::Limits;
+pub use rows::Rows;
 pub use table::{Table, Value};
