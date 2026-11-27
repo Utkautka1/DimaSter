@@ -8,13 +8,11 @@ use winit::window::{CursorIcon, ResizeDirection};
 use crate::overlay::{Drawn, clip, fill};
 use crate::view::View;
 
-// ширина зоны захвата края окна в пикселях
-const EDGE: f64 = 6.0;
 /// Край или угол окна под точкой.
-pub(crate) fn edge(x: f64, y: f64, width: f64, height: f64) -> Option<ResizeDirection> {
+pub(crate) fn edge(x: f64, y: f64, width: f64, height: f64, zone: f64) -> Option<ResizeDirection> {
     use ResizeDirection as Dir;
-    let (west, east) = (x < EDGE, x > width - EDGE);
-    let (north, south) = (y < EDGE, y > height - EDGE);
+    let (west, east) = (x < zone, x > width - zone);
+    let (north, south) = (y < zone, y > height - zone);
     Some(match (north, south, west, east) {
         (true, _, true, _) => Dir::NorthWest,
         (true, _, _, true) => Dir::NorthEast,
@@ -63,6 +61,13 @@ fn title_x(align: Align, window: u32, free: (u32, u32), text: u32) -> u32 {
 }
 
 impl View {
+    // край окна под точкой с шириной захвата из `tuning.resize_edge`
+    fn edge_at(&self, x: f64, y: f64) -> Option<ResizeDirection> {
+        let size = self.window.inner_size();
+        let zone = self.config.tuning.resize_edge.into();
+        edge(x, y, size.width.into(), size.height.into(), zone)
+    }
+
     /// Нажатие левой кнопки по рамке; `true` — до терминала оно не доходит.
     pub(crate) fn chrome_press(&mut self) -> bool {
         let (x, y) = self.pointer.position;
@@ -70,7 +75,7 @@ impl View {
         if self.config.window.decorations == Decorations::System {
             return false;
         }
-        if let Some(direction) = edge(x, y, size.width.into(), size.height.into()) {
+        if let Some(direction) = self.edge_at(x, y) {
             let _ = self.window.drag_resize_window(direction);
             return true;
         }
@@ -148,8 +153,8 @@ impl View {
     // стрелки изменения размера у краёв окна без системной рамки
     pub(crate) fn update_pointer_icon(&self) {
         let (x, y) = self.pointer.position;
-        let size = self.window.inner_size();
-        let resize = edge(x, y, size.width.into(), size.height.into())
+        let resize = self
+            .edge_at(x, y)
             .filter(|_| self.config.window.decorations != Decorations::System);
         let icon = match resize {
             Some(direction) => CursorIcon::from(direction),
@@ -167,14 +172,14 @@ mod tests {
     #[test]
     fn hit_testing() {
         assert_eq!(
-            edge(1.0, 1.0, 800.0, 600.0),
+            edge(1.0, 1.0, 800.0, 600.0, 6.0),
             Some(ResizeDirection::NorthWest)
         );
         assert_eq!(
-            edge(400.0, 599.0, 800.0, 600.0),
+            edge(400.0, 599.0, 800.0, 600.0, 6.0),
             Some(ResizeDirection::South)
         );
-        assert_eq!(edge(400.0, 300.0, 800.0, 600.0), None);
+        assert_eq!(edge(400.0, 300.0, 800.0, 600.0, 6.0), None);
     }
 
     #[test]

@@ -61,18 +61,16 @@ fn physical_name(key: PhysicalKey) -> String {
     }
 }
 
-fn accept_tail(tail: &str, mods: ModifiersState) -> Option<Vec<u8>> {
-    if mods.is_empty() {
-        return Some(tail.as_bytes().to_vec());
+// всю подсказку или только следующее слово
+fn accept_tail(tail: &str, word: bool) -> Vec<u8> {
+    if !word {
+        return tail.as_bytes().to_vec();
     }
-    if mods.control_key() && !mods.alt_key() && !mods.super_key() {
-        let len = tail
-            .find(|c: char| !c.is_whitespace())
-            .and_then(|s| tail[s..].find(char::is_whitespace).map(|e| s + e))
-            .unwrap_or(tail.len());
-        return Some(tail.as_bytes()[..len].to_vec());
-    }
-    None
+    let len = tail
+        .find(|c: char| !c.is_whitespace())
+        .and_then(|s| tail[s..].find(char::is_whitespace).map(|e| s + e))
+        .unwrap_or(tail.len());
+    tail.as_bytes()[..len].to_vec()
 }
 
 impl View {
@@ -136,17 +134,26 @@ impl View {
         None
     }
 
+    fn pressed(&self, key: &Key, chords: &[Chord]) -> bool {
+        let name = key_name(key).unwrap_or_default();
+        let held = mods(self.modifiers);
+        chords.iter().any(|c| c.key == name && c.mods == held)
+    }
+
     fn accept_ghost_bytes(&mut self, key: &Key) -> Option<Vec<u8>> {
-        let forward = matches!(key, Key::Named(NamedKey::ArrowRight | NamedKey::End));
-        if !forward || !self.config.smart.autosuggest || self.term.is_alternate() {
+        let (line, word) = (
+            self.pressed(key, &self.config.tuning.suggest_line),
+            self.pressed(key, &self.config.tuning.suggest_word),
+        );
+        if !(line || word) || !self.config.smart.autosuggest || self.term.is_alternate() {
             return None;
         }
         let prefix = crate::syntax::input_text_at_end(&self.term)?;
         let live: Vec<String> = self.term.commands().map(|c| c.command.clone()).collect();
         if let Some(tail) = self.history_store.best_suggestion(&prefix, &live) {
-            return accept_tail(&tail, self.modifiers);
+            return Some(accept_tail(&tail, word));
         }
-        if self.modifiers.control_key()
+        if word
             && let Some((typo, fix)) =
                 crate::syntax::suggest_typo(&prefix, self.term.cwd(), &mut self.syntax)
         {

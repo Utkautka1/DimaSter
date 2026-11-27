@@ -7,9 +7,6 @@ use dimaster_render::Rect;
 use crate::modes::Mode;
 use crate::view::View;
 
-// отступ от края окна и полосы прокрутки
-const MARGIN: u32 = 8;
-
 /// Где нарисована карта и сколько строк в одном пикселе.
 #[derive(Debug, Clone, Copy)]
 struct Area {
@@ -49,8 +46,10 @@ impl View {
         let range = self.term.line_range();
         Some(Area {
             x: match style.left {
-                true => MARGIN,
-                false => size.width.saturating_sub(style.width + MARGIN),
+                true => self.config.tuning.minimap_margin,
+                false => size
+                    .width
+                    .saturating_sub(style.width + self.config.tuning.minimap_margin),
             },
             style,
             top,

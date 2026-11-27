@@ -95,6 +95,9 @@ impl View {
         self.term.set_policy(policy);
         self.term.set_history_limit(self.config.scrollback);
         self.term.set_images_scroll(self.config.images_scroll);
+        let tuning = &self.config.tuning;
+        self.term
+            .set_command_limits(tuning.memory_commands, tuning.memory_lines);
         let smart = &self.config.smart;
         self.term.set_smart_options(SmartOptions {
             ok: smart.ok.clone(),

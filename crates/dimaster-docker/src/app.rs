@@ -65,6 +65,7 @@ impl App {
         let listed = config.settings.hosts.as_deref().unwrap_or(servers);
         let remote = listed.iter().filter_map(|name| Host::ssh(name));
         let hosts = std::iter::once(Host::Local).chain(remote).collect();
+        crate::timing::set(config.settings.timing);
         let period = Duration::from_secs(config.settings.refresh);
         let worker = Worker::start(period, config.settings.stats);
         let app = Self::initial(config, hosts, worker);

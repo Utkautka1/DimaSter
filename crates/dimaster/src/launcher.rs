@@ -52,7 +52,7 @@ impl View {
     }
 
     pub(crate) fn open_docker(&mut self) {
-        let found = sources::containers();
+        let found = sources::containers(self.config.tuning.docker_timeout);
         let empty = match found {
             Some(_) => "контейнеров нет",
             None => "Docker не отвечает",

@@ -69,3 +69,19 @@ return {
 Колонки, `colors`, `max_width`, `gap`, функции `format` и `status` устроены как в [view.lua](view.md). Имена таблиц: `containers`, `compose`, `images`, `volumes`, `networks`. Функция `status` получает `host`, `tab`, `rows`, `message`.
 
 Свои команды — это только аргументы `docker`: shell на твоей машине не запускается. `{id}` и `{name}` заменяются значениями выбранной строки.
+
+## Ожидания
+
+Все значения в секундах, задаются в `docker.lua`:
+
+```lua
+return {
+  query_timeout = 10,
+  action_timeout = 120,
+  ssh_persist = 60,
+  tunnel_timeout = 10,
+  tunnel_retry = 60,
+}
+```
+
+`query_timeout` — списки и статистика, `action_timeout` — команды, `ssh_persist` — сколько держать SSH-соединение, `tunnel_timeout` и `tunnel_retry` — открытие туннеля и повтор после неудачи.

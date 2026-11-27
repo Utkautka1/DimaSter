@@ -14,12 +14,9 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::process::capture;
+use crate::timing::{get, seconds};
 
 const REMOTE: &str = "/var/run/docker.sock";
-// сколько ждать подключения и ответа демона
-const READY: Duration = Duration::from_secs(10);
-// после неудачи не пробуем снова на каждом обновлении
-const RETRY: Duration = Duration::from_secs(60);
 
 enum Tunnel {
     Open { child: Child, socket: PathBuf },
@@ -92,7 +89,7 @@ fn local_socket() -> Option<PathBuf> {
 
 // локальный сокет появляется и при недоступном демоне: нужен настоящий ответ
 fn answers(child: &mut Child, socket: &Path) -> bool {
-    let deadline = Instant::now() + READY;
+    let deadline = Instant::now() + seconds(get().tunnel_timeout);
     while !socket.exists() {
         if !matches!(child.try_wait(), Ok(None)) || Instant::now() > deadline {
             return false;
@@ -102,7 +99,7 @@ fn answers(child: &mut Child, socket: &Path) -> bool {
     let mut check = Command::new("docker");
     check.arg("-H").arg(format!("unix://{}", socket.display()));
     check.args(["version", "--format", "{{.Server.Version}}"]);
-    capture(check, READY).is_ok()
+    capture(check, seconds(get().tunnel_timeout)).is_ok()
 }
 
 fn open(name: &str) -> Option<Tunnel> {
@@ -121,7 +118,7 @@ fn open(name: &str) -> Option<Tunnel> {
 /// Открывает туннель, если его нет. Долгий вызов: только из фоновых потоков.
 pub(crate) fn ensure(name: &str) {
     let _one = OPENING.lock().unwrap_or_else(PoisonError::into_inner);
-    let recent = matches!(tunnels().get(name), Some(Tunnel::Failed(at)) if at.elapsed() < RETRY);
+    let recent = matches!(tunnels().get(name), Some(Tunnel::Failed(at)) if at.elapsed() < seconds(get().tunnel_retry));
     if recent || socket(name).is_some() {
         return;
     }

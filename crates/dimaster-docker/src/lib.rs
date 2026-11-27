@@ -14,6 +14,7 @@ mod mux;
 mod process;
 mod render;
 mod terminal;
+mod timing;
 mod tunnel;
 mod worker;
 

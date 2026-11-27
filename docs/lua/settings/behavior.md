@@ -96,9 +96,20 @@ return {
     pairs = { "()", "[]" },      -- пары автозакрытия
     presentation_zoom = 4,       -- прибавка к шрифту
     restored_marker = "── сессия восстановлена ──",
+    suggest_line = { "right", "end" },        -- принять всю подсказку
+    suggest_word = { "ctrl+right" },          -- слово или исправление опечатки
+    memory_commands = 100,    -- команд в памяти окна
+    memory_lines = 200,       -- строк вывода каждой
+    minimap_margin = 8,       -- пиксели
+    resize_edge = 6,          -- пиксели: захват края окна
+    video_width = 480,        -- видео в icat
+    video_fps = 15,
+    docker_timeout = 2,       -- с: ожидание docker ps
   },
 }
 ```
+
+Свои цвета `ls` задаются переменной: `env = { LS_COLORS = "di=1;34:ln=36" }`. Список палитры команд — `ui.palette.items`.
 
 `empty` показывается, когда программа из `search_tools` ничего не вывела и вернула 0 или 1 (так `grep` сообщает об отсутствии совпадений).
 

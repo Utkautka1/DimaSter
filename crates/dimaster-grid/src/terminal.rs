@@ -229,6 +229,11 @@ impl Terminal {
         }
     }
 
+    /// Сколько команд и строк их вывода помнить.
+    pub fn set_command_limits(&mut self, commands: usize, lines: usize) {
+        self.state.commands.limits = Some((commands, lines));
+    }
+
     pub fn set_smart_options(&mut self, options: SmartOptions) {
         self.state.commands.options = options;
     }

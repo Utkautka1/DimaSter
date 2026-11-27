@@ -79,6 +79,9 @@ fn customize_help(config: &mut Config) {
     config.tuning.pairs = vec![('<', '>')];
     config.tuning.hint_letters = "ab".into();
     config.tuning.presentation_zoom = 2.5;
+    config.tuning.suggest_line = Vec::new();
+    config.tuning.video_fps = 30;
+    config.tuning.memory_commands = 7;
     config.help.enabled = false;
     config.help.duration = 500;
     config.help.welcome = vec!["a \"b\"".into()];

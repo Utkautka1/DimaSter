@@ -5,7 +5,7 @@ use std::fmt::Write;
 use std::path::Path;
 
 use crate::color::format_color;
-use crate::{Config, Help, Smart, Theme, Tuning};
+use crate::{Chord, Config, Help, Smart, Theme, Tuning};
 
 // строка Lua: экранируются только символы, ломающие литерал
 fn quote(text: &str) -> String {
@@ -257,18 +257,47 @@ fn tuning_numbers(t: &Tuning) -> String {
     )
 }
 
+// клавиша в том виде, в каком её принимает `tuning`
+fn chord_text(chord: &Chord) -> String {
+    let m = chord.mods;
+    let held = [
+        (m.ctrl, "ctrl+"),
+        (m.shift, "shift+"),
+        (m.alt, "alt+"),
+        (m.logo, "super+"),
+    ];
+    let mods: String = held.iter().filter(|h| h.0).map(|h| h.1).collect();
+    quote(&format!("{mods}{}", chord.key))
+}
+
+fn tuning_extra(t: &Tuning) -> String {
+    format!(
+        "    suggest_line = {},\n    suggest_word = {},\n    memory_commands = {},\n    memory_lines = {},\n    minimap_margin = {},\n    resize_edge = {},\n    video_width = {},\n    video_fps = {},\n    docker_timeout = {},\n",
+        list(&t.suggest_line, chord_text),
+        list(&t.suggest_word, chord_text),
+        t.memory_commands,
+        t.memory_lines,
+        t.minimap_margin,
+        t.resize_edge,
+        t.video_width,
+        t.video_fps,
+        t.docker_timeout,
+    )
+}
+
 // тайминги и пределы
 fn tuning(t: &Tuning) -> String {
     let pair = |p: &(char, char)| quote(&String::from_iter([p.0, p.1]));
     format!(
         "  tuning = {{\n{}    picker_skip = {},\n    hint_letters = {},\n    pairs = {},\n    \
-         presentation_zoom = {},\n    restored_marker = {},\n  }},\n",
+         presentation_zoom = {},\n    restored_marker = {},\n{}  }},\n",
         tuning_numbers(t),
         list(&t.picker_skip, |s| quote(s)),
         quote(&t.hint_letters),
         list(&t.pairs, pair),
         t.presentation_zoom,
         quote(&tr(&t.restored_marker)),
+        tuning_extra(t),
     )
 }
 

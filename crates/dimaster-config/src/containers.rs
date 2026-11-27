@@ -29,6 +29,29 @@ pub struct DockerSettings {
     /// Серверы; `None` — все из `~/.ssh/config`.
     pub hosts: Option<Vec<String>>,
     pub commands: Vec<DockerCommand>,
+    pub timing: DockerTiming,
+}
+
+/// Ожидания и повторы, все в секундах.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DockerTiming {
+    pub query_timeout: u64,
+    pub action_timeout: u64,
+    pub ssh_persist: u64,
+    pub tunnel_timeout: u64,
+    pub tunnel_retry: u64,
+}
+
+impl Default for DockerTiming {
+    fn default() -> Self {
+        Self {
+            query_timeout: 10,
+            action_timeout: 120,
+            ssh_persist: 60,
+            tunnel_timeout: 10,
+            tunnel_retry: 60,
+        }
+    }
 }
 
 impl Default for DockerSettings {
@@ -43,6 +66,7 @@ impl Default for DockerSettings {
             shell: ["sh", "-c", shell].map(String::from).to_vec(),
             hosts: None,
             commands: Vec::new(),
+            timing: DockerTiming::default(),
         }
     }
 }
@@ -69,6 +93,21 @@ fn commands(root: &Table) -> mlua::Result<Vec<DockerCommand>> {
     listed.unwrap_or_default().iter().map(command).collect()
 }
 
+fn timing(root: &Table) -> mlua::Result<DockerTiming> {
+    let base = DockerTiming::default();
+    let seconds = |key: &str, default: u64| {
+        let found = root.get::<Option<u64>>(key)?;
+        Ok::<_, mlua::Error>(found.unwrap_or(default).clamp(1, 3600))
+    };
+    Ok(DockerTiming {
+        query_timeout: seconds("query_timeout", base.query_timeout)?,
+        action_timeout: seconds("action_timeout", base.action_timeout)?,
+        ssh_persist: seconds("ssh_persist", base.ssh_persist)?,
+        tunnel_timeout: seconds("tunnel_timeout", base.tunnel_timeout)?,
+        tunnel_retry: seconds("tunnel_retry", base.tunnel_retry)?,
+    })
+}
+
 fn settings(root: &Table) -> mlua::Result<DockerSettings> {
     let base = DockerSettings::default();
     let flag = |key: &str, default: bool| {
@@ -90,6 +129,7 @@ fn settings(root: &Table) -> mlua::Result<DockerSettings> {
             .unwrap_or(base.shell),
         hosts: root.get("hosts")?,
         commands: commands(root)?,
+        timing: timing(root)?,
     })
 }
 

@@ -9,7 +9,6 @@ use dimaster_docker::capture;
 // вложенные Include глубже этого — почти наверняка цикл
 const MAX_INCLUDE: u8 = 3;
 // зависший демон Docker не должен надолго замораживать окно
-const DOCKER_TIMEOUT: Duration = Duration::from_secs(2);
 
 /// Имя уходит в командную строку: никаких пробелов, кавычек и ведущего `-`.
 pub(crate) fn safe_name(name: &str) -> bool {
@@ -103,11 +102,11 @@ fn parse_containers(output: &str) -> Vec<Container> {
 }
 
 /// `None`, если Docker не установлен, не отвечает или отказал.
-pub(crate) fn containers() -> Option<Vec<Container>> {
+pub(crate) fn containers(timeout: u64) -> Option<Vec<Container>> {
     let format = "{{.Names}}\t{{.Status}}\t{{.Image}}";
     let mut command = Command::new("docker");
     command.args(["ps", "--all", "--format", format]);
-    let text = capture(command, DOCKER_TIMEOUT).ok()?;
+    let text = capture(command, Duration::from_secs(timeout)).ok()?;
     Some(parse_containers(&text))
 }
 

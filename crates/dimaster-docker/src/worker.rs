@@ -10,10 +10,7 @@ use serde_json::Value;
 use crate::host::Host;
 use crate::kind::{Item, Kind};
 use crate::process::capture;
-
-const QUERY: Duration = Duration::from_secs(10);
-// остановка контейнера ждёт его завершения, образы удаляются долго
-const ACTION: Duration = Duration::from_secs(120);
+use crate::timing::{get, seconds};
 
 /// Что нужно опрашивать сейчас.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -45,13 +42,13 @@ fn parse_stats(output: &str) -> Stats {
 fn list(target: &Target) -> Result<Vec<Item>, String> {
     target.host.connect();
     let command = target.host.command(&target.kind.list_args());
-    capture(command, QUERY).map(|text| target.kind.parse(&text))
+    capture(command, seconds(get().query_timeout)).map(|text| target.kind.parse(&text))
 }
 
 fn stats(host: &Host) -> Option<Stats> {
     host.connect();
     let args = ["stats", "--no-stream", "--format", "{{json .}}"].map(String::from);
-    let text = capture(host.command(&args), QUERY).ok()?;
+    let text = capture(host.command(&args), seconds(get().query_timeout)).ok()?;
     Some(parse_stats(&text))
 }
 
@@ -127,7 +124,7 @@ impl Worker {
         let events = self.events.clone();
         thread::spawn(move || {
             host.connect();
-            let result = capture(host.command(&args), ACTION);
+            let result = capture(host.command(&args), seconds(get().action_timeout));
             let event = match show {
                 true => Event::Shown(result),
                 false => Event::Done(result.map(drop)),

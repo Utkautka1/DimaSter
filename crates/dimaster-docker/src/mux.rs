@@ -11,9 +11,6 @@ use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
-// сколько секунд соединение ждёт следующего запроса
-const PERSIST: u32 = 60;
-
 // первый настоящий `ssh` в PATH, не считая нашей обёртки
 fn real_ssh(path: &OsStr, own: &Path) -> Option<PathBuf> {
     std::env::split_paths(path)
@@ -32,9 +29,10 @@ fn script(ssh: &Path, directory: &Path) -> Option<String> {
     // %C — хэш хоста, порта и пользователя: имя сокета остаётся коротким
     let control = quoted(&directory.join("%C"))?;
     let ssh = quoted(ssh)?;
+    let persist = crate::timing::get().ssh_persist;
     Some(format!(
         "#!/bin/sh\nexec {ssh} -o ControlMaster=auto -o ControlPath={control} \
-         -o ControlPersist={PERSIST} -o ServerAliveInterval=15 \"$@\"\n"
+         -o ControlPersist={persist} -o ServerAliveInterval=15 \"$@\"\n"
     ))
 }
 

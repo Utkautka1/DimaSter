@@ -52,9 +52,15 @@ pub(crate) struct Commands {
     pub(crate) history: VecDeque<Finished>,
     // сколько команд завершилось всего: по нему окно замечает новые
     pub(crate) completed: u64,
+    // команды и строки вывода; `None` — стандартные
+    pub(crate) limits: Option<(usize, usize)>,
 }
 
 impl Commands {
+    fn limits(&self) -> (usize, usize) {
+        self.limits.unwrap_or((HISTORY, SNAPSHOT_LINES))
+    }
+
     pub(crate) fn is_running(&self) -> bool {
         self.running.is_some()
     }
@@ -133,7 +139,7 @@ impl State {
     // строки вывода команды, начавшейся на `from`
     fn output_since(&self, from: u64) -> Vec<String> {
         let end = self.cursor_line() + u64::from(self.cursor.col > 0);
-        let start = from.max(end.saturating_sub(SNAPSHOT_LINES as u64));
+        let start = from.max(end.saturating_sub(self.commands.limits().1 as u64));
         let skip = start.saturating_sub(self.screen.evicted) as usize;
         let count = end.saturating_sub(start) as usize;
         // пропуск до распаковки: иначе после команды читалась бы вся история
@@ -195,7 +201,7 @@ impl State {
     }
 
     fn remember_command(&mut self, finished: Finished) {
-        if self.commands.history.len() == HISTORY {
+        while self.commands.history.len() >= self.commands.limits().0.max(1) {
             self.commands.history.pop_front();
         }
         self.commands.history.push_back(finished);

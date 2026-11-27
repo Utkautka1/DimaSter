@@ -159,7 +159,8 @@ classDiagram
     Commands *-- SmartOptions
     class Help { enabled; duration; welcome; typo; denied; skip; managers }
     View ..> Help : help_with(Finished)
-    class Tuning { timings; limits; hint_letters; pairs }
+    class Tuning { timings; limits; hint_letters; pairs; suggest_keys; sizes }
+    class DockerTiming { query; action; ssh_persist; tunnel }
     View ..> Tuning
     View *-- Assist
     class Status { target; facts; line }
