@@ -225,7 +225,12 @@ pub(crate) fn input_text_at_end(term: &Terminal) -> Option<String> {
     let last = cells.last()?;
     let cursor = term.cursor();
     let cursor_line = term.visible_line(0) + cursor.row as u64;
-    if cursor_line != last.line || cursor.col <= last.col {
+    // чужая подсказка под курсором уже занимает место нашей
+    let below = term
+        .line(cursor_line)
+        .and_then(|r| r.cells.get(cursor.col).map(|c| c.ch));
+    let taken = below.is_some_and(|ch| ch != ' ');
+    if cursor_line != last.line || cursor.col <= last.col || taken {
         return None;
     }
     Some(cells.iter().map(|c| c.ch).collect())
@@ -269,16 +274,18 @@ fn read_input_cells(term: &Terminal) -> Option<Vec<CellChar>> {
     if start_line < range.start || start_line >= range.end {
         return None;
     }
-    let mut out = collect_wrapped_cells(term, start_line, start_col, range.end);
+    let cursor = (cursor_line, term.cursor().col);
+    let mut out = collect_wrapped_cells(term, (start_line, start_col), range.end, cursor);
     trim_trailing_spaces(&mut out);
     (!out.is_empty()).then_some(out)
 }
 
+// `cursor` — (строка, колонка): левее курсора всё набрано пользователем
 fn collect_wrapped_cells(
     term: &Terminal,
-    start_line: u64,
-    start_col: usize,
+    (start_line, start_col): (u64, usize),
     end_line: u64,
+    cursor: (u64, usize),
 ) -> Vec<CellChar> {
     let mut out = Vec::new();
     let mut col_from = start_col;
@@ -291,8 +298,9 @@ fn collect_wrapped_cells(
             if cell.style.flags.contains(Flags::WIDE_TAIL) {
                 continue;
             }
-            // Останавливаемся на цветном правом приглашении (RPROMPT), не смешивая его с вводом.
-            if cell.style.fg != Color::Default && !out.is_empty() {
+            // Цветное правее курсора — RPROMPT или подсказка плагина, а не ввод.
+            // Левее цвет не важен: набранное красит zsh-syntax-highlighting.
+            if cell.style.fg != Color::Default && (line, col) >= cursor && !out.is_empty() {
                 return out;
             }
             out.push(CellChar {
@@ -495,6 +503,23 @@ mod tests {
             .enumerate()
             .map(|(col, ch)| CellChar { line: 0, col, ch })
             .collect()
+    }
+
+    fn typed(output: &str) -> Option<String> {
+        let mut term = Terminal::new(dimaster_grid::Size { rows: 3, cols: 40 });
+        term.advance(b"\x1b]133;A\x07> \x1b]133;B\x07");
+        term.advance(output.as_bytes());
+        input_text_at_end(&term)
+    }
+
+    #[test]
+    fn colored_input_is_read_whole() {
+        // zsh-syntax-highlighting красит команду, RPROMPT стоит далеко справа
+        assert_eq!(typed("\x1b[32mecho\x1b[0m he").as_deref(), Some("echo he"));
+        let rprompt = "\x1b[32mls\x1b[0m\x1b7\x1b[30G\x1b[34mmain\x1b[0m\x1b8";
+        assert_eq!(typed(rprompt).as_deref(), Some("ls"));
+        // серая подсказка плагина сразу за курсором: свою не рисуем
+        assert_eq!(typed("ec\x1b7\x1b[90mho hi\x1b[0m\x1b8"), None);
     }
 
     #[test]
