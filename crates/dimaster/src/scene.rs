@@ -55,7 +55,8 @@ impl View {
             return Some(tail);
         }
         crate::syntax::suggest_typo(&prefix, self.term.cwd(), &mut self.syntax)
-            .map(|(_, fix)| format!("  ➜ {fix}   Ctrl+→"))
+            .map(|(_, fix)| self.config.help.typo.replace("{fix}", &fix))
+            .filter(|hint| !hint.is_empty())
     }
 
     /// Сколько пикселей снизу занято баром.

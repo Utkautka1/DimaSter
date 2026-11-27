@@ -21,8 +21,6 @@ pub struct Smart {
     pub autopair: bool,
     /// Своё «команда не найдена» на языке терминала.
     pub not_found: bool,
-    /// Совет плашкой, когда команда упала: права, опечатка, нет программы.
-    pub help: bool,
     // пустая строка отключает подсказку
     pub ok: String,
     pub empty: String,
@@ -49,7 +47,6 @@ impl Default for Smart {
             autosuggest: true,
             autopair: true,
             not_found: true,
-            help: true,
             ok: "➜ OK".to_owned(),
             empty: "∅ Ничего не найдено".to_owned(),
             errors: true,

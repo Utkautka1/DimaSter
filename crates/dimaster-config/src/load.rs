@@ -9,7 +9,7 @@ use mlua::{Lua, Table, Value};
 use crate::import::ghostty_theme;
 use crate::theme::builtin_source;
 use crate::{Config, CopyOnSelect, Decorations, Effects, Theme, WindowConfig, parse_color};
-use crate::{context, cursor, load_keys, load_smart, load_ui, programs, snippets, widgets};
+use crate::{context, cursor, help, load_keys, load_smart, load_ui, programs, snippets, widgets};
 
 /// Понятное человеку описание того, что не так в конфиге.
 #[derive(Debug)]
@@ -325,6 +325,9 @@ fn apply_sections(table: &Table, config: &mut Config) -> Result<(), ConfigError>
     apply_interaction(table, config)?;
     if let Some(smart) = table.get::<Option<Table>>("smart")? {
         load_smart::apply(&smart, &mut config.smart)?;
+    }
+    if let Some(table) = table.get::<Option<Table>>("help")? {
+        help::apply(&table, &mut config.help)?;
     }
     flag(table, "scrollbar", &mut config.scrollbar)?;
     apply_env(table, config)?;

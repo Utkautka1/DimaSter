@@ -129,16 +129,13 @@ fn save(directory: &Path, config: &Config) -> io::Result<()> {
     Ok(())
 }
 
-// четыре клавиши, без которых встроенные возможности не найти
-fn tips() -> String {
-    [
-        tr("Добро пожаловать в DimaSter!"),
-        tr("  →              принять подсказку команды"),
-        tr("  Ctrl+Shift+H   поиск по истории"),
-        tr("  Ctrl+Shift+G   переход в частую папку"),
-        tr("  Ctrl+Shift+P   все остальные команды"),
-    ]
-    .join("\n")
+// строки берутся из только что записанного конфига (`help.welcome`)
+fn welcome() {
+    let lines = settings::read_or_default().help.welcome;
+    if !lines.is_empty() {
+        let text: Vec<_> = lines.iter().map(|l| tr(l)).collect();
+        println!("{}\n", text.join("\n"));
+    }
 }
 
 fn wizard() -> io::Result<()> {
@@ -148,7 +145,7 @@ fn wizard() -> io::Result<()> {
     match ask(&found)? {
         Some(chosen) => {
             save(&directory, &build(&chosen, config_home))?;
-            println!("{}\n", tips());
+            welcome();
             Ok(())
         }
         None => Ok(()),

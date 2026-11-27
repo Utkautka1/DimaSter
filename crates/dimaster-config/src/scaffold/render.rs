@@ -1,10 +1,11 @@
 //! Генерация файлов со значениями.
 
+use dimaster_i18n::tr;
 use std::fmt::Write;
 use std::path::Path;
 
 use crate::color::format_color;
-use crate::{Config, Smart, Theme};
+use crate::{Config, Help, Smart, Theme};
 
 // строка Lua: экранируются только символы, ломающие литерал
 fn quote(text: &str) -> String {
@@ -150,7 +151,7 @@ pub(super) fn effects(config: &Config) -> String {
 // умная оболочка: подсказки под командами и реакция на долгие
 fn smart(s: &Smart, scrollbar: bool) -> String {
     format!(
-        "  scrollbar = {},\n  smart = {{\n    integration = {},\n    startup_fetch = {},\n    fetch_early = {},\n    syntax_highlight = {},\n    color_ls = {},\n    color_nano = {},\n    autosuggest = {},\n    autopair = {},\n    not_found = {},\n    help = {},\n    ok = {},\n    empty = {},\n    \
+        "  scrollbar = {},\n  smart = {{\n    integration = {},\n    startup_fetch = {},\n    fetch_early = {},\n    syntax_highlight = {},\n    color_ls = {},\n    color_nano = {},\n    autosuggest = {},\n    autopair = {},\n    not_found = {},\n    ok = {},\n    empty = {},\n    \
          errors = {},\n    search_tools = {},\n    long_command = {},\n    glow = {},\n    \
          glow_color = {},\n    notify = {},\n    double_alt_sudo = {},\n  }},\n",
         scrollbar,
@@ -163,7 +164,6 @@ fn smart(s: &Smart, scrollbar: bool) -> String {
         s.autosuggest,
         s.autopair,
         s.not_found,
-        s.help,
         quote(&s.ok),
         quote(&s.empty),
         s.errors,
@@ -200,6 +200,47 @@ fn environment(config: &Config) -> String {
     format!("  env = {{ {} }},\n", pairs.join(", "))
 }
 
+fn help_texts(h: &Help) -> String {
+    format!(
+        "    typo = {},\n    sudo = {},\n    chmod = {},\n    missing = {},\n    similar = {},\n",
+        quote(&h.typo),
+        quote(&tr(&h.sudo)),
+        quote(&tr(&h.chmod)),
+        quote(&tr(&h.missing)),
+        quote(&tr(&h.similar)),
+    )
+}
+
+// стандартный список двуязычный, поэтому в файл не пишется
+fn denied(h: &Help) -> String {
+    match h.denied == Help::default().denied {
+        true => "    -- denied = { \"permission denied\" },\n".to_owned(),
+        false => format!("    denied = {},\n", list(&h.denied, |t| quote(t))),
+    }
+}
+
+fn help_lists(h: &Help) -> String {
+    let pair = |m: &(String, String)| format!("{{ {}, {} }}", quote(&m.0), quote(&m.1));
+    format!(
+        "    welcome = {},\n{}    skip = {},\n    managers = {},\n",
+        list(&h.welcome, |t| quote(&tr(t))),
+        denied(h),
+        list(&h.skip, |t| quote(t)),
+        list(&h.managers, pair),
+    )
+}
+
+// приветствие и советы при ошибке
+fn help(h: &Help) -> String {
+    format!(
+        "  help = {{\n    enabled = {},\n    duration = {},\n{}{}  }},\n",
+        h.enabled,
+        h.duration,
+        help_texts(h),
+        help_lists(h),
+    )
+}
+
 // мышь и буфер обмена
 fn interaction(config: &Config) -> String {
     format!(
@@ -232,6 +273,7 @@ pub(super) fn behavior(config: &Config) -> String {
         quote(&config.term),
         interaction(config)
             + &smart(&config.smart, config.scrollbar)
+            + &help(&config.help)
             + &widgets(config)
             + &environment(config),
         config.remote_control,

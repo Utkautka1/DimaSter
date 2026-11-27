@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 
+use crate::Help;
 use crate::Snippet;
 use crate::keys::default_bindings;
 use crate::{
@@ -119,6 +120,8 @@ pub struct Config {
     /// Спрашивать подтверждение перед закрытием окна.
     pub confirm_close: bool,
     pub smart: Smart,
+    /// Приветствие и советы при ошибке.
+    pub help: Help,
     /// Свои команды для списка сниппетов.
     pub snippets: Vec<Snippet>,
     /// Полоса прокрутки с метками команд.
@@ -168,6 +171,7 @@ impl Default for Config {
             mouse_hide_while_typing: false,
             confirm_close: false,
             smart: Smart::default(),
+            help: Help::default(),
             snippets: Vec::new(),
             scrollbar: true,
             widgets: Widgets::default(),

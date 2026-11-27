@@ -74,6 +74,16 @@ fn write_tree(directory: &std::path::Path, config: &Config) {
     }
 }
 
+fn customize_help(config: &mut Config) {
+    config.help.enabled = false;
+    config.help.duration = 500;
+    config.help.welcome = vec!["a \"b\"".into()];
+    config.help.typo = String::new();
+    config.help.denied = vec!["nope".into()];
+    config.help.skip = Vec::new();
+    config.help.managers = vec![("apk".into(), "apk search".into())];
+}
+
 // настройки, появившиеся позже
 fn customize_more(config: &mut Config) {
     config.remote_control = false;
@@ -118,6 +128,7 @@ fn custom() -> Config {
     config.restore_session = true;
     config.session_history = 10;
     customize_more(&mut config);
+    customize_help(&mut config);
     config
 }
 

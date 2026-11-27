@@ -157,10 +157,8 @@ classDiagram
     State *-- Commands
     Commands *-- Finished
     Commands *-- SmartOptions
-    class Help { help_with(Finished) }
-    Help ..> Commands
-    Help ..> CommandCache
-    Help ..> Notice
+    class Help { enabled; duration; welcome; typo; denied; skip; managers }
+    View ..> Help : help_with(Finished)
     View *-- Assist
     class Status { target; facts; line }
     class Sampler { versions; previous; ticks; +sample(target) }

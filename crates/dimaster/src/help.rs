@@ -5,59 +5,38 @@
 
 use std::time::Duration;
 
+use dimaster_config::Help;
 use dimaster_grid::Finished;
-use dimaster_i18n::{tr, trf};
+use dimaster_i18n::tr;
 
 use crate::view::View;
-
-// сколько висит плашка: её надо успеть прочитать
-const SHOWN: Duration = Duration::from_secs(8);
-
-// сообщения программ о нехватке прав (английские и русские)
-const DENIED: [&str; 6] = [
-    "permission denied",
-    "operation not permitted",
-    "are you root",
-    "unless you are root",
-    "отказано в доступе",
-    "операция не позволена",
-];
-
-// у этих «permission denied» значит отказ сервера, sudo не поможет
-const REMOTE: [&str; 6] = ["sudo", "doas", "ssh", "scp", "sftp", "git"];
-
-// команда поиска пакета: имя пакета не угадываем
-const MANAGERS: [(&str, &str); 4] = [
-    ("pacman", "pacman -Ss"),
-    ("apt", "apt search"),
-    ("dnf", "dnf search"),
-    ("zypper", "zypper search"),
-];
 
 fn program(command: &str) -> &str {
     command.split_whitespace().next().unwrap_or_default()
 }
 
-fn says(output: &[String], needles: &[&str]) -> bool {
+fn says(output: &[String], needles: &[String]) -> bool {
     output.iter().any(|line| {
         let line = line.to_lowercase();
-        needles.iter().any(|n| line.contains(n))
+        needles.iter().any(|n| line.contains(&n.to_lowercase()))
     })
 }
 
+// свой текст из Lua остаётся как есть, стандартный переводится
+fn text(template: &str, key: &str, value: &str) -> String {
+    tr(template).replace(key, value)
+}
+
 /// Совет про права: `chmod` для незапускаемого файла, иначе `sudo`.
-fn rights(done: &Finished) -> Option<String> {
+fn rights(done: &Finished, help: &Help) -> Option<String> {
     let name = program(&done.command);
-    if done.exit == 0 || REMOTE.contains(&name) {
+    if done.exit == 0 || help.skip.iter().any(|s| s == name) {
         return None;
     }
     if done.exit == 126 && name.contains('/') {
-        return Some(trf(
-            "Файл не запускается: chmod +x {file}",
-            &[("file", name)],
-        ));
+        return Some(text(&help.chmod, "{file}", name));
     }
-    says(&done.output, &DENIED).then(|| tr("Нет прав: Ctrl+Shift+S добавит sudo"))
+    says(&done.output, &help.denied).then(|| tr(&help.sudo))
 }
 
 // слово, которое shell не нашёл; присваивания и пути сюда не относятся
@@ -65,14 +44,15 @@ fn missing(done: &Finished) -> Option<&str> {
     let name = program(&done.command);
     let plain = !name.is_empty() && !name.contains(['/', '=']);
     // имя в выводе отличает shell от алиаса или скрипта, упавшего внутри
-    (done.exit == 127 && plain && says(&done.output, &[&name.to_lowercase()])).then_some(name)
+    let named = says(&done.output, &[name.to_owned()]);
+    (done.exit == 127 && plain && named).then_some(name)
 }
 
-fn not_installed(name: &str, search: Option<&str>) -> String {
-    let text = trf("Программа {name} не установлена", &[("name", name)]);
+fn not_installed(template: &str, name: &str, search: Option<&str>) -> String {
+    let message = text(template, "{name}", name);
     match search {
-        Some(search) => format!("{text}\n{search} {name}"),
-        None => text,
+        Some(search) => format!("{message}\n{search} {name}"),
+        None => message,
     }
 }
 
@@ -82,27 +62,30 @@ impl View {
         if self.syntax.exists(name, self.term.cwd()) {
             return None;
         }
+        let help = &self.config.help;
         if let Some(fix) = self.syntax.correction(name) {
-            return Some(trf("Возможно, вы имели в виду: {fix}", &[("fix", &fix)]));
+            return Some(text(&help.similar, "{fix}", &fix));
         }
-        let search = MANAGERS
+        let search = help
+            .managers
             .iter()
-            .find(|m| self.syntax.exists(m.0, None))
-            .map(|m| m.1);
-        Some(not_installed(name, search))
+            .find(|m| self.syntax.exists(&m.0, None))
+            .map(|m| m.1.as_str());
+        Some(not_installed(&help.missing, name, search))
     }
 
     /// Показывает совет по только что упавшей команде.
     pub(crate) fn help_with(&mut self, done: &Finished) {
-        if !self.config.smart.help {
+        if !self.config.help.enabled {
             return;
         }
         let advice = match missing(done) {
             Some(name) => self.missing_advice(name),
-            None => rights(done),
+            None => rights(done, &self.config.help),
         };
-        if let Some(text) = advice {
-            self.notice.show(text, SHOWN);
+        if let Some(advice) = advice.filter(|a| !a.is_empty()) {
+            let shown = Duration::from_millis(u64::from(self.config.help.duration));
+            self.notice.show(advice, shown);
         }
     }
 }
@@ -123,17 +106,26 @@ mod tests {
     #[test]
     fn denied_command_gets_sudo_or_chmod() {
         let denied = "mkdir: /opt/x: Permission denied";
-        assert!(rights(&done("mkdir /opt/x", 1, denied)).is_some_and(|t| t.contains("sudo")));
-        let script = rights(&done("./run.sh", 126, denied));
+        assert!(
+            rights(&done("mkdir /opt/x", 1, denied), &Help::default())
+                .is_some_and(|t| t.contains("sudo"))
+        );
+        let script = rights(&done("./run.sh", 126, denied), &Help::default());
         assert!(script.is_some_and(|t| t.contains("chmod +x ./run.sh")));
     }
 
     #[test]
     fn sudo_is_not_offered_where_it_cannot_help() {
         let denied = "Permission denied (publickey).";
-        assert_eq!(rights(&done("ssh host", 255, denied)), None);
-        assert_eq!(rights(&done("sudo ls /x", 1, denied)), None);
-        assert_eq!(rights(&done("cat log", 0, denied)), None);
+        assert_eq!(
+            rights(&done("ssh host", 255, denied), &Help::default()),
+            None
+        );
+        assert_eq!(
+            rights(&done("sudo ls /x", 1, denied), &Help::default()),
+            None
+        );
+        assert_eq!(rights(&done("cat log", 0, denied), &Help::default()), None);
     }
 
     #[test]
