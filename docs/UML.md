@@ -123,9 +123,6 @@ classDiagram
     Config *-- Binding
     Source ..> Config
     View *-- Config
-    class Sampler { versions; previous; ticks; +sample(target) }
-    class Ticks { total; busy }
-    Sampler *-- Ticks : system, /proc
     class AssistStore { commands; dirs; +record_command() +bump_dir() +best_suggestion() }
     class Picker { kind; items; query; +matches() }
     View *-- AssistStore
@@ -162,7 +159,9 @@ classDiagram
     Commands *-- SmartOptions
     View *-- Assist
     class Status { target; facts; line }
-    class Sampler { +sample(target) }
+    class Sampler { versions; previous; ticks; +sample(target) }
+    class Ticks { total; busy }
+    Sampler *-- Ticks : system, /proc
     class StatusLine { left; center; right }
     class Segment { text; color; background; rounded }
     class Minimap { origin }
