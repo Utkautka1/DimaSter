@@ -32,7 +32,7 @@ return {
 | `snippets` | свои команды | Ctrl+Shift+I |
 | `docker` | контейнеры Docker | Ctrl+Shift+D |
 | `containers` | [экран управления Docker](../docker.md) в новом окне | Ctrl+Alt+D |
-| `skins` | витрина из 50 цветовых скинов | Ctrl+Shift+K |
+| `skins` | витрина из 800+ цветовых схем и готовых стилей | Ctrl+Shift+K |
 | `prompt_next` | следующее приглашение | Ctrl+Shift+↓ |
 | `font_increase` | крупнее | Ctrl+= |
 | `font_decrease` | мельче | Ctrl+- |
@@ -63,6 +63,8 @@ autoload -Uz add-zsh-hook
 dimaster_mark() { print -n "\e]133;A\a" }
 add-zsh-hook precmd dimaster_mark
 ```
+
+Клавиши принятия призрачной подсказки (`→`, `Ctrl+→`) — не действия из этой таблицы, они задаются в [`tuning.suggest_line` и `suggest_word`](tuning.md).
 
 ## Цепочки нажатий
 

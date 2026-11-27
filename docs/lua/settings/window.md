@@ -10,7 +10,9 @@
 | `background_image` | путь, понимает `~/` | нет |
 | `background_dir` | каталог: случайный фон из него | нет |
 | `background_opacity` | заметность картинки, 0.0–1.0 | `0.3` |
-| `columns`, `rows` | начальный размер в ячейках (нужны оба) | нет |
+| `columns`, `rows` | начальный размер в ячейках (нужны оба), 10–1000 | нет |
+
+Границы прозрачности и размера окна меняются в [`limits`](limits.md): `opacity_min_percent`, `opacity_max_percent`, `window_cells_max`. Ширина зоны захвата края — [`tuning.resize_edge`](tuning.md).
 
 `blur` зависит от композитора; в Hyprland размытие задаётся его правилами. Тайловые композиторы игнорируют `columns` и `rows`.
 

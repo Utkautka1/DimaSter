@@ -76,3 +76,43 @@ return {
   bell = { flash = false, attention = false },
 }
 ```
+
+## Без подсказок и советов: «голый» терминал
+
+```lua
+return {
+  smart = { autosuggest = false, syntax_highlight = false, autopair = false, startup_fetch = false },
+  help = { enabled = false, welcome = {} },
+}
+```
+
+## Принимать подсказку только с Ctrl
+
+```lua
+-- обычная → остаётся программе
+return { tuning = { suggest_line = { "ctrl+right" }, suggest_word = { "alt+right" } } }
+```
+
+## Копировать из программ большие куски
+
+```lua
+-- по умолчанию OSC 52 ограничен 1 МБ; больший лимит доверяет программе больше
+return { limits = { clipboard_bytes = 8 * 1024 * 1024 } }
+```
+
+## Беречь батарею
+
+```lua
+return {
+  effects = { cursor_animation = false, smooth_scroll = false, cursor_trail = false },
+  limits = { animation_frame_ms = 33, min_wake_ms = 33 },
+}
+```
+
+## Крупные элементы для большого экрана
+
+```lua
+return {
+  limits = { scrollbar_thumb_px = 32, progress_px = 6, minimap_row_px = 3, glow_px = 7 },
+}
+```

@@ -13,6 +13,9 @@
 | `settings/window.lua` | [Окно](settings/window.md) |
 | `settings/effects.lua` | [Анимации](settings/effects.md) |
 | `settings/behavior.lua` | [Поведение, умная оболочка, окружение](settings/behavior.md) |
+| ключ `help` | [Приветствие и советы при ошибке](settings/help.md) |
+| ключ `tuning` | [Тайминги, клавиши подсказок, размеры списков](settings/tuning.md) |
+| ключ `limits` | [Защитные пределы и размеры отрисовки](settings/limits.md) |
 | `snippets` и списки SSH, Docker | [Списки](settings/lists.md) |
 | `settings/keys.lua` | [Клавиши и действия](settings/keys.md) |
 | `ui.lua` | [Вид интерфейса](interface/ui.md) |
@@ -57,6 +60,13 @@
 
 Свои правки пишите в `local.lua`: так повторный запуск мастера их не затронет.
 
+## Как складываются настройки
+
+1. Слои читаются по порядку: `settings/*` → `ui.lua` → `profiles/` → `hosts/` → `local.lua`; поверх — то, что ставят плагины через `dimaster.set`.
+2. Таблицы с именованными ключами объединяются: `{ tuning = { multi_click = 300 } }` меняет один ключ.
+3. Списки заменяются целиком (`help.skip`, `tuning.picker_skip`).
+4. `keys` из всех слоёв складываются.
+
 ## Рецепты
 
 ```lua
@@ -96,5 +106,3 @@ return {
 | Картинки | z-index |
 | Настройки | правила замены шрифта по диапазонам |
 | Прочее | настройка кнопок мыши, режим 132 колонок; выпадающее окно делается средствами композитора |
-
-Защитные пределы: [settings/limits.md](settings/limits.md).
