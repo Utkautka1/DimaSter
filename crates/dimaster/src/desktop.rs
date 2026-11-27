@@ -2,6 +2,7 @@
 
 use dimaster_grid::is_web_address;
 use dimaster_i18n::t;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::thread;
@@ -69,7 +70,18 @@ const TABLES: [&str; 14] = [
 pub(crate) fn table_file(link: &str, cwd: Option<&str>) -> Option<PathBuf> {
     let path = local_path(link, cwd).filter(|p| p.is_file())?;
     let extension = path.extension()?.to_str()?.to_ascii_lowercase();
-    TABLES.contains(&extension.as_str()).then_some(path)
+    // `.db` бывает чем угодно, поэтому проверяется подпись SQLite
+    let table = match extension.as_str() {
+        "db" => is_sqlite(&path),
+        other => TABLES.contains(&other),
+    };
+    table.then_some(path)
+}
+
+fn is_sqlite(path: &Path) -> bool {
+    let mut header = [0; 16];
+    let read = std::fs::File::open(path).and_then(|mut f| f.read_exact(&mut header));
+    read.is_ok() && &header == b"SQLite format 3\0"
 }
 
 // новое окно с просмотрщиком; `false`, если он выключен в view.lua
@@ -116,6 +128,17 @@ mod tests {
         std::fs::remove_file(&file).expect("уборка");
         assert_eq!(found, Some(file));
         assert!(table_file("/etc/hostname", None).is_none());
+    }
+
+    #[test]
+    fn db_needs_the_sqlite_signature() {
+        let file = std::env::temp_dir().join(format!("dimaster-click-{}.db", std::process::id()));
+        let link = file.to_string_lossy().into_owned();
+        std::fs::write(&file, "not a database, just text").expect("файл");
+        assert!(table_file(&link, None).is_none());
+        std::fs::write(&file, b"SQLite format 3\0").expect("файл");
+        assert!(table_file(&link, None).is_some());
+        std::fs::remove_file(&file).expect("уборка");
     }
 
     #[test]
