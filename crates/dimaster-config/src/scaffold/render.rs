@@ -139,12 +139,13 @@ pub(super) fn effects(config: &Config) -> String {
 fn smart(config: &Config) -> String {
     let s = &config.smart;
     format!(
-        "  scrollbar = {},\n  smart = {{\n    integration = {},\n    startup_fetch = {},\n    syntax_highlight = {},\n    color_ls = {},\n    autosuggest = {},\n    autopair = {},\n    not_found = {},\n    ok = {},\n    empty = {},\n    \
+        "  scrollbar = {},\n  smart = {{\n    integration = {},\n    startup_fetch = {},\n    fetch_early = {},\n    syntax_highlight = {},\n    color_ls = {},\n    autosuggest = {},\n    autopair = {},\n    not_found = {},\n    ok = {},\n    empty = {},\n    \
          errors = {},\n    search_tools = {},\n    long_command = {},\n    glow = {},\n    \
          glow_color = {},\n    notify = {},\n    double_alt_sudo = {},\n  }},\n",
         config.scrollbar,
         s.integration,
         s.startup_fetch,
+        s.fetch_early,
         s.syntax_highlight,
         s.color_ls,
         s.autosuggest,

@@ -7,6 +7,8 @@ pub struct Smart {
     pub integration: bool,
     /// Запускать ли `dimaster fetch` автоматически при старте нового shell.
     pub startup_fetch: bool,
+    /// Выводить fetch до чтения `.zshrc`: быстрее, но `clear` в нём его сотрёт.
+    pub fetch_early: bool,
     /// Подсветка вводимых команд и проверка их существования средствами терминала.
     pub syntax_highlight: bool,
     /// Цветной `ls` и `LS_COLORS` для всех оболочек.
@@ -36,6 +38,7 @@ impl Default for Smart {
         Self {
             integration: true,
             startup_fetch: true,
+            fetch_early: false,
             syntax_highlight: true,
             color_ls: true,
             autosuggest: true,

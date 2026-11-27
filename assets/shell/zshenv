@@ -23,7 +23,13 @@ if [[ -o interactive ]]; then
         dimaster fetch
       fi
     }
-    add-zsh-hook precmd __dimaster_startup_fetch
+    # smart.fetch_early: сразу, не дожидаясь .zshrc
+    if [[ -n "$DIMASTER_FETCH_EARLY" && -t 1 ]]; then
+      unset DIMASTER_FETCH_EARLY
+      __dimaster_startup_fetch
+    else
+      add-zsh-hook precmd __dimaster_startup_fetch
+    fi
   fi
   __dimaster_precmd() {
     local code=$?

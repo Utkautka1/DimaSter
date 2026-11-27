@@ -220,18 +220,24 @@ pub(crate) fn cursor_shape(style: CursorStyle) -> CursorShape {
     }
 }
 
+// переменные для скриптов, запускающих fetch при открытии shell
+fn apply_fetch_env(config: &Config, env: &mut Vec<(String, String)>) {
+    env.push(("DIMASTER_STARTUP_FETCH".to_owned(), "1".to_owned()));
+    if config.smart.fetch_early {
+        env.push(("DIMASTER_FETCH_EARLY".to_owned(), "1".to_owned()));
+    }
+    if let Ok(exe) = std::env::current_exe() {
+        let exe = exe.to_string_lossy().into_owned();
+        env.push(("DIMASTER_BIN".to_owned(), exe));
+    }
+}
+
 fn apply_smart_env(config: &Config, env: &mut Vec<(String, String)>) {
     if config.smart.not_found {
         env.push(("DIMASTER_NOT_FOUND".to_owned(), tr("команда не найдена")));
     }
     if config.smart.startup_fetch {
-        env.push(("DIMASTER_STARTUP_FETCH".to_owned(), "1".to_owned()));
-        if let Ok(exe) = std::env::current_exe() {
-            env.push((
-                "DIMASTER_BIN".to_owned(),
-                exe.to_string_lossy().into_owned(),
-            ));
-        }
+        apply_fetch_env(config, env);
     }
     if config.smart.color_ls {
         env.push(("DIMASTER_COLOR_LS".to_owned(), "1".to_owned()));
