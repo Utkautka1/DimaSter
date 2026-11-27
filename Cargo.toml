@@ -33,6 +33,9 @@ arboard = { version = "3", features = ["wayland-data-control"] }
 log = "0.4"
 env_logger = "0.11"
 unicode-width = "0.2"
+csv = "1"
+rusqlite = { version = "0.43", features = ["bundled", "limits"] }
+serde_json = { version = "1", features = ["preserve_order"] }
 proptest = "1"
 criterion = "0.7"
 
