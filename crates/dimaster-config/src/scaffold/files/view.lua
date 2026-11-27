@@ -6,6 +6,7 @@ return {
   gap = 2,
   row_numbers = true,
   colors = { header = "blue", status = "magenta", numbers = "bright_black" },
+  -- click = { "csv", "json" }, -- Ctrl+click
   -- keys = { x = "quit", q = false },
   -- columns = { hidden = { "password" }, id = { color = "yellow", align = "right" } },
 }

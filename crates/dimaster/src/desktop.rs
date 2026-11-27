@@ -60,21 +60,14 @@ pub(crate) fn target(link: &str, cwd: Option<&str>) -> Option<PathBuf> {
     }
 }
 
-// только заведомо табличные файлы: README.md или package.json не они
-const TABLES: [&str; 14] = [
-    "csv", "tsv", "jsonl", "parquet", "pqt", "arrow", "feather", "xlsx", "xls", "xlsm", "xlsb",
-    "ods", "sqlite", "sqlite3",
-];
-
-/// Файл, который по щелчку показывает `dimaster view`: он только читает.
-pub(crate) fn table_file(link: &str, cwd: Option<&str>) -> Option<PathBuf> {
+/// Файл с расширением из `click`: его по щелчку показывает `dimaster view`,
+/// который только читает.
+pub(crate) fn table_file(link: &str, cwd: Option<&str>, click: &[String]) -> Option<PathBuf> {
     let path = local_path(link, cwd).filter(|p| p.is_file())?;
     let extension = path.extension()?.to_str()?.to_ascii_lowercase();
+    let listed = click.iter().any(|c| c.eq_ignore_ascii_case(&extension));
     // `.db` бывает чем угодно, поэтому проверяется подпись SQLite
-    let table = match extension.as_str() {
-        "db" => is_sqlite(&path),
-        other => TABLES.contains(&other),
-    };
+    let table = listed && (extension != "db" || is_sqlite(&path));
     table.then_some(path)
 }
 
@@ -84,10 +77,14 @@ fn is_sqlite(path: &Path) -> bool {
     read.is_ok() && &header == b"SQLite format 3\0"
 }
 
-// новое окно с просмотрщиком; `false`, если он выключен в view.lua
-fn view(path: PathBuf) -> bool {
-    let enabled = dimaster_config::Viewer::load().is_ok_and(|v| v.settings.enabled);
-    let (Ok(exe), true) = (std::env::current_exe(), enabled) else {
+// новое окно с просмотрщиком; `false`, если файл не для него или он выключен
+fn view(link: &str, cwd: Option<&str>) -> bool {
+    let settings = dimaster_config::Viewer::load().map(|v| v.settings);
+    let Some(settings) = settings.ok().filter(|s| s.enabled) else {
+        return false;
+    };
+    let path = table_file(link, cwd, &settings.click);
+    let (Ok(exe), Some(path)) = (std::env::current_exe(), path) else {
         return false;
     };
     let mut command = Command::new(&exe);
@@ -97,7 +94,7 @@ fn view(path: PathBuf) -> bool {
 }
 
 pub(crate) fn open(link: &str, cwd: Option<&str>) {
-    if table_file(link, cwd).is_some_and(view) {
+    if view(link, cwd) {
         return;
     }
     match target(link, cwd) {
@@ -124,10 +121,11 @@ mod tests {
     fn only_tables_go_to_the_viewer() {
         let file = std::env::temp_dir().join(format!("dimaster-click-{}.CSV", std::process::id()));
         std::fs::write(&file, "a\n").expect("файл");
-        let found = table_file(&file.to_string_lossy(), None);
+        let click = dimaster_config::ViewSettings::default().click;
+        let found = table_file(&file.to_string_lossy(), None, &click);
         std::fs::remove_file(&file).expect("уборка");
         assert_eq!(found, Some(file));
-        assert!(table_file("/etc/hostname", None).is_none());
+        assert!(table_file("/etc/hostname", None, &click).is_none());
     }
 
     #[test]
@@ -135,9 +133,10 @@ mod tests {
         let file = std::env::temp_dir().join(format!("dimaster-click-{}.db", std::process::id()));
         let link = file.to_string_lossy().into_owned();
         std::fs::write(&file, "not a database, just text").expect("файл");
-        assert!(table_file(&link, None).is_none());
+        let click = dimaster_config::ViewSettings::default().click;
+        assert!(table_file(&link, None, &click).is_none());
         std::fs::write(&file, b"SQLite format 3\0").expect("файл");
-        assert!(table_file(&link, None).is_some());
+        assert!(table_file(&link, None, &click).is_some());
         std::fs::remove_file(&file).expect("уборка");
     }
 

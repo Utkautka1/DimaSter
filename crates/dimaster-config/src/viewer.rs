@@ -54,6 +54,8 @@ pub struct ViewSettings {
     pub colors: ViewColors,
     /// Клавиша и действие; `None` снимает назначение.
     pub keys: Vec<(String, Option<String>)>,
+    /// Расширения, которые `Ctrl+клик` открывает таблицей.
+    pub click: Vec<String>,
 }
 
 impl Default for ViewSettings {
@@ -77,9 +79,16 @@ impl Default for ViewSettings {
             remote: false,
             colors,
             keys: Vec::new(),
+            click: CLICK.map(String::from).to_vec(),
         }
     }
 }
+
+// заведомо табличные расширения: README.md или main.sql сюда не входят
+const CLICK: [&str; 16] = [
+    "csv", "tsv", "json", "jsonl", "parquet", "pqt", "arrow", "feather", "xlsx", "xls", "xlsm",
+    "xlsb", "ods", "db", "sqlite", "sqlite3",
+];
 
 /// Загруженный `view.lua` вместе с его функциями.
 #[derive(Default)]
@@ -170,6 +179,9 @@ fn settings(root: &Table) -> mlua::Result<ViewSettings> {
         remote: flag("remote", base.remote)?,
         colors: colors(root, base.colors)?,
         keys: keys(root)?,
+        click: root
+            .get::<Option<Vec<String>>>("click")?
+            .unwrap_or(base.click),
     })
 }
 

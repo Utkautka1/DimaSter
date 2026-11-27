@@ -54,7 +54,7 @@ dimaster view users.csv orders.json
 
 ## Ctrl+клик и темы
 
-`Ctrl+клик` по имени файла CSV, TSV, JSONL, Parquet, Arrow, Excel или SQLite (в том числе `.db` с настоящей базой внутри) открывает его таблицей в новом окне. Остальные файлы по-прежнему открывают свою папку. С `enabled = false` таблицы тоже.
+`Ctrl+клик` по имени файла CSV, TSV, JSON, JSONL, Parquet, Arrow, Excel или SQLite (в том числе `.db` с настоящей базой внутри) открывает его таблицей в новом окне. Остальные файлы открывают свою папку. Свой список расширений задаётся ключом `click`, пустой список или `enabled = false` отключают открытие.
 
 Своих тем у просмотрщика нет: он берёт палитру терминала, поэтому все темы витрины (`Ctrl+Shift+K`) действуют и на него.
 
@@ -81,6 +81,7 @@ return {
   header = true,
   row_numbers = true,
   remote = false,        -- принимать dimaster view --send
+  click = { "csv", "tsv", "json" }, -- что открывает Ctrl+клик
 
   -- "red", "bright_blue", номер 0–255, "#rrggbb"; false — без цвета
   colors = {
