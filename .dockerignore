@@ -1,0 +1,4 @@
+target
+.git
+build-flatpak
+packaging/aur

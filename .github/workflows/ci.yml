@@ -106,6 +106,38 @@ jobs:
           name: packages-${{ matrix.arch }}
           path: release-assets/*
 
+  docker:
+    name: Docker image
+    needs: check
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -f dimaster.dockerfile -t dimaster:ci .
+
+      - name: Smoke test
+        run: docker run --rm dimaster:ci --headless echo container-ok | grep container-ok
+
+      - name: Publish to ghcr.io
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          IMAGE="ghcr.io/$(echo "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')/dimaster"
+          case "$GITHUB_REF" in
+            refs/tags/v*) TAGS="${GITHUB_REF_NAME#v} latest" ;;
+            *) TAGS="edge" ;;
+          esac
+          echo "$TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          for tag in $TAGS; do
+            docker tag dimaster:ci "$IMAGE:$tag"
+            docker push "$IMAGE:$tag"
+          done
+
   release:
     name: Publish Release
     needs: packages

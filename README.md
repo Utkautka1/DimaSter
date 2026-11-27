@@ -104,6 +104,13 @@ The packages below appear in releases built after version 0.1.0:
   flatpak-builder --user --install --force-clean build-flatpak packaging/flatpak/io.github.Utkautka1.DimaSter.yml
   ```
 
+- **Docker** (x86_64): the window uses the host display and GPU; the shell runs *inside the container*, so your host programs are not visible there.
+  ```sh
+  docker pull ghcr.io/utkautka1/dimaster:latest
+  ./packaging/docker/run.sh
+  ```
+  Without a display the image can still run commands: `docker run --rm ghcr.io/utkautka1/dimaster --headless ls`. Settings and history are kept in `~/.local/share/dimaster-docker`. Build locally: `docker build -f dimaster.dockerfile -t dimaster .` and `DIMASTER_IMAGE=dimaster ./packaging/docker/run.sh`.
+
 ## Usage
 
 ```sh
