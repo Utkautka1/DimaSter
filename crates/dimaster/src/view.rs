@@ -28,10 +28,10 @@ use crate::session::{Launch, Output, Session};
 use crate::settings;
 use crate::shared::{Held, Signals};
 use crate::signals::{FLASH, Ringer};
+use crate::skins::Look;
 use crate::smart::Assist;
 use crate::status::Status;
 use crate::syntax::CommandCache;
-use dimaster_config::Theme;
 
 // дольше этого синхронизированный вывод не задерживает кадр: программа могла упасть
 const SYNC_LIMIT: Duration = Duration::from_millis(150);
@@ -96,8 +96,7 @@ pub(crate) struct View {
     pub(crate) plugins: Option<Plugins>,
     pub(crate) plugin_depth: u8,
     pub(crate) hooks: Hooks,
-    // тема без скина: нужна, пока открыта витрина
-    pub(crate) plain_theme: Theme,
+    pub(crate) look: Look,
     pub(crate) socket: Option<PathBuf>,
     // каталог восстановленной сессии
     pub(crate) start_directory: Option<PathBuf>,
@@ -191,7 +190,7 @@ impl View {
             plugins: None,
             plugin_depth: 0,
             hooks: Hooks::default(),
-            plain_theme: Theme::default(),
+            look: Look::saved(),
             socket: None,
             start_directory: None,
             saved_at: Instant::now(),

@@ -15,6 +15,10 @@ pub(crate) struct Skins {
     pub(crate) top: usize,
     /// Что вернётся по Esc: номер сохранённого скина.
     pub(crate) saved: usize,
+    /// Названия стилей; нулевой — «как в настройках».
+    pub(crate) styles: Vec<String>,
+    pub(crate) style: usize,
+    pub(crate) saved_style: usize,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -64,12 +68,20 @@ impl Skins {
         Some(Outcome::Keep(false))
     }
 
+    // стиль листается по кругу и показывается сразу
+    pub(crate) fn turn(&mut self, step: isize) {
+        let count = self.styles.len().max(1) as isize;
+        self.style = (self.style as isize + step).rem_euclid(count) as usize;
+    }
+
     pub(crate) fn press(&mut self, press: Press) -> Outcome {
         match press {
             Press::Escape | Press::Ctrl('c') => return Outcome::Cancel,
             Press::Enter { .. } => return Outcome::Keep(true),
             Press::Up | Press::Ctrl('k') => self.step(-1),
             Press::Down | Press::Ctrl('j') => self.step(1),
+            Press::Left => self.turn(-1),
+            Press::Right => self.turn(1),
             Press::Backspace => {
                 self.query.pop();
                 self.search();
@@ -102,6 +114,16 @@ mod tests {
         assert_eq!((skins.selected, skins.top), (39, 40 - ROWS));
         skins.press(Press::Down);
         assert_eq!((skins.selected, skins.top), (0, 0));
+    }
+
+    #[test]
+    fn styles_turn_in_a_circle() {
+        let mut skins = list();
+        skins.styles = vec!["a".into(), "b".into(), "c".into()];
+        assert_eq!(skins.press(Press::Left), Outcome::Preview);
+        assert_eq!(skins.style, 2);
+        skins.press(Press::Right);
+        assert_eq!(skins.style, 0);
     }
 
     #[test]

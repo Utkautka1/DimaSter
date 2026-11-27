@@ -78,7 +78,7 @@ impl View {
         let mut look = settings::appearance(&self.config, cell_height);
         // бар сверху сдвигает сетку вниз вместе с рамкой
         look.top = self.content_top();
-        look.wallpaper = settings::wallpaper(&self.config);
+        look.wallpaper = self.wallpaper();
         self.animator.look = self.config.cursor_look;
         self.renderer.set_appearance(look);
         self.term

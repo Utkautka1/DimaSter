@@ -34,6 +34,7 @@ mod reload;
 mod remote;
 mod restore;
 mod scene;
+mod scenery;
 mod scrollbar;
 mod select;
 mod sensors;

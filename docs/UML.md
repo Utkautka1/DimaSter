@@ -159,6 +159,11 @@ classDiagram
     Config *-- Ui
     Config *-- CursorLook
     class Drawn { rects; labels }
+    class Style { id; title; literal; scene; shade }
+    class Look { style; plain; picture }
+    View *-- Look
+    Look ..> Style
+    Style ..> Scene : background
     class Skin { name; theme }
     class Skins { names; query; selected; saved; +press() +click(row) }
     View ..> Skins : gallery

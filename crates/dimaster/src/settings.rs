@@ -10,7 +10,7 @@ use dimaster_config::{Config, CursorStyle, Decorations, config_dir, load_with, t
 use dimaster_font::{FontError, FontSystem};
 use dimaster_grid::{CursorShape, DefaultColors, Picture};
 use dimaster_i18n::tr;
-use dimaster_image::decode;
+use dimaster_image::{Animation, decode};
 use dimaster_render::{Appearance, CursorLook};
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 
@@ -37,8 +37,8 @@ pub(crate) fn read() -> Result<Config, String> {
 /// То же с таблицами, установленными плагинами через `dimaster.set`.
 pub(crate) fn read_with(overrides: &[String]) -> Result<Config, String> {
     // скин — первый слой: то, что ставят плагины, важнее его
-    let skin = crate::skins::chosen_literal().into_iter();
-    let layers: Vec<String> = skin.chain(overrides.iter().cloned()).collect();
+    let chosen = crate::skins::chosen_layers().into_iter();
+    let layers: Vec<String> = chosen.chain(overrides.iter().cloned()).collect();
     read_plain(&layers)
 }
 
@@ -199,8 +199,6 @@ fn is_picture(path: &Path) -> bool {
 
 /// Декодирует фоновую картинку; ошибка не мешает работе терминала.
 pub(crate) fn wallpaper(config: &Config) -> Option<(Arc<Picture>, f32)> {
-    // номера с конца диапазона не пересекаются с картинками программ
-    static NEXT: AtomicU64 = AtomicU64::new(u64::MAX);
     let path = &background_path(config)?;
     let data = std::fs::read(path)
         .inspect_err(|e| {
@@ -210,10 +208,15 @@ pub(crate) fn wallpaper(config: &Config) -> Option<(Arc<Picture>, f32)> {
             )
         })
         .ok()?;
-    let animation = decode(&data)?;
+    Some((picture(decode(&data)?), config.window.background_opacity))
+}
+
+/// Картинка для фона с номером, не занятым картинками программ.
+pub(crate) fn picture(animation: Animation) -> Arc<Picture> {
+    // номера идут с конца диапазона
+    static NEXT: AtomicU64 = AtomicU64::new(u64::MAX);
     let serial = NEXT.fetch_sub(1, Ordering::Relaxed);
-    let picture = Picture::new(serial, animation);
-    Some((Arc::new(picture), config.window.background_opacity))
+    Arc::new(Picture::new(serial, animation))
 }
 
 pub(crate) fn default_colors(config: &Config) -> DefaultColors {

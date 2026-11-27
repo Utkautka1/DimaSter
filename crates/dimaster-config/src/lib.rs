@@ -23,6 +23,7 @@ mod scaffold;
 mod skins;
 mod smart;
 mod snippets;
+mod styles;
 mod theme;
 mod ui;
 mod widgets;
@@ -44,6 +45,7 @@ pub use scaffold::{File, scaffold};
 pub use skins::{Skin, skin_literal, skins};
 pub use smart::Smart;
 pub use snippets::Snippet;
+pub use styles::{Scene, Style, style, style_bar, styles};
 pub use theme::{Theme, builtin_names};
 pub use ui::{
     Align, Anchor, HistoryStyle, Marks, MonitorStyle, NoticeStyle, PaletteStyle, PanelStyle, Strip,

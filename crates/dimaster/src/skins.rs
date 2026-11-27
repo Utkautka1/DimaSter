@@ -1,11 +1,13 @@
-//! Витрина скинов в окне: показ, предпросмотр на лету и сохранение выбора.
+//! Витрина в окне: палитры и стили, предпросмотр на лету и сохранение.
 //!
-//! Выбор лежит в `~/.local/share/dimaster/skin` и накладывается поверх
-//! настроек, поэтому файлы конфига не меняются.
+//! Выбор лежит в `~/.local/share/dimaster/` (файлы `skin` и `style`) и
+//! накладывается поверх настроек, поэтому файлы конфига не меняются.
 
 use std::path::PathBuf;
+use std::sync::Arc;
 
-use dimaster_config::{Theme, skin_literal, skins};
+use dimaster_config::{Scene, Style, Theme, skin_literal, skins, style, style_bar, styles};
+use dimaster_grid::Picture;
 use dimaster_i18n::{t, tr};
 use unicode_width::UnicodeWidthStr;
 
@@ -13,35 +15,64 @@ use crate::history_store::data_dir;
 use crate::modes::skins::{Outcome, ROWS, Skins};
 use crate::modes::{Mode, Press};
 use crate::overlay::Drawn;
-use crate::settings;
 use crate::view::View;
+use crate::{scenery, settings};
 
 const COLUMNS: usize = 46;
+// строки над списком: поиск и стиль
+const HEADER: usize = 2;
 // цвета ANSI, которые видны в образце строки
 const SWATCH: [usize; 6] = [1, 3, 2, 6, 4, 5];
 
-fn file() -> Option<PathBuf> {
-    Some(data_dir()?.join("skin"))
+/// Текущий стиль окна и нарисованный для него фон.
+#[derive(Default)]
+pub(crate) struct Look {
+    pub(crate) style: Option<&'static Style>,
+    // тема без скина: нужна, пока открыта витрина
+    plain: Theme,
+    // фон рисуется заново только при смене сцены или цветов
+    picture: Option<(Scene, Theme, Arc<Picture>)>,
 }
 
-/// Имя выбранного скина.
-pub(crate) fn chosen() -> Option<String> {
-    let name = std::fs::read_to_string(file()?).ok()?;
-    Some(name.trim().to_owned()).filter(|n| !n.is_empty())
+impl Look {
+    pub(crate) fn saved() -> Self {
+        Self {
+            style: chosen("style").and_then(|id| style(&id)),
+            ..Self::default()
+        }
+    }
 }
 
-/// Цвета выбранного скина как первый слой поверх настроек.
-pub(crate) fn chosen_literal() -> Option<String> {
-    skin_literal(&chosen()?)
+fn file(name: &str) -> Option<PathBuf> {
+    Some(data_dir()?.join(name))
 }
 
-fn store(name: Option<&str>) {
-    let Some(file) = file() else { return };
-    let result = match name {
-        Some(name) => file
+// сохранённый выбор: `skin` или `style`
+fn chosen(name: &str) -> Option<String> {
+    let text = std::fs::read_to_string(file(name)?).ok()?;
+    Some(text.trim().to_owned()).filter(|n| !n.is_empty())
+}
+
+// цвета и стиль как слои поверх настроек
+fn layers(skin: Option<&str>, look: Option<&Style>) -> Vec<String> {
+    let colors = skin.and_then(skin_literal);
+    let shape = look.map(|s| s.literal.to_owned());
+    colors.into_iter().chain(shape).collect()
+}
+
+/// Слои сохранённого выбора.
+pub(crate) fn chosen_layers() -> Vec<String> {
+    let look = chosen("style").and_then(|id| style(&id));
+    layers(chosen("skin").as_deref(), look)
+}
+
+fn store(name: &str, value: Option<&str>) {
+    let Some(file) = file(name) else { return };
+    let result = match value {
+        Some(value) => file
             .parent()
             .map_or(Ok(()), std::fs::create_dir_all)
-            .and_then(|()| std::fs::write(&file, name)),
+            .and_then(|()| std::fs::write(&file, value)),
         None => match std::fs::remove_file(&file) {
             Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e),
             _ => Ok(()),
@@ -52,39 +83,91 @@ fn store(name: Option<&str>) {
     }
 }
 
+// имя скина и стиль по номерам витрины; нулевые — «как в настройках»
+fn picked(state: &Skins, skin: usize, look: usize) -> (Option<&str>, Option<&'static Style>) {
+    let name = state.names.get(skin).filter(|_| skin > 0);
+    let look = look.checked_sub(1).and_then(|i| styles().get(i));
+    (name.map(String::as_str), look)
+}
+
+// список с отмеченным сохранённым выбором
+fn gallery() -> Skins {
+    let mut names = vec![tr("Как в настройках")];
+    names.extend(skins().into_iter().map(|s| s.name.to_owned()));
+    let mut titles = vec![tr("Как в настройках")];
+    titles.extend(styles().iter().map(|s| tr(s.title)));
+    let skin = chosen("skin").and_then(|c| names.iter().position(|n| *n == c));
+    let look = chosen("style").and_then(|c| styles().iter().position(|s| s.id == c));
+    let (saved, saved_style) = (skin.unwrap_or(0), look.map_or(0, |i| i + 1));
+    let mut state = Skins {
+        names,
+        selected: saved,
+        saved,
+        styles: titles,
+        style: saved_style,
+        saved_style,
+        ..Skins::default()
+    };
+    state.show_selected();
+    state
+}
+
 impl View {
     pub(crate) fn open_skins(&mut self) {
-        let mut names = vec![tr("Как в настройках")];
-        names.extend(skins().into_iter().map(|s| s.name.to_owned()));
-        let current = chosen().and_then(|c| names.iter().position(|n| *n == c));
-        let saved = current.unwrap_or(0);
-        let mut state = Skins {
-            names,
-            selected: saved,
-            saved,
-            ..Skins::default()
-        };
-        state.show_selected();
-        // тема без скина нужна для первой строки списка
         let plain = settings::read_plain(&self.hooks.overrides);
-        self.plain_theme = plain.map_or(self.config.theme, |c| c.theme);
-        self.mode = Mode::Skins(state);
+        self.look.plain = plain.map_or(self.config.theme, |c| c.theme);
+        self.mode = Mode::Skins(gallery());
         self.window.request_redraw();
     }
 
-    fn skin_theme(&self, index: usize) -> Theme {
-        let skin = index
-            .checked_sub(1)
-            .and_then(|i| skins().into_iter().nth(i));
-        skin.map_or(self.plain_theme, |s| s.theme)
+    /// Фон: нарисованный стилем или картинка из настроек.
+    pub(crate) fn wallpaper(&mut self) -> Option<(Arc<Picture>, f32)> {
+        let Some(look) = self.look.style.filter(|s| s.scene != Scene::None) else {
+            return match self.look.style {
+                Some(_) => None,
+                None => settings::wallpaper(&self.config),
+            };
+        };
+        let (scene, theme) = (look.scene, self.config.theme);
+        let cached = self
+            .look
+            .picture
+            .as_ref()
+            .filter(|p| p.0 == scene && p.1 == theme);
+        let picture = match cached {
+            Some(found) => found.2.clone(),
+            None => {
+                let picture = settings::picture(scenery::paint(scene, &theme)?);
+                self.look.picture = Some((scene, theme, picture.clone()));
+                picture
+            }
+        };
+        Some((picture, f32::from(look.shade) / 100.0))
     }
 
-    fn paint_skin(&mut self, index: usize) {
-        let theme = self.skin_theme(index);
-        if theme != self.config.theme {
-            self.config.theme = theme;
-            self.apply_to_terminal();
-            self.renderer.reset_glyphs();
+    /// Строка статуса стиля вместо `statusbar.lua`.
+    pub(crate) fn apply_style_bar(&mut self) {
+        let Some(plugins) = &self.plugins else { return };
+        let source = self.look.style.map(|s| style_bar(s, &self.config.theme));
+        if let Err(e) = plugins.set_bar(source.as_deref()) {
+            log::warn!("statusbar: {e}");
+        }
+    }
+
+    // показывает сочетание палитры и стиля целиком
+    fn show_look(&mut self, state: &Skins, skin: usize, look: usize) {
+        let (name, look) = picked(state, skin, look);
+        let mut stack = layers(name, look);
+        stack.extend(self.hooks.overrides.iter().cloned());
+        match settings::read_plain(&stack) {
+            Ok(config) => {
+                self.look.style = look;
+                self.apply(config);
+                self.apply_style_bar();
+                self.renderer.reset_glyphs();
+                self.render_status();
+            }
+            Err(e) => log::warn!("{}", t!("Ошибка конфига: {error}", error = e)),
         }
         self.window.request_redraw();
     }
@@ -97,16 +180,14 @@ impl View {
     /// Выполняет решение витрины и оставляет её открытой, если нужно.
     pub(crate) fn skin_outcome(&mut self, mut state: Skins, outcome: Outcome) {
         match outcome {
-            Outcome::Preview => self.paint_skin(state.selected),
-            Outcome::Cancel => return self.paint_skin(state.saved),
+            Outcome::Preview => self.show_look(&state, state.selected, state.style),
+            Outcome::Cancel => return self.show_look(&state, state.saved, state.saved_style),
             Outcome::Keep(close) => {
-                self.paint_skin(state.selected);
-                let name = state
-                    .names
-                    .get(state.selected)
-                    .filter(|_| state.selected > 0);
-                store(name.map(String::as_str));
-                state.saved = state.selected;
+                self.show_look(&state, state.selected, state.style);
+                let (name, look) = picked(&state, state.selected, state.style);
+                store("skin", name);
+                store("style", look.map(|s| s.id));
+                (state.saved, state.saved_style) = (state.selected, state.style);
                 if close {
                     return;
                 }
@@ -124,8 +205,11 @@ impl View {
     }
 
     fn skin_lines(&self, state: &Skins) -> Vec<(String, bool)> {
-        let header = t!(" Скины: {q}_", q = state.query);
-        let mut lines = vec![(header, false)];
+        let name = state.styles.get(state.style).cloned().unwrap_or_default();
+        let mut lines = vec![
+            (t!(" Скины: {q}_", q = state.query), false),
+            (t!(" Стиль:  ◀  {name}  ▶", name = name), false),
+        ];
         let found = state.matches().into_iter().skip(state.top).take(ROWS);
         lines.extend(found.map(|index| {
             let mark = if index == state.saved { '●' } else { ' ' };
@@ -134,8 +218,15 @@ impl View {
                 index == state.selected,
             )
         }));
-        lines.push((tr(" клик или Enter — выбрать · Esc — закрыть"), false));
+        lines.push((tr(" ←→ стиль · клик/Enter — выбрать · Esc"), false));
         lines
+    }
+
+    fn skin_theme(&self, index: usize) -> Theme {
+        let skin = index
+            .checked_sub(1)
+            .and_then(|i| skins().into_iter().nth(i));
+        skin.map_or(self.look.plain, |s| s.theme)
     }
 
     // образец цветов справа в каждой строке со скином
@@ -148,7 +239,7 @@ impl View {
         let found = state.matches().into_iter().skip(state.top).take(ROWS);
         for (row, index) in found.enumerate() {
             let theme = self.skin_theme(index);
-            let y = corner.1 + pad + (row as u32 + 1) * line + line / 6;
+            let y = corner.1 + pad + (row + HEADER) as u32 * line + line / 6;
             let x = corner.0 + pad + column * cell;
             let size = (cell, line - line / 3);
             out.rects
@@ -172,19 +263,36 @@ impl View {
         out
     }
 
-    // какая строка списка под указателем
-    fn skin_row(&self, state: &Skins) -> Option<usize> {
-        let rows = state.matches().len().saturating_sub(state.top).min(ROWS) + 2;
+    // строка панели под указателем и доля ширины
+    fn skin_point(&self, state: &Skins) -> Option<(usize, f64)> {
+        let listed = state.matches().len().saturating_sub(state.top).min(ROWS);
+        let rows = listed + HEADER + 1;
         let corner = self.skins_corner(rows);
         let (width, height) = self.panel_size(COLUMNS, rows);
         let (x, y) = self.pointer.position;
-        let inside = x >= f64::from(corner.0)
-            && x < f64::from(corner.0 + width)
-            && y < f64::from(corner.1 + height);
-        let top = corner.1 + self.config.ui.panel.padding + self.fonts.metrics().cell_height;
-        let offset = y - f64::from(top);
-        (inside && offset >= 0.0)
-            .then(|| (offset / f64::from(self.fonts.metrics().cell_height)) as usize)
+        let across = (x - f64::from(corner.0)) / f64::from(width.max(1));
+        let down = y - f64::from(corner.1 + self.config.ui.panel.padding);
+        let inside =
+            (0.0..1.0).contains(&across) && down >= 0.0 && y < f64::from(corner.1 + height);
+        inside.then(|| {
+            (
+                (down / f64::from(self.fonts.metrics().cell_height)) as usize,
+                across,
+            )
+        })
+    }
+
+    // строка стиля листает его: левая половина назад, правая вперёд
+    fn clicked(&self, state: &mut Skins) -> Outcome {
+        match self.skin_point(state) {
+            Some((1, across)) => {
+                state.turn(if across < 0.4 { -1 } else { 1 });
+                Outcome::Keep(false)
+            }
+            Some((0, _)) => Outcome::Preview,
+            Some((row, _)) => state.click(row - HEADER).unwrap_or(Outcome::Preview),
+            None => Outcome::Cancel,
+        }
     }
 
     /// Щелчок при открытой витрине: по строке — выбрать, мимо — закрыть.
@@ -195,8 +303,8 @@ impl View {
         let Mode::Skins(mut state) = std::mem::take(&mut self.mode) else {
             return false;
         };
-        let outcome = self.skin_row(&state).and_then(|row| state.click(row));
-        self.skin_outcome(state, outcome.unwrap_or(Outcome::Cancel));
+        let outcome = self.clicked(&mut state);
+        self.skin_outcome(state, outcome);
         self.render_status();
         true
     }

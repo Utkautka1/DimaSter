@@ -26,6 +26,7 @@ impl View {
                 self.plugins = Some(plugins);
                 self.collect_hooks();
                 self.emit("startup", "");
+                self.apply_style_bar();
                 self.render_status();
             }
             Err(e) => log::warn!("{}", t!("Плагины недоступны: {error}", error = e)),

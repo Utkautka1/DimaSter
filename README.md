@@ -113,7 +113,7 @@ The following are available starting with version 0.2.0:
 
 ## Skins
 
-Press `Ctrl+Shift+K` to browse 50 built-in color schemes with live preview; click or Enter keeps one. No config editing.
+Press `Ctrl+Shift+K` to browse 50 built-in color schemes and 8 complete looks (window, cursor, status bar, procedurally drawn background) with live preview. No config editing.
 
 ## Usage
 

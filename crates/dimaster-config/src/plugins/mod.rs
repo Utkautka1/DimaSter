@@ -65,6 +65,7 @@ pub struct Plugins {
     deadline: Rc<Cell<Instant>>,
     // интерпретатор должен жить, пока жив реестр
     lua: Lua,
+    directory: std::path::PathBuf,
 }
 
 fn limit_time(lua: &Lua, deadline: Rc<Cell<Instant>>) -> mlua::Result<()> {
@@ -162,9 +163,24 @@ impl Plugins {
                 shared,
                 deadline,
                 lua,
+                directory: directory.to_path_buf(),
             },
             errors,
         ))
+    }
+
+    /// Заменяет строку статуса сценарием; `None` — вернуть `statusbar.lua`.
+    pub fn set_bar(&self, source: Option<&str>) -> Result<(), String> {
+        self.deadline.set(Instant::now() + BUDGET);
+        match source {
+            Some(source) => self
+                .lua
+                .load(source)
+                .set_name("style")
+                .exec()
+                .map_err(|e| e.to_string()),
+            None => run_statusbar(&self.lua, &self.directory),
+        }
     }
 
     // свежий снимок и новый запас времени перед вызовом Lua
