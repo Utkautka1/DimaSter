@@ -3,6 +3,7 @@
 --
 -- info: mode, host, user, cwd, git_branch, git_changes, node, python, go,
 --       process, cpu, memory, docker_running, docker_stopped. Нет данных — nil.
+--       system_cpu, system_memory — вся машина.
 -- Возврат: { left = {...}, center = {...}, right = {...} }, где элемент —
 -- строка или таблица: text, color, background, rounded, left_cap, right_cap,
 -- radius, opacity.

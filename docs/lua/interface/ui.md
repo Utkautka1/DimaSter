@@ -13,7 +13,7 @@
 | `marks` | `hint_color`, `hint_background`, `found`, `current`, `link` |
 | `scrollbar`, `minimap` | `width`, `color`, `command`, `error`, `found`, `side` |
 | `notice` | плашка после копирования, см. ниже |
-| `monitor` | `side`, `position`, `format` (`{process}`, `{cpu}`, `{memory}`), `waiting` |
+| `monitor` | `side`, `position`, `format` (`{process}`, `{cpu}`, `{memory}`) — запущенная программа, `system` (`{cpu}`, `{memory}`) — вся система, пока ничего не запущено, `waiting` — до первых данных |
 | `texts` | `vi`, `hint`, `minimap`, `search`, `search_plain`, `search_regex`, `history`, `history_output`, `history_failed` |
 | сам `ui` | `prompt_position`: `"top"` или `"bottom"` |
 
@@ -94,6 +94,7 @@ return {
       -- side = "right",
       -- position = "top",
       -- format = " {process}  CPU {cpu}%  {memory} ",
+      -- system = " система  CPU {cpu}%  {memory} ", -- пока ничего не запущено
       -- waiting = " ожидание ",
     },
 

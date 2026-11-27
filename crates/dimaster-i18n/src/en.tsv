@@ -362,3 +362,7 @@ Tab вкладки · / фильтр · d удалить · D очистить �
 Docker: управление	Docker: manage
 -- Контейнеры: dimaster docker (в терминале Ctrl+Alt+D)	-- Containers: dimaster docker (Ctrl+Alt+D in the terminal)
 -- Все ключи описаны в документации, раздел «Контейнеры».	-- Every key is described in the docs, section "Containers".
+ система  CPU {cpu}%  {memory} 	 system  CPU {cpu}%  {memory} 
+ГБ	GB
+      -- system = " система  CPU {cpu}%  {memory} ", -- пока ничего не запущено	      -- system = " system  CPU {cpu}%  {memory} ", -- while nothing is running
+--       system_cpu, system_memory — вся машина.	--       system_cpu, system_memory — the whole machine.

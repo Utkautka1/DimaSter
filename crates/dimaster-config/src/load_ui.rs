@@ -173,6 +173,7 @@ fn monitor(table: &Table, ui: &mut Ui) -> Done {
         &mut style.bottom,
     )?;
     set(table, "format", &mut style.format)?;
+    set(table, "system", &mut style.system)?;
     set(table, "waiting", &mut style.waiting)
 }
 

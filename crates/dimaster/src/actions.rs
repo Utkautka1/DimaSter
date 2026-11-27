@@ -246,6 +246,8 @@ impl View {
             false => config.widgets.monitor = !config.widgets.monitor,
         }
         self.apply(config);
+        // датчики узнают о виджете сразу, а не со следующими данными
+        self.update_target();
         self.render_status();
     }
 

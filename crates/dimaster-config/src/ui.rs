@@ -201,6 +201,8 @@ pub struct MonitorStyle {
     pub bottom: bool,
     // `{process}`, `{cpu}`, `{memory}`
     pub format: String,
+    /// Вся система, пока программа не запущена: `{cpu}`, `{memory}`.
+    pub system: String,
     pub waiting: String,
 }
 
@@ -210,6 +212,7 @@ impl Default for MonitorStyle {
             left: false,
             bottom: false,
             format: " {process}  CPU {cpu}%  {memory} ".to_owned(),
+            system: " система  CPU {cpu}%  {memory} ".to_owned(),
             waiting: " ожидание ".to_owned(),
         }
     }

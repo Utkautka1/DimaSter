@@ -64,7 +64,7 @@ impl View {
         sensors::start(interval, self.status.target.clone(), deliver);
     }
 
-    fn update_target(&self) {
+    pub(crate) fn update_target(&self) {
         let widgets = self.config.widgets;
         let wanted = widgets.statusbar || widgets.monitor;
         let target = Target {
@@ -137,14 +137,21 @@ impl View {
         }
     }
 
+    // запущенная программа, а без неё — вся система
     fn monitor_text(&self) -> String {
         let style = &self.config.ui.monitor;
         let fact = |name: &str| self.status.facts.iter().find(|f| f.0 == name).map(|f| &f.1);
-        match (fact("process"), fact("cpu"), fact("memory")) {
-            (Some(process), Some(cpu), Some(memory)) => fill(
-                &tr(&style.format),
-                &[("process", process), ("cpu", cpu), ("memory", memory)],
-            ),
+        let filled = |format: &str, process: &str, cpu: &str, memory: &str| {
+            let values = [("process", process), ("cpu", cpu), ("memory", memory)];
+            fill(&tr(format), &values)
+        };
+        if let (Some(process), Some(cpu), Some(memory)) =
+            (fact("process"), fact("cpu"), fact("memory"))
+        {
+            return filled(&style.format, process, cpu, memory);
+        }
+        match (fact("system_cpu"), fact("system_memory")) {
+            (Some(cpu), Some(memory)) => filled(&style.system, "", cpu, memory),
             _ => tr(&style.waiting),
         }
     }

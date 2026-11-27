@@ -70,6 +70,7 @@ return {
       -- side = "right",
       -- position = "top",
       -- format = " {process}  CPU {cpu}%  {memory} ",
+      -- system = " система  CPU {cpu}%  {memory} ", -- пока ничего не запущено
       -- waiting = " ожидание ",
     },
 

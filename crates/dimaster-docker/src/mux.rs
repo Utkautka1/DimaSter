@@ -88,10 +88,11 @@ mod tests {
             std::env::split_paths(&path).next().as_deref(),
             Some(own.as_path())
         );
-        let output = Command::new(own.join("ssh"))
-            .arg("a b")
-            .output()
-            .expect("запуск");
+        // через sh: прямой запуск только что записанного файла иногда даёт
+        // «Text file busy», пока соседний тест порождает процесс
+        let mut wrapper = Command::new("sh");
+        let output = wrapper.arg(own.join("ssh")).arg("a b").output();
+        let output = output.expect("запуск");
         let text = String::from_utf8_lossy(&output.stdout);
         assert!(text.contains("ControlMaster=auto") && text.trim_end().ends_with("a b"));
         std::fs::remove_dir_all(root).expect("уборка");

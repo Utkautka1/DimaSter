@@ -14,6 +14,8 @@ use std::time::{Duration, Instant};
 
 use dimaster_docker::capture;
 
+use crate::system;
+
 // тактов в секунде в /proc/<pid>/stat на всех распространённых ядрах
 const TICKS: f64 = 100.0;
 // дольше этого git и docker не ждут: иначе виджеты замирают
@@ -153,6 +155,8 @@ fn version_number(text: &str) -> Option<String> {
 struct Sampler {
     versions: HashMap<&'static str, Option<String>>,
     previous: Option<(String, u64, Instant)>,
+    // прошлый замер всей машины
+    ticks: Option<system::Ticks>,
 }
 
 impl Sampler {
@@ -213,6 +217,7 @@ impl Sampler {
         }
         if target.shell != 0 {
             self.usage(target.shell, &mut facts);
+            system::sample(&mut self.ticks, &mut facts);
         }
         if target.docker {
             docker(&mut facts);

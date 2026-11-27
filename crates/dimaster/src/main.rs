@@ -53,6 +53,7 @@ mod sources;
 mod status;
 mod store;
 mod syntax;
+mod system;
 mod terminfo;
 mod view;
 mod view_command;
