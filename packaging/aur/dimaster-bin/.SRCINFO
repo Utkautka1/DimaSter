@@ -1,0 +1,20 @@
+pkgbase = dimaster-bin
+	pkgdesc = GPU-accelerated Linux terminal emulator with Lua configuration and graphics protocols (prebuilt binary)
+	pkgver = 0.1.0
+	pkgrel = 1
+	url = https://github.com/Utkautka1/DimaSter
+	arch = x86_64
+	license = MIT
+	depends = fontconfig
+	depends = libxkbcommon
+	depends = wayland
+	depends = libx11
+	depends = libxcb
+	depends = vulkan-icd-loader
+	optdepends = ffmpeg: video and extra image formats in icat / Kitty protocol
+	provides = dimaster
+	conflicts = dimaster
+	source = dimaster-bin-0.1.0.tar.gz::https://github.com/Utkautka1/DimaSter/releases/download/v0.1.0/dimaster-linux-x86_64.tar.gz
+	sha256sums = 5485357b71a9748d8c95813b2479e03b3e7deef9e12c515bd9596923cf85176e
+
+pkgname = dimaster-bin

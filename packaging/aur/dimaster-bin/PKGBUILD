@@ -20,7 +20,7 @@ optdepends=(
   'ffmpeg: video and extra image formats in icat / Kitty protocol'
 )
 source=("$pkgname-$pkgver.tar.gz::$url/releases/download/v$pkgver/dimaster-linux-x86_64.tar.gz")
-sha256sums=('SKIP')
+sha256sums=('5485357b71a9748d8c95813b2479e03b3e7deef9e12c515bd9596923cf85176e')
 
 package() {
   cd "dimaster-linux-x86_64"
