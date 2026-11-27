@@ -109,6 +109,24 @@ return {
 }
 ```
 
+## Свои сокращения и алиасы для всех shell
+
+```lua
+return {
+  native = {
+    abbreviations = { gs = "git status", gp = "git push", dc = "docker compose" },
+    aliases = { ll = "ls -la", g = "git" },
+  },
+  env = { EDITOR = "nvim" },
+}
+```
+
+## Оставить Atuin и fzf-tab главными
+
+```lua
+return { native = { history_search = false, complete = false } }
+```
+
 ## Крупные элементы для большого экрана
 
 ```lua

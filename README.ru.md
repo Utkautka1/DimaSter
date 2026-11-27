@@ -56,9 +56,9 @@ curl -fsSL https://raw.githubusercontent.com/Utkautka1/DimaSter/main/install.sh 
 
 | Система | Команды |
 |---|---|
-| Arch, CachyOS | `curl -LO https://github.com/Utkautka1/DimaSter/releases/latest/download/dimaster-0.4.0-1-x86_64.pkg.tar.zst` и `sudo pacman -U dimaster-0.4.0-1-x86_64.pkg.tar.zst` |
-| Debian, Ubuntu, Mint | `curl -LO https://github.com/Utkautka1/DimaSter/releases/latest/download/dimaster_0.4.0_amd64.deb` и `sudo apt install ./dimaster_0.4.0_amd64.deb` |
-| Fedora, openSUSE | `curl -LO https://github.com/Utkautka1/DimaSter/releases/latest/download/dimaster-0.4.0-1.x86_64.rpm` и `sudo dnf install ./dimaster-0.4.0-1.x86_64.rpm` |
+| Arch, CachyOS | `curl -LO https://github.com/Utkautka1/DimaSter/releases/latest/download/dimaster-0.4.1-1-x86_64.pkg.tar.zst` и `sudo pacman -U dimaster-0.4.1-1-x86_64.pkg.tar.zst` |
+| Debian, Ubuntu, Mint | `curl -LO https://github.com/Utkautka1/DimaSter/releases/latest/download/dimaster_0.4.1_amd64.deb` и `sudo apt install ./dimaster_0.4.1_amd64.deb` |
+| Fedora, openSUSE | `curl -LO https://github.com/Utkautka1/DimaSter/releases/latest/download/dimaster-0.4.1-1.x86_64.rpm` и `sudo dnf install ./dimaster-0.4.1-1.x86_64.rpm` |
 | Любая | `DimaSter-<версия>-<архитектура>.AppImage`: `chmod +x` и запустить |
 
 Для ARM публикуются `tar.gz`, `deb`, `rpm` и AppImage. Рецепты для Arch лежат в [packaging/aur](packaging/aur).
@@ -126,6 +126,8 @@ dimaster ssh-terminfo u@host   # описание терминала на сер
 |---|---|
 | `→` / `End` | принять подсказку |
 | `Ctrl+→` | следующее слово или исправить опечатку |
+| `Tab` | меню дополнения: команды, флаги, файлы |
+| `↑` / `↓` | история команд с тем же началом |
 | `Ctrl+Shift+P` | палитра команд |
 | `Ctrl+Shift+K` | скины |
 | `Ctrl+Shift+H` | история команд (`Ctrl+Y` копирует вывод) |

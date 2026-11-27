@@ -2,7 +2,7 @@
 # Build a .deb package for Debian/Ubuntu from target/release/dimaster.
 set -eu
 
-VERSION="${1:-0.4.0}"
+VERSION="${1:-0.4.1}"
 ARCH="$(dpkg --print-architecture 2>/dev/null || echo amd64)"
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)"
 PKG="$ROOT/target/deb/dimaster_${VERSION}_${ARCH}"

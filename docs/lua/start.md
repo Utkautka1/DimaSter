@@ -27,6 +27,8 @@ return {
 | Клавиша | Что делает |
 |---|---|
 | `→` | принять подсказку команды |
+| `Tab` | [меню дополнения](settings/native.md): команды, флаги, файлы |
+| `↑` / `↓` | команды из истории с тем же началом |
 | `Ctrl+Shift+H` | история команд |
 | `Ctrl+Shift+G` | частые папки |
 | `Ctrl+Shift+P` | все команды |
@@ -54,6 +56,7 @@ return {
 | строку статуса | `statusbar.lua` |
 | фигуры и графики поверх окна | `draw.lua` |
 | вывод `dimaster fetch` | `fetch.lua` |
+| меню `Tab`, стрелки, сокращения, алиасы | `local.lua`, таблица [`native`](settings/native.md) |
 | советы и приветствие | `local.lua`, таблица [`help`](settings/help.md) |
 | тайминги и клавиши подсказок | `local.lua`, таблица [`tuning`](settings/tuning.md) |
 | защитные пределы и мелкие размеры | `local.lua`, таблица [`limits`](settings/limits.md) |
