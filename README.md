@@ -7,6 +7,8 @@
 
 A fast, GPU-accelerated Linux terminal emulator written in Rust (`wgpu` + `winit`), featuring modular **Lua 5.4** configuration, full **Kitty keyboard & graphics protocols**, **COLR/CBDT color emoji**, **shell integration**, **vi mode**, **command palette**, and a built-in **Lua status bar**.
 
+![DimaSter in 20 seconds: typo advice, history by prefix with Up, Tab completion menu, abbreviation, suggestion and command palette](assets/screenshots/demo.gif)
+
 ![DimaSter: fetch, file listing and highlighted code in the Glass look](assets/screenshots/main.png)
 
 | `dimaster docker` | `dimaster view services.csv` |

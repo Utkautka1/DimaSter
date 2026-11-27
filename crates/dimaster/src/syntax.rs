@@ -173,22 +173,32 @@ impl CommandCache {
             .iter()
             .copied()
             .chain(self.bins.iter().map(String::as_str));
-        let mut best: Option<(usize, &str)> = None;
-        for cand in candidates {
-            if cand.len().abs_diff(word.len()) > 2 || cand == word {
-                continue;
-            }
-            if let Some(d) = edit_distance(word, cand, 2)
-                && best.is_none_or(|(bd, bc)| (d, cand.len()) < (bd, bc.len()))
-            {
-                best = Some((d, cand));
-                if d == 1 && cand.len() == word.len() {
-                    break;
-                }
-            }
-        }
-        best.map(|(_, c)| c.to_owned())
+        closest(word, candidates).map(str::to_owned)
     }
+}
+
+// переставлены две соседние буквы: `gti` → `git`
+fn swapped(a: &str, b: &str) -> bool {
+    let (a, b): (Vec<char>, Vec<char>) = (a.chars().collect(), b.chars().collect());
+    let differ: Vec<usize> = (0..a.len().min(b.len()))
+        .filter(|&i| a[i] != b[i])
+        .collect();
+    a.len() == b.len() && matches!(differ[..], [i, j] if j == i + 1 && a[i] == b[j] && a[j] == b[i])
+}
+
+// перестановка вероятнее замены буквы; при равенстве выбор не зависит от порядка
+fn closest<'a>(word: &str, candidates: impl Iterator<Item = &'a str>) -> Option<&'a str> {
+    candidates
+        .filter(|c| c.len().abs_diff(word.len()) <= 2 && *c != word)
+        .filter_map(|c| {
+            let rank = match swapped(word, c) {
+                true => (1, false),
+                false => (edit_distance(word, c, 2)?, true),
+            };
+            Some((rank, c.len(), c))
+        })
+        .min()
+        .map(|found| found.2)
 }
 
 fn edit_distance(a: &str, b: &str, limit: usize) -> Option<usize> {
@@ -529,6 +539,13 @@ fn push_span(out: &mut Vec<(Match, u32)>, slice: &[CellChar], color: u32) {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn swapped_letters_win_over_a_replaced_one() {
+        let known = ["gtf", "gpi", "git", "gt"];
+        assert_eq!(super::closest("gti", known.into_iter()), Some("git"));
+        assert_eq!(super::closest("gtx", known.into_iter()), Some("gt"));
+    }
+
     #[test]
     fn foreign_suggestion_does_not_hide_input_from_keys() {
         let mut term = dimaster_grid::Terminal::new(dimaster_grid::Size { rows: 4, cols: 40 });
