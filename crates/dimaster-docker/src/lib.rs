@@ -10,9 +10,11 @@ mod host;
 mod keys;
 mod kind;
 mod logs;
+mod mux;
 mod process;
 mod render;
 mod terminal;
+mod tunnel;
 mod worker;
 
 pub use app::App;

@@ -10,7 +10,7 @@ use crossterm::{cursor, execute, queue};
 
 use crate::app::App;
 use crate::host::allow_prompts;
-use crate::render;
+use crate::{render, tunnel};
 
 fn draw(app: &mut App, out: &mut impl Write) -> io::Result<()> {
     let (width, height) = terminal::size()?;
@@ -78,5 +78,6 @@ pub fn run(mut app: App) -> io::Result<()> {
     let mut out = io::stdout();
     enter(&mut out)?;
     let result = work(&mut app, &mut out);
+    tunnel::close_all();
     leave(&mut out).and(result)
 }

@@ -364,6 +364,10 @@ classDiagram
     class Kind { <<enum>> +list_args() +parse(output) +columns() }
     class Task { <<enum>> Run; Show; Follow; Attach }
     class Tail { lines; +start(command) +poll() }
+    class Tunnel { <<enum>> Open; Failed }
+    class Mux { +path() }
+    Host ..> Tunnel : ensure, socket
+    Host ..> Mux : без туннеля
     class Docker { settings; view }
     App *-- Worker
     App *-- Docker

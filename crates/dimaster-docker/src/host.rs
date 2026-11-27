@@ -2,6 +2,8 @@
 
 use std::process::Command;
 
+use crate::{mux, tunnel};
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Host {
     Local,
@@ -23,18 +25,41 @@ impl Host {
         }
     }
 
+    /// Долгое подключение к серверу; вызывается из фоновых потоков.
+    pub(crate) fn connect(&self) {
+        if let Self::Ssh(name) = self {
+            tunnel::ensure(name);
+        }
+    }
+
     /// `docker` с этими аргументами на этой машине.
     pub(crate) fn command(&self, args: &[String]) -> Command {
         let mut command = Command::new("docker");
         if let Self::Ssh(name) = self {
-            command.args(["-H", &format!("ssh://{name}")]);
-            // ssh спросил бы пароль прямо поверх экрана: пусть вместо этого откажет
-            command
-                .env("SSH_ASKPASS", "false")
-                .env("SSH_ASKPASS_REQUIRE", "force");
+            match tunnel::socket(name) {
+                Some(socket) => {
+                    command
+                        .arg("-H")
+                        .arg(format!("unix://{}", socket.display()));
+                }
+                None => over_ssh(&mut command, name),
+            }
         }
         command.args(args);
         command
+    }
+}
+
+// запасной путь без туннеля: клиент `docker` сам запускает `ssh`
+fn over_ssh(command: &mut Command, name: &str) {
+    command.args(["-H", &format!("ssh://{name}")]);
+    // ssh спросил бы пароль прямо поверх экрана: пусть вместо этого откажет
+    command
+        .env("SSH_ASKPASS", "false")
+        .env("SSH_ASKPASS_REQUIRE", "force");
+    // соединение переиспользуется и здесь
+    if let Some(path) = mux::path() {
+        command.env("PATH", path);
     }
 }
 

@@ -43,11 +43,13 @@ fn parse_stats(output: &str) -> Stats {
 }
 
 fn list(target: &Target) -> Result<Vec<Item>, String> {
+    target.host.connect();
     let command = target.host.command(&target.kind.list_args());
     capture(command, QUERY).map(|text| target.kind.parse(&text))
 }
 
 fn stats(host: &Host) -> Option<Stats> {
+    host.connect();
     let args = ["stats", "--no-stream", "--format", "{{json .}}"].map(String::from);
     let text = capture(host.command(&args), QUERY).ok()?;
     Some(parse_stats(&text))
@@ -121,9 +123,11 @@ impl Worker {
 
     /// Выполняет команду; `show` — вернуть её вывод.
     pub(crate) fn run(&self, host: &Host, args: &[String], show: bool) {
-        let (command, events) = (host.command(args), self.events.clone());
+        let (host, args) = (host.clone(), args.to_vec());
+        let events = self.events.clone();
         thread::spawn(move || {
-            let result = capture(command, ACTION);
+            host.connect();
+            let result = capture(host.command(&args), ACTION);
             let event = match show {
                 true => Event::Shown(result),
                 false => Event::Done(result.map(drop)),
