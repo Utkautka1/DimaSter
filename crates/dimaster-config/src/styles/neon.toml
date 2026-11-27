@@ -1,0 +1,14 @@
+add_newline = true
+format = """
+$directory$git_branch$cmd_duration$character"""
+[directory]
+format = "[ $path ](bg:#cba6f7 fg:#11111b bold)[\ue0b0](fg:#cba6f7)"
+[git_branch]
+format = " [\ue0b2](fg:#94e2d5)[  $branch ](bg:#94e2d5 fg:#11111b)[\ue0b0](fg:#94e2d5)"
+[cmd_duration]
+min_time = 500
+format = " [$duration](#f9e2af)"
+
+[character]
+success_symbol = "[ ❯❯ ](bold #cba6f7)"
+error_symbol = "[ ❯❯ ](bold #f38ba8)"

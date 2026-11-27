@@ -110,7 +110,8 @@ impl View {
         self.window
             .set_decorations(window.decorations == Decorations::System);
         self.window.set_blur(window.blur);
-        crate::prompt::sync(&self.config, self.look.painted);
+        let template = self.look.style.map(|s| s.prompt);
+        crate::prompt::sync(&self.config, self.look.painted, template);
     }
 
     fn rebuild_fonts(&mut self) {

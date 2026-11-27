@@ -36,10 +36,10 @@ fn source(config: &Config) -> Option<PathBuf> {
         .find(|path| path.is_file())
 }
 
-/// Куда направить `STARSHIP_CONFIG`; `None` — настраивать нечего.
-pub(crate) fn redirected(config: &Config) -> Option<PathBuf> {
-    source(config)?;
-    managed().filter(|copy| copy.is_file())
+/// Куда направить `STARSHIP_CONFIG`. Путь отдаётся всегда: стиль можно
+/// выбрать и после запуска shell, а без файла starship берёт свои значения.
+pub(crate) fn redirected() -> Option<PathBuf> {
+    managed()
 }
 
 fn channels(color: u32) -> [f32; 3] {
@@ -101,24 +101,37 @@ fn recolor(text: &str, theme: &Theme) -> String {
     out
 }
 
-/// Обновляет копию; `paint` — перекрашивать, иначе повторить оригинал.
-pub(crate) fn sync(config: &Config, paint: bool) {
-    let (Some(source), Some(copy)) = (source(config), managed()) else {
-        return;
+// приглашение стиля или файл пользователя, при необходимости перекрашенные
+fn wanted(config: &Config, paint: bool, template: Option<&str>) -> Option<String> {
+    let text = match template {
+        Some(template) => template.to_owned(),
+        None => std::fs::read_to_string(source(config)?).ok()?,
     };
-    let Ok(text) = std::fs::read_to_string(source) else {
-        return;
-    };
-    let text = if paint {
-        recolor(&text, &config.theme)
-    } else {
-        text
+    Some(match paint {
+        true => recolor(&text, &config.theme),
+        false => text,
+    })
+}
+
+fn write(config: &Config, paint: bool, template: Option<&str>) -> std::io::Result<()> {
+    let Some(copy) = managed() else { return Ok(()) };
+    let Some(text) = wanted(config, paint, template) else {
+        // своего файла нет и стиль снят: убираем приглашение стиля
+        return match std::fs::remove_file(&copy) {
+            Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e),
+            _ => Ok(()),
+        };
     };
     if std::fs::read_to_string(&copy).is_ok_and(|old| old == text) {
-        return;
+        return Ok(());
     }
-    let folder = copy.parent().map_or(Ok(()), std::fs::create_dir_all);
-    if let Err(e) = folder.and_then(|()| std::fs::write(&copy, text)) {
+    copy.parent().map_or(Ok(()), std::fs::create_dir_all)?;
+    std::fs::write(&copy, text)
+}
+
+/// Обновляет копию: `template` — приглашение стиля, `paint` — перекрашивать.
+pub(crate) fn sync(config: &Config, paint: bool, template: Option<&str>) {
+    if let Err(e) = write(config, paint, template) {
         log::warn!("{}", t!("Приглашение не перекрашено: {error}", error = e));
     }
 }

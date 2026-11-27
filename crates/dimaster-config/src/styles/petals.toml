@@ -1,0 +1,12 @@
+add_newline = true
+format = """
+[✿](#f5c2e7) $directory$git_branch$character"""
+[directory]
+truncation_length = 2
+format = "[$path](italic #f5c2e7)"
+[git_branch]
+format = " [❀ $branch](#cba6f7)"
+
+[character]
+success_symbol = "[ ❯ ](bold #cba6f7)"
+error_symbol = "[ ❯ ](bold #f38ba8)"

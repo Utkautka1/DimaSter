@@ -1,0 +1,23 @@
+add_newline = true
+format = """
+[┌─](#89b4fa) $username$directory$git_branch$git_status$cmd_duration$time$line_break[└─](#89b4fa)$character"""
+[username]
+show_always = true
+format = "[$user](bold #cba6f7) in "
+[directory]
+format = "[$path](bold #94e2d5)"
+[git_branch]
+format = " on [ $branch](bold #f5c2e7)"
+[git_status]
+format = "( [$all_status$ahead_behind](#f9e2af))"
+[cmd_duration]
+min_time = 500
+format = " took [$duration](#f9e2af)"
+[time]
+disabled = false
+format = " at [$time](#89b4fa)"
+time_format = "%H:%M"
+
+[character]
+success_symbol = "[ ❯ ](bold #cba6f7)"
+error_symbol = "[ ❯ ](bold #f38ba8)"

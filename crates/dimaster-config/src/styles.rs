@@ -24,6 +24,8 @@ pub struct Style {
     pub title: &'static str,
     /// Таблица настроек литералом Lua.
     pub literal: &'static str,
+    /// Приглашение starship этого стиля.
+    pub prompt: &'static str,
     pub scene: Scene,
     // заметность фона в процентах: текст должен читаться
     pub shade: u8,
@@ -35,6 +37,7 @@ macro_rules! style {
             id: $id,
             title: $title,
             literal: include_str!(concat!("styles/", $id, ".lua")),
+            prompt: include_str!(concat!("styles/", $id, ".toml")),
             scene: Scene::$scene,
             shade: $shade,
         }

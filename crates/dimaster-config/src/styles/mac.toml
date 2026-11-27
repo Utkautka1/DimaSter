@@ -1,0 +1,15 @@
+add_newline = true
+format = """
+$hostname $directory$git_branch$character"""
+[hostname]
+ssh_only = false
+format = "[$hostname](#a6adc8)"
+[directory]
+truncation_length = 1
+format = "[$path](bold #cdd6f4)"
+[git_branch]
+format = " [git:\\($branch\\)](#89b4fa)"
+
+[character]
+success_symbol = "[ % ](bold #cba6f7)"
+error_symbol = "[ % ](bold #f38ba8)"

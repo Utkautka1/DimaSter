@@ -1,4 +1,5 @@
 {
+  widgets = { statusbar = true, monitor = false, minimap = false }, scrollbar = false,
   window = { opacity = 0.62, blur = true, decorations = "none" }, padding = { x = 28, y = 22 },
   effects = { cursor_animation = true, cursor_trail = false, cursor_blink = false },
   cursor = { shape = "bar", thickness = 2, radius = 2, pulse = true, pulse_period = 1500 },
