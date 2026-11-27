@@ -5,6 +5,8 @@ on:
     branches: [main]
     tags: ["v*"]
   pull_request:
+  # вручную: собрать пакеты всех архитектур без выпуска релиза
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
@@ -40,13 +42,19 @@ jobs:
       - name: Run tests
         run: cargo test --workspace --no-fail-fast
 
-  release:
-    name: Release Packages
+  packages:
+    name: Packages (${{ matrix.arch }})
     needs: check
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    strategy:
+      matrix:
+        include:
+          # старая база даёт бинарник, работающий и на старых дистрибутивах
+          - arch: x86_64
+            runner: ubuntu-22.04
+          - arch: aarch64
+            runner: ubuntu-22.04-arm
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
 
@@ -56,7 +64,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             pkg-config libxkbcommon-dev libwayland-dev libx11-dev \
             libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
-            libvulkan-dev libfontconfig1-dev rpm dpkg zstd
+            libvulkan-dev libfontconfig1-dev rpm dpkg zstd file desktop-file-utils
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -66,24 +74,53 @@ jobs:
       - name: Build release binary
         run: cargo build --release -p dimaster
 
-      - name: Package release archive & distro packages
+      - name: Package
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          mkdir -p dist/dimaster-linux-x86_64 release-assets
-          cp target/release/dimaster dist/dimaster-linux-x86_64/
-          cp assets/dimaster.svg assets/dimaster.png assets/dimaster.terminfo LICENSE README.md dist/dimaster-linux-x86_64/
-          tar -C dist -czf release-assets/dimaster-linux-x86_64.tar.gz dimaster-linux-x86_64
+          case "$GITHUB_REF" in
+            refs/tags/v*) VERSION="${GITHUB_REF_NAME#v}" ;;
+            *) VERSION="0.0.0" ;;
+          esac
+          NAME="dimaster-linux-${{ matrix.arch }}"
+          mkdir -p "dist/$NAME" release-assets
+          cp target/release/dimaster assets/dimaster.svg assets/dimaster.png \
+            assets/dimaster.terminfo LICENSE README.md "dist/$NAME/"
+          tar -C dist -czf "release-assets/$NAME.tar.gz" "$NAME"
 
           sh packaging/deb/build-deb.sh "$VERSION"
           cp target/deb/*.deb release-assets/
 
           sh packaging/rpm/build-rpm.sh "$VERSION"
-          cp target/rpm/RPMS/x86_64/*.rpm release-assets/
+          cp target/rpm/RPMS/*/*.rpm release-assets/
 
-          sh packaging/arch/build-pacman.sh "$VERSION"
-          cp target/arch/*.pkg.tar.zst release-assets/
+          sh packaging/appimage/build-appimage.sh "$VERSION"
+          cp target/appimage/*.AppImage release-assets/
 
-          (cd release-assets && sha256sum * > SHA256SUMS)
+          # pacman-пакет собирается только для Arch x86_64
+          if [ "${{ matrix.arch }}" = x86_64 ]; then
+            sh packaging/arch/build-pacman.sh "$VERSION"
+            cp target/arch/*.pkg.tar.zst release-assets/
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages-${{ matrix.arch }}
+          path: release-assets/*
+
+  release:
+    name: Publish Release
+    needs: packages
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Checksums
+        run: cd release-assets && sha256sum * > SHA256SUMS
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2

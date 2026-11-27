@@ -51,6 +51,7 @@ install_from_release() {
     arch="$(uname -m)"
     case "$arch" in
         x86_64|amd64) target="linux-x86_64" ;;
+        aarch64|arm64) target="linux-aarch64" ;;
         *)
             echo "Unsupported architecture for prebuilt binary: $arch (build from source with cargo)" >&2
             exit 1

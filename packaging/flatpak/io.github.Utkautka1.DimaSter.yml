@@ -1,0 +1,36 @@
+# Experimental, for a self-hosted bundle. Flathub needs offline cargo sources.
+#   flatpak-builder --user --install --force-clean build-flatpak packaging/flatpak/io.github.Utkautka1.DimaSter.yml
+app-id: io.github.Utkautka1.DimaSter
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: dimaster-flatpak
+finish-args:
+  - --share=ipc
+  - --share=network
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  - --filesystem=home
+  - --talk-name=org.freedesktop.Flatpak
+  - --talk-name=org.freedesktop.Notifications
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin
+  build-args:
+    - --share=network
+modules:
+  - name: dimaster
+    buildsystem: simple
+    build-commands:
+      - cargo build --release -p dimaster
+      - install -Dm755 target/release/dimaster /app/bin/dimaster
+      - install -Dm755 packaging/flatpak/dimaster-flatpak /app/bin/dimaster-flatpak
+      - install -Dm644 assets/dimaster.svg /app/share/icons/hicolor/scalable/apps/io.github.Utkautka1.DimaSter.svg
+      - install -Dm644 packaging/flatpak/io.github.Utkautka1.DimaSter.desktop /app/share/applications/io.github.Utkautka1.DimaSter.desktop
+    sources:
+      - type: dir
+        path: ../..
+        skip:
+          - target

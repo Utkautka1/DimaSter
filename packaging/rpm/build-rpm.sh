@@ -21,7 +21,7 @@ Release:        1
 Summary:        GPU-accelerated Linux terminal emulator with Lua configuration
 License:        MIT
 URL:            https://github.com/Utkautka1/DimaSter
-BuildArch:      x86_64
+BuildArch:      $(uname -m)
 Requires:       fontconfig, libxkbcommon, wayland-libs-client, libX11, libxcb, vulkan-loader
 
 %description
@@ -57,4 +57,4 @@ EOF
 
 rpmbuild --define "_topdir $TOP" --define "debug_package %{nil}" -bb "$TOP/SPECS/dimaster.spec"
 echo "Built RPM:"
-ls -la "$TOP/RPMS/x86_64/"*.rpm
+ls -la "$TOP/RPMS/"*/*.rpm

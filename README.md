@@ -31,7 +31,7 @@ A fast, GPU-accelerated Linux terminal emulator written in Rust (`wgpu` + `winit
 
 ## Installation
 
-### One-Command Install (Linux x86_64, no Rust required)
+### One-Command Install (Linux x86_64 and aarch64, no Rust required)
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/Utkautka1/DimaSter/main/install.sh | sh
@@ -87,6 +87,22 @@ Prebuilt packages for every major Linux distribution are published on [GitHub Re
   sudo dnf install ./dimaster-0.1.0-1.x86_64.rpm
   ```
   Or build locally: `./packaging/rpm/build-rpm.sh`
+
+The packages below appear in releases built after version 0.1.0:
+
+- **Any distribution (AppImage)**: download `DimaSter-<version>-<arch>.AppImage` from Releases, then
+  ```sh
+  chmod +x DimaSter-*.AppImage && ./DimaSter-*.AppImage
+  ```
+- **aarch64**: `tar.gz`, `deb`, `rpm` and AppImage are published for ARM as well.
+- **NixOS / Nix** (flake, not yet verified by the maintainer):
+  ```sh
+  nix run github:Utkautka1/DimaSter
+  ```
+- **Flatpak** (experimental, not on Flathub, not yet verified): the shell runs on the host through `flatpak-spawn`, so shell integration is not injected.
+  ```sh
+  flatpak-builder --user --install --force-clean build-flatpak packaging/flatpak/io.github.Utkautka1.DimaSter.yml
+  ```
 
 ## Usage
 

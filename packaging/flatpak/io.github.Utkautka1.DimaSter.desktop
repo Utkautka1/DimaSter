@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=DimaSter
+Comment=GPU-accelerated terminal emulator with Lua configuration
+Exec=dimaster-flatpak
+Icon=io.github.Utkautka1.DimaSter
+Categories=System;TerminalEmulator;
+StartupWMClass=dimaster

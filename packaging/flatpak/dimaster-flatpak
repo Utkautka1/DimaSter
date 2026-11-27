@@ -1,0 +1,6 @@
+#!/bin/sh
+# A terminal inside the sandbox is useless: run the user's shell on the host.
+# `script` gives it a controlling terminal, otherwise job control does not work.
+exec dimaster -e flatpak-spawn --host --watch-bus \
+    --env=TERM=xterm-256color --env=COLORTERM=truecolor --env=TERM_PROGRAM=dimaster \
+    sh -c 'exec script -qfc "$SHELL -l" /dev/null'
