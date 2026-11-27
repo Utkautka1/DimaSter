@@ -8,7 +8,9 @@ use winit::window::Fullscreen;
 use crate::clipboard::Target;
 use crate::desktop;
 use crate::keys;
-use crate::modes::{Mode, Press, hint, history, minimap, palette, paste, press, search, vi};
+use crate::modes::{
+    Mode, Press, hint, history, minimap, palette, paste, picker, press, search, vi,
+};
 use crate::view::View;
 
 impl View {
@@ -70,6 +72,7 @@ impl View {
             Mode::Vi(state) => self.vi_press(state, press),
             Mode::Hint(state) => self.hint_press(state, press),
             Mode::History(state) => self.history_press(state, press),
+            Mode::Picker(state) => self.picker_press(state, press),
             Mode::Minimap(state) => self.minimap_press(state, press),
             Mode::Paste(state) => self.paste_press(state, press),
             Mode::CloseConfirm => self.close_press(press),
@@ -107,12 +110,52 @@ impl View {
     }
 
     pub(crate) fn open_history(&mut self) {
-        let entries = self.term.commands().rev().cloned().collect();
+        let mut entries: Vec<_> = self.term.commands().rev().cloned().collect();
+        for cmd in self.history_store.commands.iter().rev() {
+            if !entries.iter().any(|e| e.command == *cmd) {
+                entries.push(dimaster_grid::Finished {
+                    command: cmd.clone(),
+                    exit: 0,
+                    duration: std::time::Duration::ZERO,
+                    output: Vec::new(),
+                });
+            }
+        }
         self.mode = Mode::History(history::History {
             entries,
+            query: String::new(),
             selected: 0,
         });
         self.window.request_redraw();
+    }
+
+    pub(crate) fn open_picker(&mut self, kind: picker::Kind) {
+        let root = self
+            .term
+            .cwd()
+            .map(std::path::PathBuf::from)
+            .or_else(|| self.shell_directory())
+            .unwrap_or_else(|| std::path::PathBuf::from("."));
+        let items = match kind {
+            picker::Kind::Files => picker::collect_files(&root),
+            picker::Kind::Dirs => picker::merge_dirs(&root, &self.history_store.dirs),
+        };
+        self.mode = Mode::Picker(picker::Picker {
+            kind,
+            items,
+            query: String::new(),
+            selected: 0,
+        });
+        self.window.request_redraw();
+    }
+
+    fn picker_press(&mut self, mut state: picker::Picker, press: Press) {
+        match state.press(press) {
+            picker::Outcome::Stay => self.mode = Mode::Picker(state),
+            picker::Outcome::Insert(path) => self.type_bytes(format!("{path} ").into_bytes()),
+            picker::Outcome::ChangeDir(dir) => self.type_bytes(format!("cd {dir}\r").into_bytes()),
+            picker::Outcome::Close => {}
+        }
     }
 
     fn hint_press(&mut self, mut state: hint::Hints, press: Press) {

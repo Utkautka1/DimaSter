@@ -9,8 +9,12 @@ pub struct Smart {
     pub startup_fetch: bool,
     /// Подсветка вводимых команд и проверка их существования средствами терминала.
     pub syntax_highlight: bool,
-    /// Настраивать цветной `ls` (`LS_COLORS` и `--color=auto` / `eza`) для всех оболочек.
+    /// Цветной `ls` и `LS_COLORS` для всех оболочек.
     pub color_ls: bool,
+    /// Призрачные автоподсказки команд из истории (аналог zsh-autosuggestions).
+    pub autosuggest: bool,
+    /// Автоматическое закрытие скобок и кавычек (аналог zsh-autopair).
+    pub autopair: bool,
     /// Своё «команда не найдена» на языке терминала.
     pub not_found: bool,
     // пустая строка отключает подсказку
@@ -34,6 +38,8 @@ impl Default for Smart {
             startup_fetch: true,
             syntax_highlight: true,
             color_ls: true,
+            autosuggest: true,
+            autopair: true,
             not_found: true,
             ok: "➜ OK".to_owned(),
             empty: "∅ Ничего не найдено".to_owned(),

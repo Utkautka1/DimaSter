@@ -2,7 +2,7 @@
 
 use dimaster_config::Texts;
 use dimaster_grid::{Finished, describe_exit};
-use dimaster_i18n::tr;
+use dimaster_i18n::{t, tr};
 use dimaster_render::Label;
 
 use crate::modes::Mode;
@@ -52,23 +52,23 @@ impl View {
             .collect()
     }
 
-    // строки панели: список команд, затем вывод выбранной
+    // строки панели: поиск, список команд, затем вывод выбранной
     fn history_lines(&self) -> Vec<(String, bool)> {
         let Mode::History(history) = &self.mode else {
             return Vec::new();
         };
         let (texts, rows) = (&self.config.ui.texts, self.config.ui.history.rows);
-        let mut lines = vec![(tr(&texts.history), false)];
+        let filter = t!(" Поиск: {q}_", q = history.query);
+        let mut lines = vec![(tr(&texts.history), false), (filter, false)];
+        let filtered = history.filtered();
         let start = history.selected.saturating_sub(rows - 1);
-        let entries = history.entries.iter().enumerate().skip(start).take(rows);
-        for (index, entry) in entries {
+        for (pos, (_, entry)) in filtered.iter().enumerate().skip(start).take(rows) {
             let mark = if entry.exit == 0 { '✓' } else { '✗' };
             let seconds = entry.duration.as_secs_f32();
-            let unit = tr("с");
-            let text = format!(" {mark} {seconds:>5.1}{unit}  {}", entry.command);
-            lines.push((text, index == history.selected));
+            let text = format!(" {mark} {seconds:>5.1}{}  {}", tr("с"), entry.command);
+            lines.push((text, pos == history.selected));
         }
-        if let Some(entry) = history.entries.get(history.selected) {
+        if let Some(entry) = history.selected_entry() {
             lines.extend(details(entry, texts));
         }
         lines
@@ -92,6 +92,40 @@ impl View {
         self.panel((x, top), columns, &lines)
     }
 
+    fn picker_panel(&self) -> Drawn {
+        let Mode::Picker(picker) = &self.mode else {
+            return Drawn::default();
+        };
+        let style = &self.config.ui.palette;
+        let columns = (self.window.inner_size().width / self.fonts.metrics().cell_width) as usize;
+        let columns = columns.min(style.width.max(56));
+        let header = match picker.kind {
+            crate::modes::picker::Kind::Files => t!(" Файлы: {q}_", q = picker.query),
+            crate::modes::picker::Kind::Dirs => t!(" Папки: {q}_", q = picker.query),
+        };
+        let mut lines = vec![(header, false)];
+        let start = picker.selected.saturating_sub(style.rows - 1);
+        for (i, item) in picker
+            .matches()
+            .into_iter()
+            .enumerate()
+            .skip(start)
+            .take(style.rows)
+        {
+            lines.push((format!("   {item}"), i == picker.selected));
+        }
+        let pos = self.centered_panel(columns, lines.len());
+        self.panel(pos, columns, &lines)
+    }
+
+    fn centered_panel(&self, columns: usize, rows: usize) -> (u32, u32) {
+        let size = self.window.inner_size();
+        let (width, height) = self.panel_size(columns, rows);
+        let y = self.title_height() + self.fonts.metrics().cell_height;
+        let _ = height;
+        (size.width.saturating_sub(width) / 2, y)
+    }
+
     pub(crate) fn mode_panels(&self) -> Drawn {
         let mut out = Drawn {
             labels: self.hint_labels(),
@@ -99,6 +133,9 @@ impl View {
         };
         if matches!(self.mode, Mode::History(_)) {
             out.merge(self.history_panel());
+        }
+        if matches!(self.mode, Mode::Picker(_)) {
+            out.merge(self.picker_panel());
         }
         out
     }

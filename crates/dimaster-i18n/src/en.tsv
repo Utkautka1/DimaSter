@@ -271,3 +271,9 @@ dimaster.command("insert_date", dimaster.tr("Вставить сегодняшн
  Опасная вставка ({reason}): Enter — вставить · Пробел — в одну строку · Esc — отмена 	 Unsafe paste ({reason}): Enter — paste · Space — single line · Esc — cancel 
 ВЫХОД	CLOSE
  Закрыть окно терминала? Enter/y — да · Esc/n — отмена 	 Close terminal window? Enter/y — yes · Esc/n — cancel 
+Выбрать файл (fzf)	Pick file (fzf)
+Перейти в папку (zoxide)	Jump to directory (zoxide)
+ Файлы: {q}_	 Files: {q}_
+ Папки: {q}_	 Dirs: {q}_
+ Поиск: {q}_	 Filter: {q}_
+ВЫБОР	PICKER

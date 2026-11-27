@@ -146,6 +146,52 @@ impl CommandCache {
         self.refresh();
         self.bins.contains(word)
     }
+
+    /// Ищет наиболее близкую команду по расстоянию Левенштейна ≤ 2 (аналог thefuck).
+    pub(crate) fn correction(&mut self, word: &str) -> Option<String> {
+        if word.len() < 2 || word.contains('/') {
+            return None;
+        }
+        self.refresh();
+        let candidates = BUILTINS
+            .iter()
+            .copied()
+            .chain(self.bins.iter().map(String::as_str));
+        let mut best: Option<(usize, &str)> = None;
+        for cand in candidates {
+            if cand.len().abs_diff(word.len()) > 2 || cand == word {
+                continue;
+            }
+            if let Some(d) = edit_distance(word, cand, 2)
+                && best.is_none_or(|(bd, bc)| (d, cand.len()) < (bd, bc.len()))
+            {
+                best = Some((d, cand));
+                if d == 1 && cand.len() == word.len() {
+                    break;
+                }
+            }
+        }
+        best.map(|(_, c)| c.to_owned())
+    }
+}
+
+fn edit_distance(a: &str, b: &str, limit: usize) -> Option<usize> {
+    let (a, b): (Vec<char>, Vec<char>) = (a.chars().collect(), b.chars().collect());
+    if a.len().abs_diff(b.len()) > limit {
+        return None;
+    }
+    let mut row: Vec<usize> = (0..=b.len()).collect();
+    for (i, &ca) in a.iter().enumerate() {
+        let mut prev = row[0];
+        row[0] = i + 1;
+        for (j, &cb) in b.iter().enumerate() {
+            let cost = usize::from(ca != cb);
+            let next = (row[j + 1] + 1).min(row[j] + 1).min(prev + cost);
+            prev = row[j + 1];
+            row[j + 1] = next;
+        }
+    }
+    (row[b.len()] <= limit).then_some(row[b.len()])
 }
 
 fn path_exists(word: &str, cwd: Option<&str>) -> bool {
@@ -163,6 +209,39 @@ fn path_exists(word: &str, cwd: Option<&str>) -> bool {
         }
     };
     path.is_file()
+}
+
+/// Проверяет, находится ли курсор внутри редактируемой строки приглашения shell.
+pub(crate) fn editing_command(term: &Terminal) -> bool {
+    let cursor_line = term.visible_line(0) + term.cursor().row as u64;
+    term.input_start().is_some_and(|(line, col)| {
+        line <= cursor_line && (line < cursor_line || term.cursor().col >= col)
+    }) || fallback_start(term).is_some()
+}
+
+/// Возвращает набранную команду, если курсор стоит в самом конце ввода.
+pub(crate) fn input_text_at_end(term: &Terminal) -> Option<String> {
+    let cells = read_input_cells(term)?;
+    let last = cells.last()?;
+    let cursor = term.cursor();
+    let cursor_line = term.visible_line(0) + cursor.row as u64;
+    if cursor_line != last.line || cursor.col <= last.col {
+        return None;
+    }
+    Some(cells.iter().map(|c| c.ch).collect())
+}
+
+/// Если введено одно ненайденное слово (опечатка), возвращает `(опечатка, исправление)`.
+pub(crate) fn suggest_typo(
+    text: &str,
+    cwd: Option<&str>,
+    cache: &mut CommandCache,
+) -> Option<(String, String)> {
+    let word = text.trim();
+    if word.is_empty() || word.contains(char::is_whitespace) || cache.exists(word, cwd) {
+        return None;
+    }
+    cache.correction(word).map(|fix| (word.to_owned(), fix))
 }
 
 /// Собирает подсветку синтаксиса для текущей редактируемой строки команды.

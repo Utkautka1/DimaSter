@@ -39,6 +39,8 @@ return {
 | `reload_config` | перечитать настройки | Ctrl+Shift+, |
 | `hint_mode` | буквенные метки на ссылках и путях | Ctrl+Shift+U |
 | `command_history` | история команд с выводом | Ctrl+Shift+H |
+| `pick_file` | нечёткий выбор файла и вставка пути (аналог `fzf`) | Ctrl+Shift+T |
+| `jump_dir` | прыжок в частую папку (аналог `zoxide`) | Ctrl+Shift+G |
 | `sudo_fix` | добавить `sudo` | Ctrl+Shift+S |
 | `presentation` | режим презентации | Ctrl+Shift+Z |
 | `minimap` | режим миникарты: j/k, g/G, Enter, Esc; щелчок мышью | Ctrl+Shift+M |

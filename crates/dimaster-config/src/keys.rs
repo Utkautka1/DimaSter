@@ -46,6 +46,8 @@ pub enum Action {
     ToggleFullscreen,
     HintMode,
     CommandHistory,
+    PickFile,
+    JumpDir,
     SudoFix,
     Presentation,
     Minimap,
@@ -74,7 +76,7 @@ pub enum Action {
     None,
 }
 
-const ACTIONS: [(&str, Action); 31] = [
+const ACTIONS: [(&str, Action); 33] = [
     ("ignore", Action::Ignore),
     ("unbind", Action::None),
     ("deactivate_key_table", Action::DeactivateTable),
@@ -85,6 +87,8 @@ const ACTIONS: [(&str, Action); 31] = [
     ("toggle_statusbar", Action::ToggleStatusBar),
     ("hint_mode", Action::HintMode),
     ("command_history", Action::CommandHistory),
+    ("pick_file", Action::PickFile),
+    ("jump_dir", Action::JumpDir),
     ("sudo_fix", Action::SudoFix),
     ("presentation", Action::Presentation),
     ("toggle_fullscreen", Action::ToggleFullscreen),
@@ -242,12 +246,14 @@ impl Binding {
 }
 
 // сочетания по умолчанию совпадают с привычными по Ghostty и kitty
-const DEFAULTS: [(&str, &str, Action); 26] = [
+const DEFAULTS: [(&str, &str, Action); 28] = [
     ("m", "ctrl+shift", Action::Minimap),
     ("o", "ctrl+shift", Action::ToggleMonitor),
     ("b", "ctrl+shift", Action::ToggleStatusBar),
     ("u", "ctrl+shift", Action::HintMode),
     ("h", "ctrl+shift", Action::CommandHistory),
+    ("t", "ctrl+shift", Action::PickFile),
+    ("g", "ctrl+shift", Action::JumpDir),
     ("s", "ctrl+shift", Action::SudoFix),
     ("z", "ctrl+shift", Action::Presentation),
     ("enter", "ctrl", Action::ToggleFullscreen),

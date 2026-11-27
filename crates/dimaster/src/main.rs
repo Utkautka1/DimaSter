@@ -3,6 +3,7 @@
 mod actions;
 mod animate;
 mod app;
+mod autopair;
 mod bar;
 mod canvas;
 mod chrome;
@@ -10,6 +11,7 @@ mod clipboard;
 mod desktop;
 mod fetch;
 mod headless;
+mod history_store;
 mod host;
 mod icat;
 mod input;

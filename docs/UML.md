@@ -112,7 +112,10 @@ classDiagram
     Config *-- Binding
     Source ..> Config
     View *-- Config
-    class Mode { Normal; Search; Vi; Palette; Hint; History; Minimap; Paste; CloseConfirm }
+    class AssistStore { commands; dirs; +record_command() +bump_dir() +best_suggestion() }
+    class Picker { kind; items; query; +matches() }
+    View *-- AssistStore
+    class Mode { Normal; Search; Vi; Palette; Hint; History; Picker; Minimap; Paste; CloseConfirm }
     class PasteConfirm { text; reason }
     class Animator { +tick(target, effects) +next_frame() }
     class WindowConfig { decorations; opacity; blur; background_image }

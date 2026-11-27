@@ -77,6 +77,9 @@ impl View {
             return;
         };
         let (command, exit, seconds) = (last.command.clone(), last.exit, last.duration);
+        if exit != 127 {
+            self.history_store.record_command(&command);
+        }
         self.emit("command", &command);
         let limit = self.config.smart.long_command;
         if limit > 0.0 && !self.focused && seconds.as_secs_f32() >= limit {

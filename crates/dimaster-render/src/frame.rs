@@ -62,6 +62,8 @@ pub struct Viewport<'a> {
     pub selection: Option<Span>,
     /// Набираемый в IME текст, ещё не отправленный программе.
     pub preedit: &'a str,
+    /// Призрачная автоподсказка справа от курсора.
+    pub ghost: Option<&'a str>,
     /// Подсветка совпадений поиска и ссылок.
     pub highlights: &'a [(Span, Rgb)],
     /// Подсветка синтаксиса вводимой команды (цвет текста для ячеек с `Color::Default`).
@@ -101,11 +103,16 @@ impl Builder<'_> {
         let live = scroll == 0 || view.cursor.is_some();
         if live && !view.preedit.is_empty() {
             self.preedit(term, view.preedit);
-        } else if live && !view.cursor_hidden {
-            self.trail(term, view.trail);
-            let program_hides = !term.modes().cursor_visible && view.cursor.is_none();
-            if !program_hides {
-                self.cursor(term, view.cursor, view.unfocused);
+        } else if live {
+            if let Some(ghost) = view.ghost {
+                self.ghost(term, ghost);
+            }
+            if !view.cursor_hidden {
+                self.trail(term, view.trail);
+                let program_hides = !term.modes().cursor_visible && view.cursor.is_none();
+                if !program_hides {
+                    self.cursor(term, view.cursor, view.unfocused);
+                }
             }
         }
     }

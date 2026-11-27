@@ -40,6 +40,24 @@ impl View {
         crate::syntax::highlight_input(&self.term, &self.config.theme.ansi, &mut self.syntax)
     }
 
+    /// Возвращает текст призрачной подсказки или исправления опечатки для отрисовки.
+    pub(crate) fn ghost_suggestion(&mut self) -> Option<String> {
+        if !self.config.smart.autosuggest
+            || !matches!(self.mode, Mode::Normal)
+            || self.term.is_alternate()
+            || !self.preedit.is_empty()
+        {
+            return None;
+        }
+        let prefix = crate::syntax::input_text_at_end(&self.term)?;
+        let live: Vec<String> = self.term.commands().map(|c| c.command.clone()).collect();
+        if let Some(tail) = self.history_store.best_suggestion(&prefix, &live) {
+            return Some(tail);
+        }
+        crate::syntax::suggest_typo(&prefix, self.term.cwd(), &mut self.syntax)
+            .map(|(_, fix)| format!("  ➜ {fix}"))
+    }
+
     /// Сколько пикселей снизу занято баром.
     pub(crate) fn content_bottom(&self) -> u32 {
         match self.status.bar.style.top {
@@ -191,19 +209,27 @@ impl View {
         selection.map(|s| self.term.span(s))
     }
 
-    pub(crate) fn draw(&mut self) {
+    fn tick_cursor(&mut self) -> (Option<(f32, f32)>, crate::animate::Pose) {
         let target = self.cursor_target();
-        let (effects, at) = (self.config.effects, target.unwrap_or_default());
+        let effects = self.config.effects;
+        let at = target.unwrap_or_default();
         let pose = self
             .animator
             .tick(at, effects, self.focused, Instant::now());
+        (target, pose)
+    }
+
+    pub(crate) fn draw(&mut self) {
+        let (target, pose) = self.tick_cursor();
         let (selection, highlights) = (self.selection_span(), self.highlights());
-        let syntax = self.syntax_highlights();
+        let (syntax, ghost) = (self.syntax_highlights(), self.ghost_suggestion());
         let Drawn { rects, labels } = self.interface();
+        let trail: &[_] = if target.is_some() { &pose.trail } else { &[] };
         let view = Viewport {
             scroll: self.scroll,
             selection,
             preedit: &self.preedit,
+            ghost: ghost.as_deref(),
             highlights: &highlights,
             syntax: &syntax,
             labels: &labels,
@@ -211,7 +237,7 @@ impl View {
             cursor: target.map(|_| pose.cursor),
             cursor_hidden: target.is_none() || pose.blink_hidden,
             unfocused: !self.focused,
-            trail: if target.is_some() { &pose.trail } else { &[] },
+            trail,
             rects: &rects,
         };
         self.renderer.prepare(&self.term, &mut self.fonts, view);

@@ -17,6 +17,7 @@ use winit::window::Window;
 use crate::animate::Animator;
 use crate::clipboard::{Clipboard, Target};
 use crate::desktop;
+use crate::history_store::AssistStore;
 use crate::keymap::KeyState;
 use crate::modes::Mode;
 use crate::pointer::Pointer;
@@ -85,6 +86,7 @@ pub(crate) struct View {
     pub(crate) assist: Assist,
     pub(crate) status: Status,
     pub(crate) syntax: CommandCache,
+    pub(crate) history_store: AssistStore,
     // обычные настройки, пока включена презентация
     pub(crate) normal_config: Option<Config>,
     pub(crate) plugins: Option<Plugins>,
@@ -176,6 +178,7 @@ impl View {
             assist: Assist::default(),
             status: Status::default(),
             syntax: CommandCache::default(),
+            history_store: AssistStore::load(),
             normal_config: None,
             plugins: None,
             plugin_depth: 0,
@@ -283,6 +286,9 @@ impl View {
         if self.term.cwd() != self.seen.cwd.as_deref() {
             self.seen.cwd = self.term.cwd().map(str::to_owned);
             let cwd = self.seen.cwd.clone().unwrap_or_default();
+            if !cwd.is_empty() {
+                self.history_store.bump_dir(std::path::Path::new(&cwd));
+            }
             self.emit("cwd", &cwd);
         }
     }
@@ -354,6 +360,7 @@ impl View {
             Mode::Normal
             | Mode::Palette(_)
             | Mode::History(_)
+            | Mode::Picker(_)
             | Mode::Paste(_)
             | Mode::CloseConfirm => {}
         }

@@ -15,6 +15,31 @@ fn layout(text: &str, cols: usize) -> (Row, usize) {
 }
 
 impl Builder<'_> {
+    /// Призрачный суффикс автоподсказки справа от курсора в цвете `ansi[8]`.
+    pub(crate) fn ghost(&mut self, term: &Terminal, text: &str) {
+        let cursor = term.cursor();
+        let cols = term.screen().rows()[0].cells.len();
+        if cursor.col >= cols || text.is_empty() {
+            return;
+        }
+        let available = cols - cursor.col;
+        let (row, width) = layout(text, available);
+        let color = self.look.ansi[8];
+        let mut run = Run::default();
+        for (offset, cell) in row.cells.iter().take(width).enumerate() {
+            if !cell.style.flags.contains(Flags::WIDE_TAIL) && cursor.col + offset < cols {
+                self.text_cell(
+                    &mut run,
+                    cell,
+                    color,
+                    (cursor.row, cursor.col + offset),
+                    false,
+                );
+            }
+        }
+        self.flush(&mut run, cursor.row);
+    }
+
     pub(crate) fn preedit(&mut self, term: &Terminal, text: &str) {
         let cursor = term.cursor();
         let cols = term.screen().rows()[0].cells.len();

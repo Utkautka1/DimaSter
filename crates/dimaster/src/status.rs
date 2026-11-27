@@ -30,6 +30,7 @@ fn mode_name(mode: &Mode) -> String {
         Mode::Palette(_) => "КОМАНДЫ",
         Mode::Hint(_) => "МЕТКИ",
         Mode::History(_) => "ИСТОРИЯ",
+        Mode::Picker(_) => "ВЫБОР",
         Mode::Minimap(_) => "КАРТА",
         Mode::Paste(_) => "ВСТАВКА",
         Mode::CloseConfirm => "ВЫХОД",

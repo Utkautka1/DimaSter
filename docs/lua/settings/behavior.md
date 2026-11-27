@@ -38,6 +38,8 @@ return {
     startup_fetch = true,    -- автоматически запускать `dimaster fetch` при открытии shell
     syntax_highlight = true, -- встроенная подсветка вводимых команд (без плагинов shell)
     color_ls = true,         -- цветной `ls` и `LS_COLORS` из коробки
+    autosuggest = true,      -- призрачные автоподсказки команд из истории (Right / Ctrl+Right)
+    autopair = true,         -- умное автозакрытие скобок и кавычек () [] {} "" ''
     not_found = true,        -- «команда не найдена» на языке терминала (zsh, bash, fish)
     ok = "➜ OK",             -- под успешной командой без вывода; "" отключает
     empty = "∅ Ничего не найдено",

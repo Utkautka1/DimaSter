@@ -5,6 +5,7 @@ pub(crate) mod history;
 pub(crate) mod minimap;
 pub(crate) mod palette;
 pub(crate) mod paste;
+pub(crate) mod picker;
 pub(crate) mod search;
 pub(crate) mod vi;
 
@@ -66,6 +67,7 @@ pub(crate) enum Mode {
     Palette(palette::Palette),
     Hint(hint::Hints),
     History(history::History),
+    Picker(picker::Picker),
     Minimap(minimap::Minimap),
     Paste(paste::PasteConfirm),
     CloseConfirm,

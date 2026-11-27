@@ -61,6 +61,20 @@ fn physical_name(key: PhysicalKey) -> String {
     }
 }
 
+fn accept_tail(tail: &str, mods: ModifiersState) -> Option<Vec<u8>> {
+    if mods.is_empty() {
+        return Some(tail.as_bytes().to_vec());
+    }
+    if mods.control_key() && !mods.alt_key() && !mods.super_key() {
+        let len = tail
+            .find(|c: char| !c.is_whitespace())
+            .and_then(|s| tail[s..].find(char::is_whitespace).map(|e| s + e))
+            .unwrap_or(tail.len());
+        return Some(tail.as_bytes()[..len].to_vec());
+    }
+    None
+}
+
 impl View {
     pub(crate) fn key(&mut self, event: &KeyEvent) {
         let key = self.layout_independent(event);
@@ -83,7 +97,9 @@ impl View {
     }
 
     fn handle_pressed_key(&mut self, event: &KeyEvent, key: &Key, text: Option<&str>) {
-        let bytes = self.program_bytes(event, key, text);
+        let bytes = self
+            .assist_bytes(key, text)
+            .or_else(|| self.program_bytes(event, key, text));
         let physical = physical_name(event.physical_key);
         if let Some(name) = key_name(key).filter(|_| !is_modifier(key)) {
             let pressed = variants(&physical, &name, mods(self.modifiers));
@@ -99,6 +115,37 @@ impl View {
             }
             None => self.maybe_double_alt(key),
         }
+    }
+
+    fn assist_bytes(&mut self, key: &Key, text: Option<&str>) -> Option<Vec<u8>> {
+        if let Some(bytes) = self.accept_ghost_bytes(key) {
+            return Some(bytes);
+        }
+        if self.config.smart.autopair {
+            return crate::autopair::handle(&self.term, key, text, self.modifiers);
+        }
+        None
+    }
+
+    fn accept_ghost_bytes(&mut self, key: &Key) -> Option<Vec<u8>> {
+        let forward = matches!(key, Key::Named(NamedKey::ArrowRight | NamedKey::End));
+        if !forward || !self.config.smart.autosuggest || self.term.is_alternate() {
+            return None;
+        }
+        let prefix = crate::syntax::input_text_at_end(&self.term)?;
+        let live: Vec<String> = self.term.commands().map(|c| c.command.clone()).collect();
+        if let Some(tail) = self.history_store.best_suggestion(&prefix, &live) {
+            return accept_tail(&tail, self.modifiers);
+        }
+        if self.modifiers.control_key()
+            && let Some((typo, fix)) =
+                crate::syntax::suggest_typo(&prefix, self.term.cwd(), &mut self.syntax)
+        {
+            let mut bytes = vec![0x7f; typo.chars().count()];
+            bytes.extend_from_slice(fix.as_bytes());
+            return Some(bytes);
+        }
+        None
     }
 
     // что должна получить программа от нажатия клавиши
@@ -227,6 +274,8 @@ impl View {
         match action {
             Action::HintMode => self.open_hints(),
             Action::CommandHistory => self.open_history(),
+            Action::PickFile => self.open_picker(crate::modes::picker::Kind::Files),
+            Action::JumpDir => self.open_picker(crate::modes::picker::Kind::Dirs),
             Action::SudoFix => self.sudo_fix(),
             Action::Presentation => self.toggle_presentation(),
             Action::Minimap => self.open_minimap(),

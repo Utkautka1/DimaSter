@@ -23,6 +23,8 @@ fn reactions(table: &Table, smart: &mut Smart) -> mlua::Result<()> {
     set(table, "startup_fetch", &mut smart.startup_fetch)?;
     set(table, "syntax_highlight", &mut smart.syntax_highlight)?;
     set(table, "color_ls", &mut smart.color_ls)?;
+    set(table, "autosuggest", &mut smart.autosuggest)?;
+    set(table, "autopair", &mut smart.autopair)?;
     set(table, "not_found", &mut smart.not_found)?;
     set(table, "long_command", &mut smart.long_command)?;
     set(table, "glow", &mut smart.glow)?;

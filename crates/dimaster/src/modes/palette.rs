@@ -5,12 +5,14 @@ use dimaster_i18n::tr;
 
 use super::Press;
 
-const COMMANDS: [(&str, Action); 22] = [
+const COMMANDS: [(&str, Action); 24] = [
     ("Миникарта", Action::Minimap),
     ("Монитор ресурсов", Action::ToggleMonitor),
     ("Строка статуса", Action::ToggleStatusBar),
     ("Метки на ссылках", Action::HintMode),
     ("История команд", Action::CommandHistory),
+    ("Выбрать файл (fzf)", Action::PickFile),
+    ("Перейти в папку (zoxide)", Action::JumpDir),
     ("Добавить sudo", Action::SudoFix),
     ("Режим презентации", Action::Presentation),
     ("Новое окно", Action::NewWindow),
