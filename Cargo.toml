@@ -15,6 +15,8 @@ dimaster-font = { path = "crates/dimaster-font" }
 dimaster-render = { path = "crates/dimaster-render" }
 dimaster-i18n = { path = "crates/dimaster-i18n" }
 dimaster-image = { path = "crates/dimaster-image" }
+dimaster-data = { path = "crates/dimaster-data" }
+dimaster-view = { path = "crates/dimaster-view" }
 rustybuzz = "0.20"
 regex = "1"
 parking_lot = { version = "0.12", features = ["arc_lock"] }
@@ -36,6 +38,7 @@ unicode-width = "0.2"
 csv = "1"
 rusqlite = { version = "0.43", features = ["bundled", "limits"] }
 serde_json = { version = "1", features = ["preserve_order"] }
+crossterm = "0.29"
 proptest = "1"
 criterion = "0.7"
 

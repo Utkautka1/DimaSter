@@ -20,6 +20,12 @@ graph TD
     font --> i18n
     render --> i18n
     app --> pty[dimaster-pty]
+    app --> view[dimaster-view]
+    view --> data[dimaster-data]
+    view --> config
+    view --> i18n
+    view --> image
+    app --> data
     grid --> vt[dimaster-vt]
 ```
 
@@ -246,6 +252,22 @@ classDiagram
     Screen *-- Row
     Row *-- Cell
     Cell *-- Style
+```
+
+## Просмотр таблиц
+
+```mermaid
+classDiagram
+    class Database { +load(path) +query(sql) +table(name) }
+    class Table { name; columns; rows }
+    class App { sheets; active; mode; +press(key) }
+    class Sheet { sql; table; columns; shown; +search() +apply() }
+    class Viewer { settings; +columns() +cell() +status() }
+    App *-- Database
+    App *-- Sheet
+    App --> Viewer : view.lua
+    Sheet --> Table
+    Database ..> Table
 ```
 
 ## Поток данных

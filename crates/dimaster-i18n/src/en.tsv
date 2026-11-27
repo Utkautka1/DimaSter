@@ -73,7 +73,7 @@ SIGTERM — завершён	SIGTERM — terminated
 в файле не найдено видео	no video found in the file
 нет вывода ffmpeg	no output from ffmpeg
 icat работает внутри DimaSter	icat only works inside DimaSter
-использование: dimaster [--class имя] [-e команда...] [--headless команда...] [--setup] [icat файл...] [fetch [--logo картинка]] [ctl команда] [ssh-terminfo хост]	usage: dimaster [--class name] [-e command...] [--headless command...] [--setup] [icat file...] [fetch [--logo image]] [ctl command] [ssh-terminfo host]
+использование: dimaster [--class имя] [-e команда...] [--headless команда...] [--setup] [icat файл...] [fetch [--logo картинка]] [view [-f формат] [--separator знак] [--no-header] файл...] [ctl команда] [ssh-terminfo хост]	usage: dimaster [--class name] [-e command...] [--headless command...] [--setup] [icat file...] [fetch [--logo image]] [view [-f format] [--separator char] [--no-header] file...] [ctl command] [ssh-terminfo host]
 нет действия {name}	no such action: {name}
 неизвестная команда: {command}	unknown command: {command}
 dimaster ctl [list | info | get-text | send-text <текст> | action <имя> | set-title <текст> | reload | new-window]	dimaster ctl [list | info | get-text | send-text <text> | action <name> | set-title <text> | reload | new-window]
@@ -319,3 +319,14 @@ macOS	macOS
 Приглашение не перекрашено: {error}	Prompt not recolored: {error}
 Фон: {name}	Background: {name}
 Фон не прочитан: {path}	Background not read: {path}
+неизвестный формат	unknown format
+разделитель — один знак	separator must be a single character
+укажите файл или передайте данные по конвейеру	pass a file or pipe data in
+{path}: {error}	{path}: {error}
+Строка скопирована	Row copied
+Сохранено: {path}	Saved: {path}
+Схема	Schema
+Неизвестная команда: {command}	Unknown command: {command}
+f — вид · c — копировать · Esc — назад	f — view · c — copy · Esc — back
+{title} [{tab}/{tabs}] · строка {row}/{rows} · {column}	{title} [{tab}/{tabs}] · row {row}/{rows} · {column}
+просмотр таблиц выключен в view.lua	table viewer is disabled in view.lua

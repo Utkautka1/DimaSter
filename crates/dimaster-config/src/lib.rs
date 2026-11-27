@@ -27,6 +27,7 @@ mod snippets;
 mod styles;
 mod theme;
 mod ui;
+mod viewer;
 mod widgets;
 mod window;
 
@@ -53,5 +54,6 @@ pub use ui::{
     Align, Anchor, HistoryStyle, Marks, MonitorStyle, NoticeStyle, PaletteStyle, PanelStyle, Strip,
 };
 pub use ui::{Texts, TitleButton, TitleStyle, Ui, WindowButton};
+pub use viewer::{ViewColor, ViewColors, ViewColumn, ViewSettings, Viewer};
 pub use widgets::Widgets;
 pub use window::{Decorations, Effects, WindowConfig};

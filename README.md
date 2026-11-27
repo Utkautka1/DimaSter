@@ -132,6 +132,7 @@ dimaster --headless ls -la     # render offscreen and print text
 dimaster --setup               # run first-time config & import wizard
 dimaster icat image.png        # display image/GIF/video in terminal
 dimaster fetch                 # built-in system info (customizable via fetch.lua)
+dimaster view a.csv b.json     # tables with SQL, fuzzy search and view.lua (docs/lua/view.md)
 dimaster ctl info              # query or control a running window
 dimaster ssh-terminfo u@host   # install xterm-dimaster terminfo on a remote server
 ```

@@ -54,6 +54,7 @@ mod store;
 mod syntax;
 mod terminfo;
 mod view;
+mod view_command;
 
 use dimaster_i18n::tr;
 use std::error::Error;
@@ -61,7 +62,7 @@ use std::process::ExitCode;
 
 use dimaster_config::Config;
 
-const USAGE: &str = "использование: dimaster [--class имя] [-e команда...] [--headless команда...] [--setup] [icat файл...] [fetch [--logo картинка]] [ctl команда] [ssh-terminfo хост]";
+const USAGE: &str = "использование: dimaster [--class имя] [-e команда...] [--headless команда...] [--setup] [icat файл...] [fetch [--logo картинка]] [view [-f формат] [--separator знак] [--no-header] файл...] [ctl команда] [ssh-terminfo хост]";
 
 fn main() -> ExitCode {
     // wgpu слишком подробен на info, поэтому по умолчанию только предупреждения
@@ -121,6 +122,7 @@ fn run(args: Vec<String>) -> Result<(), Box<dyn Error>> {
         }
         Some((word, request)) if word == "ctl" => Ok(remote::client(request)?),
         Some((word, options)) if word == "fetch" => Ok(fetch::run(options)?),
+        Some((word, files)) if word == "view" => view_command::run(files),
         _ => Err(tr(USAGE).into()),
     }
 }

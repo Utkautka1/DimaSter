@@ -1,0 +1,16 @@
+[package]
+name = "dimaster-view"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+crossterm.workspace = true
+dimaster-config.workspace = true
+dimaster-data.workspace = true
+dimaster-i18n.workspace = true
+dimaster-image.workspace = true
+unicode-width.workspace = true

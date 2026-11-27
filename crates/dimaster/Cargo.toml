@@ -9,6 +9,8 @@ workspace = true
 
 [dependencies]
 dimaster-i18n.workspace = true
+dimaster-data.workspace = true
+dimaster-view.workspace = true
 dimaster-grid.workspace = true
 dimaster-pty.workspace = true
 dimaster-font.workspace = true
