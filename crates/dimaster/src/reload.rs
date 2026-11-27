@@ -24,13 +24,18 @@ impl View {
         }
         match settings::read_with(&self.hooks.overrides) {
             Ok(config) => {
+                self.look.refresh();
                 // новые настройки отменяют презентацию
                 self.normal_config = None;
                 self.config_error = false;
                 if config != self.config {
                     log::info!("{}", t!("Конфиг перечитан"));
                     self.apply(config);
+                } else {
+                    // цвета те же, а файл приглашения мог переписать другое окно
+                    self.sync_outside();
                 }
+                self.apply_style_bar();
             }
             Err(e) => {
                 log::error!("{}", t!("Ошибка конфига: {error}", error = e));

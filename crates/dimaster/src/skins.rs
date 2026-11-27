@@ -38,11 +38,15 @@ pub(crate) struct Look {
 
 impl Look {
     pub(crate) fn saved() -> Self {
-        Self {
-            style: chosen("style").and_then(|id| style(&id)),
-            painted: chosen("skin").is_some() || chosen("style").is_some(),
-            ..Self::default()
-        }
+        let mut look = Self::default();
+        look.refresh();
+        look
+    }
+
+    /// Выбор мог измениться в другом окне — читаем его заново.
+    pub(crate) fn refresh(&mut self) {
+        self.style = chosen("style").and_then(|id| style(&id));
+        self.painted = chosen("skin").is_some() || chosen("style").is_some();
     }
 }
 
