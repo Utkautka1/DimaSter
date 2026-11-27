@@ -1008,6 +1008,7 @@ dependencies = [
  "arboard",
  "dimaster-config",
  "dimaster-data",
+ "dimaster-docker",
  "dimaster-font",
  "dimaster-grid",
  "dimaster-i18n",
@@ -1051,6 +1052,19 @@ dependencies = [
  "rust_xlsxwriter",
  "rusty-leveldb",
  "serde_json",
+]
+
+[[package]]
+name = "dimaster-docker"
+version = "0.3.0"
+dependencies = [
+ "crossterm",
+ "dimaster-config",
+ "dimaster-i18n",
+ "dimaster-view",
+ "dimaster-vt",
+ "serde_json",
+ "unicode-width",
 ]
 
 [[package]]

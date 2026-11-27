@@ -19,12 +19,13 @@ pub struct File {
     pub owned_by_user: bool,
 }
 
-const FIXED: [(&str, &str, bool); 14] = [
+const FIXED: [(&str, &str, bool); 15] = [
     ("draw.lua", include_str!("files/draw.lua"), true),
     ("ui.lua", include_str!("files/ui.lua"), true),
     ("statusbar.lua", include_str!("files/statusbar.lua"), true),
     ("fetch.lua", include_str!("files/fetch.lua"), true),
     ("view.lua", include_str!("files/view.lua"), true),
+    ("docker.lua", include_str!("files/docker.lua"), true),
     ("starship.toml", include_str!("files/starship.toml"), true),
     (
         "plugins/example.lua",
@@ -115,5 +116,6 @@ mod preset_tests {
         assert_eq!((preset.padding, preset.font_size as u32), ((25, 20), 11));
         assert!(preset.window.blur && preset.smart.fetch_early);
         assert!(crate::Viewer::parse(include_str!("files/view.lua")).is_ok());
+        assert!(crate::Docker::parse(include_str!("files/docker.lua")).is_ok());
     }
 }

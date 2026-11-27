@@ -98,6 +98,16 @@ fn view(link: &str, cwd: Option<&str>) -> bool {
     true
 }
 
+/// Новое окно с экраном контейнеров.
+pub(crate) fn containers() {
+    let Ok(exe) = std::env::current_exe() else {
+        return;
+    };
+    let mut command = Command::new(&exe);
+    command.arg("-e").arg(&exe).arg("docker");
+    spawn(command);
+}
+
 pub(crate) fn open(link: &str, cwd: Option<&str>) {
     if view(link, cwd) {
         return;

@@ -54,6 +54,8 @@ pub enum Action {
     Snippets,
     /// Контейнеры Docker.
     Docker,
+    /// Экран управления Docker в новом окне.
+    Containers,
     /// Витрина цветовых скинов.
     Skins,
     SudoFix,
@@ -86,11 +88,12 @@ pub enum Action {
     None,
 }
 
-const ACTIONS: [(&str, Action); 38] = [
+const ACTIONS: [(&str, Action); 39] = [
     ("skins", Action::Skins),
     ("ssh_hosts", Action::SshHosts),
     ("snippets", Action::Snippets),
     ("docker", Action::Docker),
+    ("containers", Action::Containers),
     ("copy_last_output", Action::CopyLastOutput),
     ("ignore", Action::Ignore),
     ("unbind", Action::None),
@@ -261,11 +264,12 @@ impl Binding {
 }
 
 // сочетания по умолчанию совпадают с привычными по Ghostty и kitty
-const DEFAULTS: [(&str, &str, Action); 33] = [
+const DEFAULTS: [(&str, &str, Action); 34] = [
     ("k", "ctrl+shift", Action::Skins),
     ("e", "ctrl+shift", Action::SshHosts),
     ("i", "ctrl+shift", Action::Snippets),
     ("d", "ctrl+shift", Action::Docker),
+    ("d", "ctrl+alt", Action::Containers),
     ("x", "ctrl+shift", Action::CopyLastOutput),
     ("m", "ctrl+shift", Action::Minimap),
     ("o", "ctrl+shift", Action::ToggleMonitor),

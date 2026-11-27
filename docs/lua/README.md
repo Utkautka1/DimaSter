@@ -26,6 +26,7 @@
 | `plugins/*.lua` | [Плагины](plugins/plugins.md) |
 | `fetch.lua` | [fetch](fetch/fetch.md) |
 | `view.lua` | [Просмотр таблиц](view.md) |
+| `docker.lua` | [Контейнеры](docker.md) |
 
 ## Где что лежит
 

@@ -5,11 +5,12 @@ use dimaster_i18n::tr;
 
 use super::Press;
 
-const COMMANDS: [(&str, Action); 29] = [
+const COMMANDS: [(&str, Action); 30] = [
     ("Скины: витрина цветов", Action::Skins),
     ("SSH: подключиться к серверу", Action::SshHosts),
     ("Сниппеты", Action::Snippets),
     ("Docker: контейнеры", Action::Docker),
+    ("Docker: управление", Action::Containers),
     ("Копировать вывод последней команды", Action::CopyLastOutput),
     ("Миникарта", Action::Minimap),
     ("Монитор ресурсов", Action::ToggleMonitor),

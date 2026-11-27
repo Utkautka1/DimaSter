@@ -133,6 +133,7 @@ dimaster --setup               # run first-time config & import wizard
 dimaster icat image.png        # display image/GIF/video in terminal
 dimaster fetch                 # built-in system info (customizable via fetch.lua)
 dimaster view a.csv b.json     # CSV, JSON, Parquet, Arrow, Excel, SQLite…: SQL, fuzzy search, plots, view.lua (docs/lua/view.md)
+dimaster docker                # containers, compose, images, volumes, networks; local and SSH (docs/lua/docker.md)
 dimaster ctl info              # query or control a running window
 dimaster ssh-terminfo u@host   # install xterm-dimaster terminfo on a remote server
 ```

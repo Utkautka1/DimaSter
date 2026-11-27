@@ -16,6 +16,7 @@ dimaster-render = { path = "crates/dimaster-render" }
 dimaster-i18n = { path = "crates/dimaster-i18n" }
 dimaster-image = { path = "crates/dimaster-image" }
 dimaster-data = { path = "crates/dimaster-data" }
+dimaster-docker = { path = "crates/dimaster-docker" }
 dimaster-view = { path = "crates/dimaster-view" }
 rustybuzz = "0.20"
 regex = "1"

@@ -6,6 +6,7 @@
 
 mod color;
 mod config;
+mod containers;
 mod context;
 mod cursor;
 mod fetch;
@@ -33,6 +34,7 @@ mod window;
 
 pub use color::parse_color;
 pub use config::{Config, CopyOnSelect, CursorStyle};
+pub use containers::{Docker, DockerCommand, DockerSettings};
 pub use cursor::CursorLook;
 pub use fetch::{DEFAULT_FETCH, Layout, fetch_color, run_fetch};
 pub use fetch_picture::{PicturePosition, PictureStyle};

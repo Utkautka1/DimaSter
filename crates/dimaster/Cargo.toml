@@ -9,6 +9,7 @@ workspace = true
 
 [dependencies]
 libc.workspace = true
+dimaster-docker.workspace = true
 dimaster-i18n.workspace = true
 dimaster-data.workspace = true
 dimaster-view.workspace = true

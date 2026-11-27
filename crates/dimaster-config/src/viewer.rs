@@ -271,6 +271,11 @@ impl Viewer {
         })
     }
 
+    // таблица, которую вернул файл: из неё читают свои ключи надстройки
+    pub(crate) fn root(&self) -> Option<&Table> {
+        self.script.as_ref().map(|s| &s.1)
+    }
+
     /// Видимые колонки таблицы по порядку.
     pub fn columns(&self, table: &str, names: &[String]) -> Vec<ViewColumn> {
         let sets = self.script.as_ref().map(|s| rule_sets(&s.1, table));

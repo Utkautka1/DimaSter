@@ -63,8 +63,8 @@ pub(crate) fn bindings(changes: &[(String, Option<String>)]) -> Bindings {
     found
 }
 
-// запись нажатия так, как её пишут в `view.lua`
-fn name(key: KeyEvent) -> String {
+/// Запись нажатия так, как её пишут в `view.lua`.
+pub fn name(key: KeyEvent) -> String {
     let base = match key.code {
         KeyCode::Char(' ') => "space".to_owned(),
         KeyCode::Char(ch) => ch.to_string(),

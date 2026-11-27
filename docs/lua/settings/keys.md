@@ -31,6 +31,7 @@ return {
 | `ssh_hosts` | серверы из `~/.ssh/config` | Ctrl+Shift+E |
 | `snippets` | свои команды | Ctrl+Shift+I |
 | `docker` | контейнеры Docker | Ctrl+Shift+D |
+| `containers` | [экран управления Docker](../docker.md) в новом окне | Ctrl+Alt+D |
 | `skins` | витрина из 50 цветовых скинов | Ctrl+Shift+K |
 | `prompt_next` | следующее приглашение | Ctrl+Shift+↓ |
 | `font_increase` | крупнее | Ctrl+= |

@@ -16,7 +16,7 @@ use crate::sheet::Sheet;
 const RESET: &str = "\x1b[0m";
 
 /// Ровно `width` знакомест; лишнее обрывается многоточием.
-pub(crate) fn fitted(text: &str, width: usize) -> String {
+pub fn fitted(text: &str, width: usize) -> String {
     let safe = text.chars().map(|c| if c.is_control() { ' ' } else { c });
     let mut out = String::new();
     let mut used = 0;
@@ -41,8 +41,8 @@ pub(crate) fn fitted(text: &str, width: usize) -> String {
     out + &" ".repeat(width - used)
 }
 
-// SGR цвета текста или, с `base` = 48, фона
-fn sgr(color: Option<ViewColor>, base: u8) -> String {
+/// SGR цвета текста или, с `base` = 48, фона.
+pub fn sgr(color: Option<ViewColor>, base: u8) -> String {
     match color {
         None => String::new(),
         Some(ViewColor::Index(i)) => format!("\x1b[{base};5;{i}m"),
@@ -105,8 +105,8 @@ fn visible(sheet: &mut Sheet, widths: &[usize], gap: usize, screen: usize) -> Ve
     }
 }
 
-// выравнивание вправо только для того, что помещается целиком
-fn aligned(text: &str, width: usize, right: bool) -> String {
+/// Выравнивание вправо только для того, что помещается целиком.
+pub fn aligned(text: &str, width: usize, right: bool) -> String {
     match right && size(text) < width {
         true => " ".repeat(width - size(text)) + &fitted(text, size(text)),
         false => fitted(text, width),

@@ -15,5 +15,8 @@ mod sheet;
 mod terminal;
 
 pub use app::App;
+// из этого же собирается экран контейнеров
+pub use keys::name as key_name;
 pub use remote::send;
+pub use render::{aligned, fitted, sgr};
 pub use terminal::run;

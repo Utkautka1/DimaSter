@@ -353,3 +353,26 @@ sequenceDiagram
     W->>T: unlock
     W->>W: показать кадр (ждёт монитор)
 ```
+
+## Контейнеры (dimaster-docker)
+
+```mermaid
+classDiagram
+    class App { items; stats; kind; mode; +press(key) +poll() +act(action) }
+    class Worker { +start(period, stats) +watch(target) +run(host, args, show) }
+    class Host { <<enum>> Local; Ssh; +command(args) }
+    class Kind { <<enum>> +list_args() +parse(output) +columns() }
+    class Task { <<enum>> Run; Show; Follow; Attach }
+    class Tail { lines; +start(command) +poll() }
+    class Docker { settings; view }
+    App *-- Worker
+    App *-- Docker
+    Docker *-- DockerSettings
+    Docker *-- Viewer
+    App --> Host
+    App --> Kind
+    App ..> Task : actions
+    App o-- Tail : логи
+    Worker ..> Host
+    Worker ..> Kind
+```

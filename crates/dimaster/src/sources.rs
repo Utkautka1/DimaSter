@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Duration;
 
-use crate::bounded;
+use dimaster_docker::capture;
 
 // вложенные Include глубже этого — почти наверняка цикл
 const MAX_INCLUDE: u8 = 3;
@@ -107,7 +107,8 @@ pub(crate) fn containers() -> Option<Vec<Container>> {
     let format = "{{.Names}}\t{{.Status}}\t{{.Image}}";
     let mut command = Command::new("docker");
     command.args(["ps", "--all", "--format", format]);
-    bounded::output(command, DOCKER_TIMEOUT).map(|text| parse_containers(&text))
+    let text = capture(command, DOCKER_TIMEOUT).ok()?;
+    Some(parse_containers(&text))
 }
 
 #[cfg(test)]
