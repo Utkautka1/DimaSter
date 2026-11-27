@@ -1,9 +1,30 @@
-# DimaSter
+<p align="center">
+  <img src="assets/dimaster.svg" alt="DimaSter" width="160">
+</p>
 
-**English** · [Русский](README.ru.md)
+<h1 align="center">DimaSter</h1>
 
-[![CI](https://github.com/Utkautka1/DimaSter/actions/workflows/ci.yml/badge.svg)](https://github.com/Utkautka1/DimaSter/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+<p align="center">
+  Fast, native, GPU-accelerated terminal emulator for Linux, comfortable out of the box.<br>
+  Everything is configurable in <code>Lua</code>.
+</p>
+
+<p align="center">
+  <a href="#features">About</a> ·
+  <a href="https://github.com/Utkautka1/DimaSter/releases/latest">Download</a> ·
+  <a href="docs/lua/README.md">Documentation</a> ·
+  <a href="https://github.com/Utkautka1/DimaSter/issues">Contributing</a> ·
+  <a href="#development--tests">Developing</a>
+</p>
+
+<p align="center">
+  <b>English</b> · <a href="README.ru.md">Русский</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/Utkautka1/DimaSter/actions/workflows/ci.yml"><img src="https://github.com/Utkautka1/DimaSter/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
+</p>
 
 A fast, GPU-accelerated Linux terminal emulator written in Rust (`wgpu` + `winit`), featuring modular **Lua 5.4** configuration, full **Kitty keyboard & graphics protocols**, **COLR/CBDT color emoji**, **shell integration**, **vi mode**, **command palette**, and a built-in **Lua status bar**.
 

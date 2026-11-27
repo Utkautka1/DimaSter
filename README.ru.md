@@ -1,9 +1,30 @@
-# DimaSter
+<p align="center">
+  <img src="assets/dimaster.svg" alt="DimaSter" width="160">
+</p>
 
-**Русский** · [English](README.md)
+<h1 align="center">DimaSter</h1>
 
-[![CI](https://github.com/Utkautka1/DimaSter/actions/workflows/ci.yml/badge.svg)](https://github.com/Utkautka1/DimaSter/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+<p align="center">
+  Быстрый нативный терминал для Linux с отрисовкой на видеокарте, удобный сразу после установки.<br>
+  Всё настраивается на <code>Lua</code>.
+</p>
+
+<p align="center">
+  <a href="#возможности">О проекте</a> ·
+  <a href="https://github.com/Utkautka1/DimaSter/releases/latest">Скачать</a> ·
+  <a href="docs/lua/README.md">Документация</a> ·
+  <a href="https://github.com/Utkautka1/DimaSter/issues">Участие</a> ·
+  <a href="#разработка">Разработка</a>
+</p>
+
+<p align="center">
+  <b>Русский</b> · <a href="README.md">English</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/Utkautka1/DimaSter/actions/workflows/ci.yml"><img src="https://github.com/Utkautka1/DimaSter/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
+</p>
 
 Быстрый эмулятор терминала для Linux на Rust с отрисовкой на видеокарте (`wgpu` + `winit`). Настраивается на **Lua 5.4**, поддерживает **протоколы Kitty** (клавиатура и графика), **цветные эмодзи**, интеграцию с shell, vi-режим, палитру команд и свою строку статуса. Поставил — и удобно сразу, без плагинов shell.
 
