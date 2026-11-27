@@ -64,6 +64,8 @@ pub struct Viewport<'a> {
     pub preedit: &'a str,
     /// Подсветка совпадений поиска и ссылок.
     pub highlights: &'a [(Span, Rgb)],
+    /// Подсветка синтаксиса вводимой команды (цвет текста для ячеек с `Color::Default`).
+    pub syntax: &'a [(Span, Rgb)],
     pub labels: &'a [Label],
     // сдвиг содержимого в пикселях во время плавной прокрутки
     pub offset: f32,
@@ -126,11 +128,12 @@ impl Builder<'_> {
             let Some(row) = term.line(line) else { continue };
             let start = self.quads.len();
             let selection = self.look.selection;
-            self.row(index.max(0) as usize, &row, |col| {
-                let highlight = view.highlights.iter().find(|h| h.0.contains(line, col));
-                let selected = view.selection.is_some_and(|s| s.contains(line, col));
-                highlight.map(|h| h.1).or(selected.then_some(selection))
-            });
+            self.row(
+                index.max(0) as usize,
+                &row,
+                |col| mark_at(view, line, col, selection),
+                |col| syntax_at(view.syntax, line, col),
+            );
             self.move_down(start, index.min(0) as f32, view.offset);
         }
     }
@@ -152,7 +155,31 @@ impl Builder<'_> {
         ]
     }
 
-    fn row(&mut self, index: usize, row: &Row, marked: impl Fn(usize) -> Option<Rgb>) {
+    fn cell_colors(&self, cell: &Cell, marked: Option<Rgb>, syntax: Option<Rgb>) -> (Rgb, Rgb) {
+        let (mut fg, mut bg) = colors(cell, self.look);
+        if let Some(color) = syntax
+            && cell.style.fg == Color::Default
+            && !cell.style.flags.contains(Flags::INVERSE)
+        {
+            fg = color;
+        }
+        if let Some(color) = marked {
+            bg = color;
+            // свой цвет текста есть только у выделения, не у подсветки поиска
+            if color == self.look.selection {
+                fg = self.look.selection_text.unwrap_or(fg);
+            }
+        }
+        (fg, bg)
+    }
+
+    fn row(
+        &mut self,
+        index: usize,
+        row: &Row,
+        marked: impl Fn(usize) -> Option<Rgb>,
+        syntax: impl Fn(usize) -> Option<Rgb>,
+    ) {
         let order = self.visual_order(&row.cells);
         let mut run = Run::default();
         for (col, cell) in row.cells.iter().enumerate() {
@@ -161,14 +188,7 @@ impl Builder<'_> {
             }
             let column = order.as_ref().map_or(col, |o| o[col]);
             let origin = self.origin(index, column);
-            let (mut fg, mut bg) = colors(cell, self.look);
-            if let Some(color) = marked(col) {
-                bg = color;
-                // свой цвет текста есть только у выделения, не у подсветки поиска
-                if color == self.look.selection {
-                    fg = self.look.selection_text.unwrap_or(fg);
-                }
-            }
+            let (fg, bg) = self.cell_colors(cell, marked(col), syntax(col));
             self.background(origin, cell, bg);
             if !cell.style.flags.contains(Flags::HIDDEN) {
                 // значку Nerd Font перед пробелом можно занять и его
@@ -219,6 +239,19 @@ fn resolve(color: Color, default: Rgb, look: &Appearance) -> Rgb {
         _ => None,
     };
     changed.unwrap_or_else(|| palette::resolve(color, default, &look.ansi))
+}
+
+fn mark_at(view: Viewport<'_>, line: u64, col: usize, selection: Rgb) -> Option<Rgb> {
+    let highlight = view.highlights.iter().find(|h| h.0.contains(line, col));
+    let selected = view.selection.is_some_and(|s| s.contains(line, col));
+    highlight.map(|h| h.1).or(selected.then_some(selection))
+}
+
+fn syntax_at(syntax: &[(Span, Rgb)], line: u64, col: usize) -> Option<Rgb> {
+    syntax
+        .iter()
+        .rfind(|h| h.0.contains(line, col))
+        .map(|h| h.1)
 }
 
 /// Итоговые цвета текста и фона с учётом INVERSE и DIM.

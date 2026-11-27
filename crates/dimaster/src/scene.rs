@@ -33,6 +33,13 @@ impl View {
         out
     }
 
+    fn syntax_highlights(&mut self) -> Vec<(Span, u32)> {
+        if !self.config.smart.syntax_highlight || !matches!(self.mode, Mode::Normal) {
+            return Vec::new();
+        }
+        crate::syntax::highlight_input(&self.term, &self.config.theme.ansi, &mut self.syntax)
+    }
+
     /// Сколько пикселей снизу занято баром.
     pub(crate) fn content_bottom(&self) -> u32 {
         match self.status.bar.style.top {
@@ -191,12 +198,14 @@ impl View {
             .animator
             .tick(at, effects, self.focused, Instant::now());
         let (selection, highlights) = (self.selection_span(), self.highlights());
+        let syntax = self.syntax_highlights();
         let Drawn { rects, labels } = self.interface();
         let view = Viewport {
             scroll: self.scroll,
             selection,
             preedit: &self.preedit,
             highlights: &highlights,
+            syntax: &syntax,
             labels: &labels,
             offset: pose.offset,
             cursor: target.map(|_| pose.cursor),

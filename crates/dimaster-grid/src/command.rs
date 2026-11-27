@@ -47,10 +47,17 @@ struct Running {
 pub(crate) struct Commands {
     pub(crate) options: SmartOptions,
     typed: String,
+    pub(crate) input_start: Option<(u64, usize)>,
     running: Option<Running>,
     pub(crate) history: VecDeque<Finished>,
     // сколько команд завершилось всего: по нему окно замечает новые
     pub(crate) completed: u64,
+}
+
+impl Commands {
+    pub(crate) fn is_running(&self) -> bool {
+        self.running.is_some()
+    }
 }
 
 /// Расшифровка кода возврата.
@@ -104,6 +111,7 @@ impl State {
     }
 
     pub(crate) fn command_started(&mut self) {
+        self.commands.input_start = None;
         let command = std::mem::take(&mut self.commands.typed);
         let line = self.cursor_line();
         let started = Instant::now();
@@ -116,6 +124,7 @@ impl State {
     }
 
     pub(crate) fn entered_full_screen(&mut self) {
+        self.commands.input_start = None;
         if let Some(running) = &mut self.commands.running {
             running.full_screen = true;
         }

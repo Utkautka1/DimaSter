@@ -129,7 +129,9 @@ classDiagram
     class Saved { cwd; lines }
     class Launch { args; term_name; directory; socket }
     View *-- Plugins
-    class Commands { options; running; history }
+    class Commands { options; input_start; running; history }
+    class CommandCache { bins; +highlight_input(term, palette) }
+    View *-- CommandCache
     class Links { uris; +uri(number) }
     State *-- Links
     class Finished { command; exit; duration; output }

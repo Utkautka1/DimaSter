@@ -29,11 +29,35 @@ if [[ -o interactive ]]; then
     local code=$?
     printf '\e]133;D;%s\a\e]7;file://%s%s\a\e]133;A\a' "$code" "$HOST" "${PWD//\%/%25}"
   }
+  __dimaster_line_init() {
+    printf '\e]133;B\a'
+  }
   __dimaster_preexec() {
     printf '\e]633;E;%s\a\e]133;C\a' "${1//[[:cntrl:]]/ }"
   }
+  if [[ -n "$DIMASTER_COLOR_LS" ]]; then
+    # Одноразовая настройка цветного ls после чтения пользовательского .zshrc без перезаписи его алиасов
+    __dimaster_color_ls() {
+      add-zsh-hook -d precmd __dimaster_color_ls
+      unset -f __dimaster_color_ls
+      unset DIMASTER_COLOR_LS
+      if (( ! $+aliases[ls] && ! $+functions[ls] )); then
+        if (( $+commands[eza] )); then
+          alias ls='eza --icons=always --color=auto'
+          (( ! $+aliases[ll] && ! $+functions[ll] )) && alias ll='eza -al --icons=always --group-directories-first --color=auto'
+        else
+          alias ls='ls --color=auto'
+          (( ! $+aliases[ll] && ! $+functions[ll] )) && alias ll='ls -la --color=auto'
+        fi
+      fi
+      (( ! $+aliases[grep] && ! $+functions[grep] )) && alias grep='grep --color=auto'
+    }
+    add-zsh-hook precmd __dimaster_color_ls
+  fi
   add-zsh-hook precmd __dimaster_precmd
   add-zsh-hook preexec __dimaster_preexec
+  autoload -Uz add-zle-hook-widget
+  add-zle-hook-widget line-init __dimaster_line_init
 fi
 
 # «команда не найдена» на языке терминала; ваш обработчик из .zshrc заменит этот

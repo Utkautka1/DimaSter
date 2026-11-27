@@ -27,6 +27,7 @@ use crate::shared::{Held, Signals};
 use crate::signals::{FLASH, Ringer};
 use crate::smart::Assist;
 use crate::status::Status;
+use crate::syntax::CommandCache;
 
 // дольше этого синхронизированный вывод не задерживает кадр: программа могла упасть
 const SYNC_LIMIT: Duration = Duration::from_millis(150);
@@ -83,6 +84,7 @@ pub(crate) struct View {
     pub(crate) ringer: Ringer,
     pub(crate) assist: Assist,
     pub(crate) status: Status,
+    pub(crate) syntax: CommandCache,
     // обычные настройки, пока включена презентация
     pub(crate) normal_config: Option<Config>,
     pub(crate) plugins: Option<Plugins>,
@@ -173,6 +175,7 @@ impl View {
             ringer: Ringer::default(),
             assist: Assist::default(),
             status: Status::default(),
+            syntax: CommandCache::default(),
             normal_config: None,
             plugins: None,
             plugin_depth: 0,

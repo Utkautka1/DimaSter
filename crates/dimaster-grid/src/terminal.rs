@@ -221,6 +221,14 @@ impl Terminal {
         self.state.commands.completed
     }
 
+    /// Позиция `(строка, колонка)` начала ввода текущей команды (из `OSC 133;B`).
+    pub fn input_start(&self) -> Option<(u64, usize)> {
+        if self.state.alternate || self.state.commands.is_running() {
+            return None;
+        }
+        self.state.commands.input_start
+    }
+
     pub fn title(&self) -> &str {
         &self.state.title
     }

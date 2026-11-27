@@ -93,6 +93,16 @@ impl State {
 
     fn mark_prompt(&mut self, value: &str) {
         match value.chars().next() {
+            Some('A') => self.commands.input_start = None,
+            Some('B') => {
+                if !self.alternate {
+                    self.commands.input_start = Some((
+                        self.screen.evicted + (self.screen.history.len() + self.cursor.row) as u64,
+                        self.cursor.col,
+                    ));
+                }
+                return;
+            }
             Some('C') => self.command_started(),
             Some('D') => {
                 let code = value.split(';').nth(1).and_then(|c| c.parse().ok());

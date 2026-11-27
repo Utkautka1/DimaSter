@@ -27,3 +27,22 @@ if set -q DIMASTER_NOT_FOUND; and string match -q '*/share/fish/*' -- (functions
         printf '%s: %s\n' $argv[1] "$DIMASTER_NOT_FOUND" >&2
     end
 end
+if status is-interactive; and set -q DIMASTER_COLOR_LS
+    if not functions -q ls
+        if command -q eza
+            function ls --wraps=eza
+                command eza --icons=always --color=auto $argv
+            end
+            if not functions -q ll
+                function ll --wraps=eza
+                    command eza -al --icons=always --group-directories-first --color=auto $argv
+                end
+            end
+        else
+            function ls --wraps=ls
+                command ls --color=auto $argv
+            end
+        end
+    end
+    set -e DIMASTER_COLOR_LS
+end

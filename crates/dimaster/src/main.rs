@@ -38,6 +38,7 @@ mod signals;
 mod smart;
 mod status;
 mod store;
+mod syntax;
 mod terminfo;
 mod view;
 

@@ -220,18 +220,7 @@ pub(crate) fn cursor_shape(style: CursorStyle) -> CursorShape {
     }
 }
 
-/// Переменные для shell: из конфига и то, что нужно скриптам интеграции.
-pub(crate) fn shell_env(config: &Config) -> Vec<(String, String)> {
-    let mut env = config.env.clone();
-    if !env.iter().any(|(k, _)| k == "STARSHIP_CONFIG")
-        && let Some(starship) = config_dir().map(|d| d.join("starship.toml"))
-        && starship.is_file()
-    {
-        env.push((
-            "STARSHIP_CONFIG".to_owned(),
-            starship.to_string_lossy().into_owned(),
-        ));
-    }
+fn apply_smart_env(config: &Config, env: &mut Vec<(String, String)>) {
     if config.smart.not_found {
         env.push(("DIMASTER_NOT_FOUND".to_owned(), tr("команда не найдена")));
     }
@@ -244,6 +233,32 @@ pub(crate) fn shell_env(config: &Config) -> Vec<(String, String)> {
             ));
         }
     }
+    if config.smart.color_ls {
+        env.push(("DIMASTER_COLOR_LS".to_owned(), "1".to_owned()));
+        let has_ls =
+            env.iter().any(|(k, _)| k == "LS_COLORS") || std::env::var_os("LS_COLORS").is_some();
+        if !has_ls {
+            env.push((
+                "LS_COLORS".to_owned(),
+                crate::syntax::DEFAULT_LS_COLORS.to_owned(),
+            ));
+        }
+    }
+}
+
+/// Переменные для shell: из конфига и то, что нужно скриптам интеграции.
+pub(crate) fn shell_env(config: &Config) -> Vec<(String, String)> {
+    let mut env = config.env.clone();
+    if !env.iter().any(|(k, _)| k == "STARSHIP_CONFIG")
+        && let Some(starship) = config_dir().map(|d| d.join("starship.toml"))
+        && starship.is_file()
+    {
+        env.push((
+            "STARSHIP_CONFIG".to_owned(),
+            starship.to_string_lossy().into_owned(),
+        ));
+    }
+    apply_smart_env(config, &mut env);
     env
 }
 
@@ -268,8 +283,15 @@ mod tests {
                 .iter()
                 .any(|(k, v)| k == "DIMASTER_STARTUP_FETCH" && v == "1")
         );
+        assert!(
+            enabled
+                .iter()
+                .any(|(k, v)| k == "DIMASTER_COLOR_LS" && v == "1")
+        );
         config.smart.startup_fetch = false;
+        config.smart.color_ls = false;
         let disabled = shell_env(&config);
         assert!(!disabled.iter().any(|(k, _)| k == "DIMASTER_STARTUP_FETCH"));
+        assert!(!disabled.iter().any(|(k, _)| k == "DIMASTER_COLOR_LS"));
     }
 }

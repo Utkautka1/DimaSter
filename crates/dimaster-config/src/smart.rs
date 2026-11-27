@@ -7,6 +7,10 @@ pub struct Smart {
     pub integration: bool,
     /// Запускать ли `dimaster fetch` автоматически при старте нового shell.
     pub startup_fetch: bool,
+    /// Подсветка вводимых команд и проверка их существования средствами терминала.
+    pub syntax_highlight: bool,
+    /// Настраивать цветной `ls` (`LS_COLORS` и `--color=auto` / `eza`) для всех оболочек.
+    pub color_ls: bool,
     /// Своё «команда не найдена» на языке терминала.
     pub not_found: bool,
     // пустая строка отключает подсказку
@@ -28,6 +32,8 @@ impl Default for Smart {
         Self {
             integration: true,
             startup_fetch: true,
+            syntax_highlight: true,
+            color_ls: true,
             not_found: true,
             ok: "➜ OK".to_owned(),
             empty: "∅ Ничего не найдено".to_owned(),
