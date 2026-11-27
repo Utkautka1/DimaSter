@@ -8,9 +8,17 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+arrow-array.workspace = true
+arrow-cast.workspace = true
+arrow-ipc.workspace = true
+arrow-schema.workspace = true
+bytes.workspace = true
+calamine.workspace = true
+parquet.workspace = true
 csv.workspace = true
 rusqlite.workspace = true
 serde_json.workspace = true
 
 [dev-dependencies]
+rust_xlsxwriter.workspace = true
 rusqlite.workspace = true

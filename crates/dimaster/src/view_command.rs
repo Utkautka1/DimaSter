@@ -47,7 +47,7 @@ fn load_pipe(db: &mut Database, options: &Options) -> Result<(), Box<dyn Error>>
     let mut bytes = Vec::new();
     std::io::stdin().read_to_end(&mut bytes)?;
     let format = options.format.unwrap_or(Format::Csv);
-    db.load_text("stdin", format, &String::from_utf8_lossy(&bytes), options)?;
+    db.load_bytes("stdin", format, &bytes, options)?;
     Ok(())
 }
 

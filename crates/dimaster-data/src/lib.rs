@@ -4,9 +4,11 @@
 //! памяти. Так SQL и `JOIN` между разными файлами достаются без своего
 //! движка запросов, а исходные файлы никогда не изменяются.
 
+mod columnar;
 mod database;
 mod delimited;
 mod error;
+mod excel;
 mod format;
 mod fwf;
 mod json;

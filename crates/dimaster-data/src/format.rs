@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use crate::{DataError, Table, delimited, fwf, json, logfmt, markup};
+use crate::{DataError, Table, columnar, delimited, excel, fwf, json, logfmt, markup};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Format {
@@ -15,6 +15,11 @@ pub enum Format {
     Html,
     Markdown,
     Sqlite,
+    Parquet,
+    /// Arrow IPC: файл или поток.
+    Arrow,
+    /// xlsx, xls, xlsm, xlsb и ods; по таблице на лист.
+    Excel,
     /// Дамп с командами SQL.
     Sql,
 }
@@ -33,6 +38,9 @@ impl Format {
             "md" | "markdown" => Self::Markdown,
             "db" | "sqlite" | "sqlite3" => Self::Sqlite,
             "sql" => Self::Sql,
+            "parquet" | "pqt" => Self::Parquet,
+            "arrow" | "feather" | "ipc" => Self::Arrow,
+            "excel" | "xlsx" | "xls" | "xlsm" | "xlsb" | "ods" => Self::Excel,
             _ => return None,
         })
     }
@@ -51,30 +59,35 @@ pub struct Options {
     pub no_header: bool,
 }
 
-/// Таблицы из текста; базы и дампы SQL сюда не попадают.
-pub(crate) fn parse(
-    format: Format,
-    text: &str,
-    options: &Options,
-) -> Result<Vec<Table>, DataError> {
+// лист или пустое имя — тогда таблицу назовут по файлу
+fn text_tables(format: Format, text: &str, options: &Options) -> Result<Vec<Table>, DataError> {
     let text = text.trim_start_matches('\u{feff}');
     let header = !options.no_header;
     let comma = if format == Format::Tsv { b'\t' } else { b',' };
-    let tables = match format {
-        Format::Csv | Format::Tsv => {
-            vec![delimited::parse(
-                text,
-                options.separator.unwrap_or(comma),
-                header,
-            )?]
-        }
+    let separator = options.separator.unwrap_or(comma);
+    Ok(match format {
+        Format::Csv | Format::Tsv => vec![delimited::parse(text, separator, header)?],
         Format::Json => vec![json::parse(text)?],
         Format::Jsonl => vec![json::parse_lines(text)?],
         Format::Fwf => vec![fwf::parse(text, header)],
         Format::Logfmt => vec![logfmt::parse(text)],
         Format::Html => markup::html(text),
         Format::Markdown => markup::markdown(text),
-        Format::Sqlite | Format::Sql => return Err(DataError::UnknownFormat),
+        _ => return Err(DataError::UnknownFormat),
+    })
+}
+
+/// Таблицы из содержимого файла; базы и дампы SQL сюда не попадают.
+pub(crate) fn parse(
+    format: Format,
+    bytes: &[u8],
+    options: &Options,
+) -> Result<Vec<Table>, DataError> {
+    let tables = match format {
+        Format::Parquet => vec![columnar::parquet(bytes)?],
+        Format::Arrow => vec![columnar::arrow(bytes)?],
+        Format::Excel => excel::parse(bytes, !options.no_header)?,
+        text => text_tables(text, &String::from_utf8_lossy(bytes), options)?,
     };
     Ok(tables
         .into_iter()

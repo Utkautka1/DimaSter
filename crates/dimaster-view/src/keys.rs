@@ -227,7 +227,7 @@ mod tests {
     fn app() -> App {
         let mut db = Database::new().expect("база");
         let text = "name,age\nann,31\nbob,25\n";
-        db.load_text("people", Format::Csv, text, &Options::default())
+        db.load_bytes("people", Format::Csv, text.as_bytes(), &Options::default())
             .expect("csv");
         App::new(db).expect("приложение")
     }

@@ -31,7 +31,7 @@ fn dump_loads_and_cannot_touch_disk() {
     let options = Options::default();
     let dump = "CREATE TABLE t(a); INSERT INTO t VALUES (1);";
     let added = db
-        .load_text("x", Format::Sql, dump, &options)
+        .load_bytes("x", Format::Sql, dump.as_bytes(), &options)
         .expect("дамп");
     assert_eq!(added, ["t"]);
     let target = std::env::temp_dir().join("dimaster-data-must-not-exist.db");
@@ -39,7 +39,10 @@ fn dump_loads_and_cannot_touch_disk() {
         "ATTACH '{}' AS evil; CREATE TABLE evil.x(a);",
         target.display()
     );
-    assert!(db.load_text("x", Format::Sql, &attack, &options).is_err());
+    assert!(
+        db.load_bytes("x", Format::Sql, attack.as_bytes(), &options)
+            .is_err()
+    );
     assert!(!target.exists());
 }
 

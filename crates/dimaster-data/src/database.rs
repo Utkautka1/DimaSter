@@ -67,26 +67,27 @@ impl Database {
         match format.ok_or(DataError::UnknownFormat)? {
             Format::Sqlite => self.copy(path),
             Format::Sql => self.script(&std::fs::read_to_string(path)?),
-            format => {
-                let bytes = std::fs::read(path)?;
-                self.load_text(&stem, format, &String::from_utf8_lossy(&bytes), options)
-            }
+            format => self.load_bytes(&stem, format, &std::fs::read(path)?, options),
         }
     }
 
-    /// То же для уже прочитанного текста (например из конвейера).
-    pub fn load_text(
+    /// То же для уже прочитанного содержимого (например из конвейера).
+    pub fn load_bytes(
         &mut self,
         name: &str,
         format: Format,
-        text: &str,
+        bytes: &[u8],
         options: &Options,
     ) -> Result<Vec<String>, DataError> {
         if format == Format::Sql {
-            return self.script(text);
+            return self.script(&String::from_utf8_lossy(bytes));
         }
-        let tables = parse(format, text, options)?;
-        let added: Result<Vec<_>, _> = tables.iter().map(|t| self.add(name, t)).collect();
+        let tables = parse(format, bytes, options)?;
+        let wanted = |t: &Table| match t.name.is_empty() {
+            true => name.to_owned(),
+            false => t.name.clone(),
+        };
+        let added: Result<Vec<_>, _> = tables.iter().map(|t| self.add(&wanted(t), t)).collect();
         Some(added?)
             .filter(|a| !a.is_empty())
             .ok_or(DataError::Empty)

@@ -352,7 +352,7 @@ mod tests {
     fn lua_changes_the_grid() {
         let mut db = Database::new().expect("база");
         let options = Options::default();
-        db.load_text("t", Format::Csv, "a,b\n1,2\n", &options)
+        db.load_bytes("t", Format::Csv, b"a,b\n1,2\n", &options)
             .expect("csv");
         let viewer = Viewer::parse(
             "return { row_numbers = true, columns = { order = { 'b' }, \
