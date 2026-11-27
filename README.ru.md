@@ -39,9 +39,9 @@ curl -fsSL https://raw.githubusercontent.com/Utkautka1/DimaSter/main/install.sh 
 
 Скачивает бинарник последнего релиза в `~/.local/bin/dimaster`, ставит ярлык, значок и описание терминала `xterm-dimaster` (если есть `tic`).
 
-Папка настроек `~/.config/dimaster` появляется **не при установке, а при первом открытии окна**: мастер записывает в неё настройки по умолчанию. Если нашлись настройки Ghostty, kitty или Alacritty, он предложит перенести их. Уже существующие настройки не заменяются.
+В конце установки `install.sh` создаёт `~/.config/dimaster` с настройками по умолчанию. Если нашлись настройки Ghostty, kitty или Alacritty, мастер предложит перенести их. Уже существующие настройки не заменяются. При установке пакетом (`deb`, `rpm`, `pacman`, AppImage) папка создаётся при первом открытии окна.
 
-Для вида «как на снимках» поставьте шрифт **JetBrainsMono Nerd Font** и, по желанию, [starship](https://starship.rs): вместе с терминалом они не устанавливаются.
+Скрипт также ставит, если их нет, шрифт **JetBrainsMono Nerd Font** (в `~/.local/share/fonts`) и [starship](https://starship.rs) (в `~/.local/bin`) из их официальных релизов с проверкой контрольной суммы. Ваши файлы shell он не меняет: чтобы включить приглашение starship, добавьте, например, в `~/.zshrc` строку `eval "$(starship init zsh)"`. Без дополнений: `curl -fsSL …/install.sh | DIMASTER_NO_EXTRAS=1 sh`. Пакеты (`deb`, `rpm` и другие) шрифт и starship не ставят.
 
 Удалить:
 

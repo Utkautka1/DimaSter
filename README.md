@@ -43,7 +43,7 @@ A fast, GPU-accelerated Linux terminal emulator written in Rust (`wgpu` + `winit
 curl -fsSL https://raw.githubusercontent.com/Utkautka1/DimaSter/main/install.sh | sh
 ```
 
-This downloads the latest release binary to `~/.local/bin/dimaster`, installs the desktop entry and icon, and registers `xterm-dimaster` terminfo if `tic` is available.
+This downloads the latest release binary to `~/.local/bin/dimaster`, installs the desktop entry and icon, registers `xterm-dimaster` terminfo if `tic` is available, and creates the default settings in `~/.config/dimaster` (existing ones are left alone). If missing, JetBrainsMono Nerd Font and [starship](https://starship.rs) are installed from their official releases with checksum verification; your shell files are not edited, so add `eval "$(starship init zsh)"` (or the line for your shell) to use its prompt. Set `DIMASTER_NO_EXTRAS=1` for the `sh` process to skip them. Distribution packages create the settings on first launch and do not install these extras.
 
 To uninstall:
 
