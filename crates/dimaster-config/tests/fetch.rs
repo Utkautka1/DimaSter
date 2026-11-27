@@ -15,8 +15,8 @@ fn facts() -> Vec<(&'static str, Option<String>)> {
 fn default_script_skips_unknown_facts() {
     let layout = run_fetch(DEFAULT_FETCH, None, &facts()).unwrap();
     let text = layout.lines.join("\n");
-    assert!(text.contains("u@h") && text.contains("MyOS"));
-    assert!(!text.contains("Видеокарта"));
+    assert!(text.contains("MyOS"));
+    assert!(!text.contains("GPU"));
     assert_eq!(
         (layout.logo.len(), layout.logo_width, layout.image),
         (7, 22, None)

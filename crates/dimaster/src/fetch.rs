@@ -52,11 +52,12 @@ fn memory(meminfo: &str) -> Option<String> {
     };
     let (total, free) = (kilobytes("MemTotal")?, kilobytes("MemAvailable")?);
     let gib = 1024.0 * 1024.0;
+    let used = (total - free).max(0.0);
+    let pct = ((used / total.max(1.0)) * 100.0).round() as u64;
     Some(format!(
-        "{:.1} / {:.1} {}",
-        (total - free) / gib,
+        "{:.2} / {:.2} GiB ({pct}%)",
+        used / gib,
         total / gib,
-        tr("ГиБ")
     ))
 }
 
@@ -120,9 +121,18 @@ fn system() -> Facts {
     ]
 }
 
+fn shell_name() -> Option<String> {
+    let raw = env("SHELL")?;
+    let name = Path::new(&raw)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or(&raw);
+    Some(name.to_owned())
+}
+
 fn hardware() -> Facts {
     vec![
-        ("shell", env("SHELL")),
+        ("shell", shell_name()),
         ("desktop", env("XDG_CURRENT_DESKTOP")),
         ("session", env("XDG_SESSION_TYPE")),
         (
@@ -152,7 +162,17 @@ fn layout() -> io::Result<Layout> {
             Err(e) => eprintln!("fetch.lua: {e}"),
         }
     }
-    run_fetch(DEFAULT_FETCH, directory.as_deref(), &facts).map_err(io::Error::other)
+    let mut layout =
+        run_fetch(DEFAULT_FETCH, directory.as_deref(), &facts).map_err(io::Error::other)?;
+    if layout.image.is_none()
+        && let Some(dir) = directory.as_deref()
+    {
+        layout.image = ["logo.png", "logo.webp", "logo.jpg"]
+            .into_iter()
+            .map(|name| dir.join(name))
+            .find(|p| p.is_file());
+    }
+    Ok(layout)
 }
 
 // картинка не двигает курсор, текст печатается правее неё
@@ -214,7 +234,7 @@ mod tests {
             "My OS"
         );
         let meminfo = "MemTotal:  2097152 kB\nMemAvailable:  1048576 kB";
-        assert_eq!(memory(meminfo).unwrap(), "1.0 / 2.0 ГиБ");
+        assert_eq!(memory(meminfo).unwrap(), "1.00 / 2.00 GiB (50%)");
         assert_eq!(uptime(90_000), "1 дн 1 ч");
     }
 }
