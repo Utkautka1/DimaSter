@@ -2,7 +2,7 @@
 # Build an .rpm package (Fedora / RHEL / openSUSE) from target/release/dimaster.
 set -eu
 
-VERSION="${1:-0.1.0}"
+VERSION="${1:-0.2.0}"
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)"
 TOP="$ROOT/target/rpm"
 
