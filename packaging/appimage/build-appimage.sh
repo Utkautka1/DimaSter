@@ -40,7 +40,9 @@ cp -- "$APPDIR/dimaster.desktop" "$APPDIR/usr/share/applications/dimaster.deskto
 
 TOOL="${APPIMAGETOOL:-}"
 if [ -z "$TOOL" ]; then
-    TOOL="$OUT/appimagetool-$ARCH.AppImage"
+    # not next to the result: the release copies every AppImage from $OUT
+    TOOL="$OUT/tool/appimagetool-$ARCH.AppImage"
+    mkdir -p -- "$OUT/tool"
     URL="https://github.com/AppImage/appimagetool/releases/download/$TOOL_VERSION/appimagetool-$ARCH.AppImage"
     [ -f "$TOOL" ] || curl -fsSL -o "$TOOL" "$URL"
     echo "$TOOL_SHA  $TOOL" | sha256sum -c -
