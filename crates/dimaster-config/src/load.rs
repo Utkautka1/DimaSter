@@ -125,6 +125,7 @@ fn merge(target: &Table, extra: Table) -> mlua::Result<()> {
 
 fn from_table(lua: &Lua, table: &Table, directory: Option<&Path>) -> Result<Config, ConfigError> {
     let mut config = Config::default();
+    apply_limits(table, &mut config)?;
     if let Some(name) = table.get::<Option<String>>("theme")? {
         load_theme(lua, &name, directory, &mut config.theme)?;
     }
@@ -139,6 +140,15 @@ fn from_table(lua: &Lua, table: &Table, directory: Option<&Path>) -> Result<Conf
     snippets::apply(table, &mut config)?;
     apply_sections(table, &mut config)?;
     Ok(config)
+}
+
+// раньше всего остального: пределы действуют уже при разборе этой же таблицы
+fn apply_limits(table: &Table, config: &mut Config) -> Result<(), ConfigError> {
+    if let Some(chosen) = table.get::<Option<Table>>("limits")? {
+        limits::apply(&chosen, &mut config.limits)?;
+        dimaster_limits::apply(&config.limits);
+    }
+    Ok(())
 }
 
 // своя тема из themes/<имя>.lua важнее встроенной с тем же именем
@@ -327,9 +337,6 @@ fn apply_extras(table: &Table, config: &mut Config) -> Result<(), ConfigError> {
     }
     if let Some(tuning_table) = table.get::<Option<Table>>("tuning")? {
         tuning::apply(&tuning_table, &mut config.tuning)?;
-    }
-    if let Some(limits_table) = table.get::<Option<Table>>("limits")? {
-        limits::apply(&limits_table, &mut config.limits)?;
     }
     Ok(())
 }
