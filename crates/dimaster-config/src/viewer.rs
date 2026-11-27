@@ -85,9 +85,9 @@ impl Default for ViewSettings {
 }
 
 // заведомо табличные расширения: README.md или main.sql сюда не входят
-const CLICK: [&str; 16] = [
-    "csv", "tsv", "json", "jsonl", "parquet", "pqt", "arrow", "feather", "xlsx", "xls", "xlsm",
-    "xlsb", "ods", "db", "sqlite", "sqlite3",
+const CLICK: [&str; 17] = [
+    "log", "csv", "tsv", "json", "jsonl", "parquet", "pqt", "arrow", "feather", "xlsx", "xls",
+    "xlsm", "xlsb", "ods", "db", "sqlite", "sqlite3",
 ];
 
 /// Загруженный `view.lua` вместе с его функциями.

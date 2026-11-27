@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use crate::{DataError, Table, columnar, delimited, excel, fwf, json, logfmt, markup};
+use crate::{DataError, Table, Value, columnar, delimited, excel, fwf, json, logfmt, markup};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Format {
@@ -20,6 +20,8 @@ pub enum Format {
     Arrow,
     /// xlsx, xls, xlsm, xlsb и ods; по таблице на лист.
     Excel,
+    /// Обычный журнал: каждая строка — запись в колонке `line`.
+    Log,
     /// Дамп с командами SQL.
     Sql,
 }
@@ -38,6 +40,7 @@ impl Format {
             "md" | "markdown" => Self::Markdown,
             "db" | "sqlite" | "sqlite3" => Self::Sqlite,
             "sql" => Self::Sql,
+            "log" | "txt" => Self::Log,
             "parquet" | "pqt" => Self::Parquet,
             "arrow" | "feather" | "ipc" => Self::Arrow,
             "excel" | "xlsx" | "xls" | "xlsm" | "xlsb" | "ods" => Self::Excel,
@@ -59,6 +62,12 @@ pub struct Options {
     pub no_header: bool,
 }
 
+// строки как есть: без угадывания чисел и разбора кавычек
+fn lines(text: &str) -> Table {
+    let row = |line: &str| vec![Value::Text(line.to_owned())];
+    Table::new(vec!["line".to_owned()], text.lines().map(row).collect())
+}
+
 // лист или пустое имя — тогда таблицу назовут по файлу
 fn text_tables(format: Format, text: &str, options: &Options) -> Result<Vec<Table>, DataError> {
     let text = text.trim_start_matches('\u{feff}');
@@ -73,6 +82,7 @@ fn text_tables(format: Format, text: &str, options: &Options) -> Result<Vec<Tabl
         Format::Logfmt => vec![logfmt::parse(text)],
         Format::Html => markup::html(text),
         Format::Markdown => markup::markdown(text),
+        Format::Log => vec![lines(text)],
         _ => return Err(DataError::UnknownFormat),
     })
 }
@@ -93,4 +103,16 @@ pub(crate) fn parse(
         .into_iter()
         .filter(|t| !t.columns.is_empty())
         .collect())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn log_keeps_every_line() {
+        let tables = parse(Format::Log, b"a \"b, c\n\n007\n", &Options::default()).expect("лог");
+        let rows: Vec<String> = tables[0].rows.iter().map(|r| r[0].text()).collect();
+        assert_eq!(rows, ["a \"b, c", "", "007"]);
+    }
 }

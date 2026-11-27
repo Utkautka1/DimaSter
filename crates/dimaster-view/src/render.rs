@@ -65,10 +65,11 @@ fn size(text: &str) -> usize {
 fn widths(sheet: &Sheet, view: &ViewSettings, fit: bool, screen: usize) -> Vec<usize> {
     let count = sheet.columns.len();
     let share = (screen.saturating_sub(count * view.gap) / count.max(1)).max(3);
-    let cap = if fit {
-        share.min(view.max_width)
-    } else {
-        view.max_width
+    let cap = match (count, fit) {
+        // единственной колонке (например логу) отдаётся весь экран
+        (1, _) => screen.saturating_sub(view.gap),
+        (_, true) => share.min(view.max_width),
+        (_, false) => view.max_width,
     };
     let natural = |column: &ViewColumn| {
         let rows = sheet.table.rows.iter().take(1000);
