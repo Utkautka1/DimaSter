@@ -123,6 +123,12 @@ A look changes more than colors: the status bar and its contents, widgets, windo
 
 ![Four of the eight built-in looks: Neon, Sunset, Night city, Petals](assets/screenshots/styles.png)
 
+Your own pictures become looks too: drop them into `~/.local/share/dimaster/backgrounds/` and the colors are taken from the image.
+
+![Four looks made from custom anime wallpapers](assets/screenshots/backgrounds.jpg)
+
+<sub>The wallpapers shown above are not shipped with DimaSter and are not covered by its MIT license; rights belong to their authors.</sub>
+
 | Skin gallery (`Ctrl+Shift+K`) | Command palette (`Ctrl+Shift+P`) |
 |---|---|
 | ![Skin gallery with color swatches](assets/screenshots/skins.png) | ![Command palette](assets/screenshots/palette.png) |
