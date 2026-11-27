@@ -38,6 +38,17 @@ impl Logical {
     }
 }
 
+/// `example.com/путь` без схемы: открывается в браузере.
+pub fn is_web_address(text: &str) -> bool {
+    let Ok(pattern) = Regex::new(LINK) else {
+        return false;
+    };
+    let whole = pattern
+        .find(text)
+        .is_some_and(|m| m.range() == (0..text.len()));
+    whole && !text.starts_with(['/', '.', '~'])
+}
+
 /// Шаблон поиска: обычный текст или регулярное выражение.
 /// Регистр учитывается, только если в запросе есть заглавные буквы.
 pub fn search_pattern(query: &str, regex: bool) -> Option<Regex> {
@@ -56,9 +67,15 @@ pub fn search_pattern(query: &str, regex: bool) -> Option<Regex> {
         .ok()
 }
 
-// адреса и пути к файлам
-const LINK: &str =
-    r#"(?:https?://|file://|mailto:)[^\s<>"'`]+|(?:~|\.{1,2})?/[\w.\-+@%/]+(?::\d+)?"#;
+// адреса, домены без схемы и пути к файлам
+const LINK: &str = concat!(
+    r#"(?:https?://|file://|mailto:)[^\s<>"'`]+|"#,
+    r#"(?:[\w\-]+\.)+(?:com|org|net|ru|su|рф|io|dev|app|ai|co|me|de|uk|info|xyz|gg)\b"#,
+    r#"(?::\d+)?(?:/[^\s<>"'`]*)?|"#,
+    r#"(?:~|\.{1,2})?/[\w.\-+@%/]+(?::\d+)?"#,
+);
+// слово целиком; пробел, экранированный shell, его не разрывает
+const WORD: &str = r#"(?:\\ |[^\s<>"'`|])+"#;
 // знаки в конце предложения не входят в адрес
 const TRAILING: [char; 7] = ['.', ',', ':', ';', ')', ']', '}'];
 
@@ -189,7 +206,16 @@ impl Terminal {
         if let Some(link) = self.hyperlink_at(point) {
             return Some(link);
         }
-        let pattern = Regex::new(LINK).ok()?;
+        self.match_at(LINK, point)
+    }
+
+    /// Любое слово под клеткой: вдруг это имя существующего файла.
+    pub fn word_at(&self, point: Point) -> Option<(Match, String)> {
+        self.match_at(WORD, point)
+    }
+
+    fn match_at(&self, pattern: &str, point: Point) -> Option<(Match, String)> {
+        let pattern = Regex::new(pattern).ok()?;
         let (logical, _) = self.logical(self.logical_start(point.line));
         pattern.find_iter(&logical.text).find_map(|found| {
             let text = found.as_str().trim_end_matches(TRAILING);

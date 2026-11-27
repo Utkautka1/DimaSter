@@ -2,7 +2,7 @@
 
 use winit::event::{ElementState, MouseButton};
 
-use dimaster_grid::Point;
+use dimaster_grid::{Match, Point};
 
 use crate::clipboard::Target;
 use crate::desktop;
@@ -72,7 +72,7 @@ impl View {
         let link = self
             .modifiers
             .control_key()
-            .then(|| self.term.link_at(Point { line, col }))
+            .then(|| self.link_under(Point { line, col }))
             .flatten();
         // адрес гиперссылки может отличаться от видимого текста — показываем его
         self.hover_uri = link.as_ref().map(|(_, uri)| uri.clone());
@@ -83,6 +83,15 @@ impl View {
         }
     }
 
+    // существующий файл или папка под указателем важнее похожего на домен
+    fn link_under(&self, point: Point) -> Option<(Match, String)> {
+        let cwd = self.term.cwd();
+        let local = self.term.word_at(point).filter(|(_, word)| {
+            desktop::target(word, cwd).is_some_and(|t| t.is_absolute() || t.exists())
+        });
+        local.or_else(|| self.term.link_at(point))
+    }
+
     // Ctrl+клик открывает ссылку или файл
     fn follow_link(&mut self) -> bool {
         let (col, row) = self.pointer.cell;
@@ -90,7 +99,7 @@ impl View {
         let found = self
             .modifiers
             .control_key()
-            .then(|| self.term.link_at(Point { line, col }));
+            .then(|| self.link_under(Point { line, col }));
         let Some((_, link)) = found.flatten() else {
             return false;
         };

@@ -43,6 +43,6 @@ pub use modes::{CursorShape, Modes};
 pub use regex::Regex;
 pub use row::{PromptMark, Row};
 pub use screen::Screen;
-pub use search::{Match, search_pattern};
+pub use search::{Match, is_web_address, search_pattern};
 pub use selection::{Point, Selection, SelectionKind, Span};
 pub use terminal::{Size, Terminal};

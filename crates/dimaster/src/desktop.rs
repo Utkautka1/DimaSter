@@ -1,7 +1,7 @@
 //! Связь с рабочим столом: открытие ссылок и уведомления.
 
+use dimaster_grid::is_web_address;
 use dimaster_i18n::t;
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::thread;
@@ -26,16 +26,25 @@ fn spawn(mut command: Command) {
     }
 }
 
-// вывод программ не должен запускать код одним кликом
-fn is_safe_to_open(path: &Path) -> bool {
-    let Ok(meta) = std::fs::metadata(path) else {
-        return false;
+// путь из текста экрана: `~/`, экранированные пробелы и номер строки
+fn local_path(link: &str, cwd: Option<&str>) -> Option<PathBuf> {
+    let link = link.strip_prefix("file://").unwrap_or(link);
+    let link = link
+        .trim_end_matches([',', ';', ':', ')'])
+        .replace("\\ ", " ");
+    // "src/main.rs:12" -> "src/main.rs"
+    let name = link.split(':').next().filter(|n| !n.is_empty())?;
+    let path = match (name.strip_prefix("~/"), std::env::var_os("HOME")) {
+        (Some(rest), Some(home)) => PathBuf::from(home).join(rest),
+        _ if name == "~" => PathBuf::from(std::env::var_os("HOME")?),
+        _ => Path::new(cwd.unwrap_or(".")).join(name),
     };
-    let launcher = path.extension().is_some_and(|e| e == "desktop");
-    meta.is_dir() || (!launcher && meta.permissions().mode() & 0o111 == 0)
+    path.exists().then_some(path)
 }
 
-/// Адрес или существующий безопасный файл; `cwd` — каталог shell.
+/// Что открыть: адрес, папку или папку файла; `cwd` — каталог shell.
+///
+/// Сами файлы не открываются: вывод программы не должен запускать код кликом.
 pub(crate) fn target(link: &str, cwd: Option<&str>) -> Option<PathBuf> {
     if ["http://", "https://", "mailto:"]
         .iter()
@@ -43,14 +52,11 @@ pub(crate) fn target(link: &str, cwd: Option<&str>) -> Option<PathBuf> {
     {
         return Some(PathBuf::from(link));
     }
-    let link = link.strip_prefix("file://").unwrap_or(link);
-    // "src/main.rs:12" -> "src/main.rs"
-    let name = link.split(':').next()?;
-    let path = match (name.strip_prefix("~/"), std::env::var_os("HOME")) {
-        (Some(rest), Some(home)) => PathBuf::from(home).join(rest),
-        _ => Path::new(cwd.unwrap_or(".")).join(name),
-    };
-    is_safe_to_open(&path).then_some(path)
+    match local_path(link, cwd) {
+        Some(path) if path.is_dir() => Some(path),
+        Some(path) => path.parent().map(Path::to_path_buf),
+        None => is_web_address(link).then(|| PathBuf::from(format!("https://{link}"))),
+    }
 }
 
 pub(crate) fn open(link: &str, cwd: Option<&str>) {
@@ -75,13 +81,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn refuses_executables_and_missing_files() {
-        assert!(target("https://example.com", None).is_some());
-        assert!(target("/bin/sh", None).is_none());
+    fn files_open_their_folder_and_domains_the_browser() {
+        let etc = Some(PathBuf::from("/etc"));
+        assert_eq!(target("/etc/hostname:3", None), etc);
+        assert_eq!(target("hostname", Some("/etc")), etc);
+        assert_eq!(target("/etc", None), etc);
+        let web = target("example.com", Some("/etc"));
+        assert_eq!(web, Some(PathBuf::from("https://example.com")));
         assert!(target("/no/such/file", None).is_none());
-        assert_eq!(
-            target("/etc/hostname:3", None),
-            Some(PathBuf::from("/etc/hostname"))
-        );
+        assert!(target("слово", Some("/etc")).is_none());
     }
 }
