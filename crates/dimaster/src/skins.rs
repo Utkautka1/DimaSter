@@ -6,11 +6,12 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use dimaster_config::{Scene, Style, Theme, skin_literal, skins, style, style_bar, styles};
+use dimaster_config::{Scene, Style, Theme, skin_literal, skins, style_bar};
 use dimaster_grid::Picture;
 use dimaster_i18n::{t, tr};
 use unicode_width::UnicodeWidthStr;
 
+use crate::choice::{Choice, choice, choices};
 use crate::history_store::data_dir;
 use crate::modes::skins::{Outcome, ROWS, Skins};
 use crate::modes::{Mode, Press};
@@ -27,7 +28,7 @@ const SWATCH: [usize; 6] = [1, 3, 2, 6, 4, 5];
 /// Текущий стиль окна и нарисованный для него фон.
 #[derive(Default)]
 pub(crate) struct Look {
-    pub(crate) style: Option<&'static Style>,
+    pub(crate) style: Option<Choice>,
     // выбран скин или стиль: приглашение красится под него
     pub(crate) painted: bool,
     // тема без скина: нужна, пока открыта витрина
@@ -45,7 +46,7 @@ impl Look {
 
     /// Выбор мог измениться в другом окне — читаем его заново.
     pub(crate) fn refresh(&mut self) {
-        self.style = chosen("style").and_then(|id| style(&id));
+        self.style = chosen("style").and_then(|id| choice(&id));
         self.painted = chosen("skin").is_some() || chosen("style").is_some();
     }
 }
@@ -61,15 +62,17 @@ fn chosen(name: &str) -> Option<String> {
 }
 
 // цвета и стиль как слои поверх настроек
-fn layers(skin: Option<&str>, look: Option<&Style>) -> Vec<String> {
+fn layers(skin: Option<&str>, look: Option<Choice>) -> Vec<String> {
     let colors = skin.and_then(skin_literal);
-    let shape = look.map(|s| s.literal.to_owned());
-    colors.into_iter().chain(shape).collect()
+    match look {
+        Some(look) => look.layers(colors),
+        None => colors.into_iter().collect(),
+    }
 }
 
 /// Слои сохранённого выбора.
 pub(crate) fn chosen_layers() -> Vec<String> {
-    let look = chosen("style").and_then(|id| style(&id));
+    let look = chosen("style").and_then(|id| choice(&id));
     layers(chosen("skin").as_deref(), look)
 }
 
@@ -91,9 +94,9 @@ fn store(name: &str, value: Option<&str>) {
 }
 
 // имя скина и стиль по номерам витрины; нулевые — «как в настройках»
-fn picked(state: &Skins, skin: usize, look: usize) -> (Option<&str>, Option<&'static Style>) {
+fn picked(state: &Skins, skin: usize, look: usize) -> (Option<&str>, Option<Choice>) {
     let name = state.names.get(skin).filter(|_| skin > 0);
-    let look = look.checked_sub(1).and_then(|i| styles().get(i));
+    let look = look.checked_sub(1).and_then(|i| choices().get(i).copied());
     (name.map(String::as_str), look)
 }
 
@@ -102,9 +105,9 @@ fn gallery() -> Skins {
     let mut names = vec![tr("Как в настройках")];
     names.extend(skins().into_iter().map(|s| s.name.to_owned()));
     let mut titles = vec![tr("Как в настройках")];
-    titles.extend(styles().iter().map(|s| tr(s.title)));
+    titles.extend(choices().iter().map(Choice::title));
     let skin = chosen("skin").and_then(|c| names.iter().position(|n| *n == c));
-    let look = chosen("style").and_then(|c| styles().iter().position(|s| s.id == c));
+    let look = chosen("style").and_then(|c| choices().iter().position(|s| s.id() == c));
     let (saved, saved_style) = (skin.unwrap_or(0), look.map_or(0, |i| i + 1));
     let mut state = Skins {
         names,
@@ -127,21 +130,26 @@ impl View {
         self.window.request_redraw();
     }
 
-    /// Фон: нарисованный стилем или картинка из настроек.
+    /// Фон: свой, нарисованный стилем или картинка из настроек.
     pub(crate) fn wallpaper(&mut self) -> Option<(Arc<Picture>, f32)> {
-        let Some(look) = self.look.style.filter(|s| s.scene != Scene::None) else {
-            return match self.look.style {
-                Some(_) => None,
-                None => settings::wallpaper(&self.config),
-            };
+        let Some(look) = self.look.style else {
+            return settings::wallpaper(&self.config);
         };
+        if let Some(photo) = look.photo {
+            let loaded = photo.loaded()?;
+            return Some((loaded.picture.clone(), loaded.shade));
+        }
+        self.painted_scene(look.style)
+    }
+
+    // сцена рисуется из цветов палитры и кэшируется
+    fn painted_scene(&mut self, look: &Style) -> Option<(Arc<Picture>, f32)> {
+        if look.scene == Scene::None {
+            return None;
+        }
         let (scene, theme) = (look.scene, self.config.theme);
-        let cached = self
-            .look
-            .picture
-            .as_ref()
-            .filter(|p| p.0 == scene && p.1 == theme);
-        let picture = match cached {
+        let cached = self.look.picture.as_ref();
+        let picture = match cached.filter(|p| p.0 == scene && p.1 == theme) {
             Some(found) => found.2.clone(),
             None => {
                 let picture = settings::picture(scenery::paint(scene, &theme)?);
@@ -155,7 +163,10 @@ impl View {
     /// Строка статуса стиля вместо `statusbar.lua`.
     pub(crate) fn apply_style_bar(&mut self) {
         let Some(plugins) = &self.plugins else { return };
-        let source = self.look.style.map(|s| style_bar(s, &self.config.theme));
+        let source = self
+            .look
+            .style
+            .map(|s| style_bar(s.style, &self.config.theme));
         if let Err(e) = plugins.set_bar(source.as_deref()) {
             log::warn!("statusbar: {e}");
         }
@@ -194,7 +205,7 @@ impl View {
                 self.show_look(&state, state.selected, state.style);
                 let (name, look) = picked(&state, state.selected, state.style);
                 store("skin", name);
-                store("style", look.map(|s| s.id));
+                store("style", look.map(|s| s.id()).as_deref());
                 (state.saved, state.saved_style) = (state.selected, state.style);
                 if close {
                     return;

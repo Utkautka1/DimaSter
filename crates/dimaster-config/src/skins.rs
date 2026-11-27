@@ -49,10 +49,15 @@ pub fn skins() -> Vec<Skin> {
 /// Литерал Lua с цветами скина — накладывается поверх настроек;
 /// `None`, если такого скина нет.
 pub fn skin_literal(name: &str) -> Option<String> {
-    let theme = skins().into_iter().find(|s| s.name == name)?.theme;
+    let skin = skins().into_iter().find(|s| s.name == name)?;
+    Some(theme_literal(&skin.theme))
+}
+
+/// Палитра таблицей настроек `{ colors = ... }`.
+pub fn theme_literal(theme: &Theme) -> String {
     let hex = |color: u32| format!("\"#{color:06x}\"");
     let ansi: Vec<String> = theme.ansi.iter().map(|&c| hex(c)).collect();
-    Some(format!(
+    format!(
         "{{ colors = {{ background = {}, foreground = {}, cursor = {}, selection = {}, \
          selection_text = {}, ansi = {{ {} }} }} }}",
         hex(theme.background),
@@ -61,5 +66,5 @@ pub fn skin_literal(name: &str) -> Option<String> {
         hex(theme.selection),
         hex(theme.selection_text.unwrap_or(theme.foreground)),
         ansi.join(", ")
-    ))
+    )
 }

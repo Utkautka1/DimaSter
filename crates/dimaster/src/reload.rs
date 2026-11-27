@@ -110,7 +110,7 @@ impl View {
         self.window
             .set_decorations(window.decorations == Decorations::System);
         self.window.set_blur(window.blur);
-        let template = self.look.style.map(|s| s.prompt);
+        let template = self.look.style.map(|s| s.style.prompt);
         crate::prompt::sync(&self.config, self.look.painted, template);
     }
 

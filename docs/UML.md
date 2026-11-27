@@ -161,8 +161,14 @@ classDiagram
     class Drawn { rects; labels }
     class Style { id; title; literal; scene; shade }
     class Look { style; plain; picture }
+    class Choice { style; photo; +layers(skin) }
+    class Photo { name; base; +loaded() }
+    class Loaded { theme; picture; shade }
     View *-- Look
-    Look ..> Style
+    Look ..> Choice
+    Choice --> Style
+    Choice --> Photo : own background
+    Photo *-- Loaded
     Style ..> Scene : background
     class Skin { name; theme }
     class Skins { names; query; selected; saved; +press() +click(row) }

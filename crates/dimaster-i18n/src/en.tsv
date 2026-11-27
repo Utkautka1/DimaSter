@@ -317,3 +317,5 @@ Docker: контейнеры	Docker: containers
 Лепестки	Petals
 macOS	macOS
 Приглашение не перекрашено: {error}	Prompt not recolored: {error}
+Фон: {name}	Background: {name}
+Фон не прочитан: {path}	Background not read: {path}
