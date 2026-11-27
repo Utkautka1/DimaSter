@@ -113,7 +113,15 @@ The following are available starting with version 0.2.0:
 
 ## Skins
 
-Press `Ctrl+Shift+K` to browse 50 built-in color schemes and 8 complete looks (window, cursor, status bar, procedurally drawn background) with live preview. No config editing.
+Press `Ctrl+Shift+K` to browse 50 built-in color schemes and 8 complete looks with live preview. No config editing.
+
+A look changes more than colors: the status bar and its contents, widgets, window frame, cursor, panels, starship prompt and a procedurally drawn background.
+
+![The eight built-in looks: Glass, Neon, Minimal, Retro, macOS, Sunset, Night city, Petals](assets/screenshots/styles.png)
+
+<img src="assets/screenshots/skins.png" alt="Skin gallery with color swatches" width="480">
+
+In the gallery: `↑`/`↓` or wheel picks a color scheme, `←`/`→` switches the look, typing searches, click or `Enter` keeps the choice, `Esc` reverts. "As configured" brings your own settings back. Details: [docs/lua/themes/skins.md](docs/lua/themes/skins.md).
 
 ## Usage
 
@@ -130,24 +138,51 @@ dimaster ssh-terminfo u@host   # install xterm-dimaster terminfo on a remote ser
 
 ## Keybindings & Modes
 
+All defaults; every one can be rebound in Lua ([docs/lua/settings/keys.md](docs/lua/settings/keys.md)).
+
+### Windows, panels and tools
+
+| Shortcut | Action |
+|---|---|
+| `Ctrl+Shift+N` | New window in the same directory |
+| `Ctrl+Enter` | Toggle fullscreen |
+| `Ctrl+Shift+P` | Command palette |
+| `Ctrl+Shift+K` | Skin gallery |
+| `Ctrl+Shift+E` | SSH hosts from `~/.ssh/config` |
+| `Ctrl+Shift+I` | Snippets |
+| `Ctrl+Shift+D` | Docker containers (`Ctrl+L` logs, `Ctrl+S` start/stop, `Ctrl+R` restart) |
+| `Ctrl+Shift+T` | Fuzzy file picker |
+| `Ctrl+Shift+G` | Jump to a frequent directory |
+| `Ctrl+Shift+H` | Searchable command history (`Ctrl+Y` copies output) |
+| `Ctrl+Shift+M` / `O` / `B` | Minimap / Resource monitor / Status bar |
+| `Ctrl+Shift+Z` | Presentation mode |
+| `Ctrl+Shift+,` | Reload configuration |
+
+### Text, scrollback and search
+
 | Shortcut | Action |
 |---|---|
 | `Ctrl+Shift+C` / `Ctrl+Shift+V` | Copy / Paste |
-| Drag mouse / `Alt` + drag | Select (primary) / Block selection |
-| Middle click | Paste primary selection |
-| `Shift+PageUp` / `PageDown` / Wheel | Scroll history |
+| `Shift+Insert`, middle click | Paste primary selection |
+| `Ctrl+Shift+X` | Copy the output of the last command |
+| Drag / `Alt` + drag | Select / Block selection |
 | `Shift` + mouse | Bypass program mouse capture |
+| `Ctrl+Click` | Open a link or a folder |
+| `Ctrl+Shift+U` | Link hints |
 | `Ctrl+Shift+F` | Search scrollback (`Ctrl+R` toggles regex) |
 | `Ctrl+Shift+Space` | Vi mode (`hjkl`, `w b`, `0 $`, `g G`, `v V`, `y`, `/`, `q`) |
-| `Ctrl+Shift+P` | Command palette |
-| `Ctrl+Click` / `Ctrl+Shift+U` | Open link or file / Link hints overlay |
-| `Ctrl+Shift+H` | Searchable command history (`Ctrl+Y` copies output) |
-| `Ctrl+Shift+T` | Fuzzy file picker (`fzf`-style path insert) |
-| `Ctrl+Shift+G` | Frequent directory jumper (`zoxide`-style `cd`) |
-| `Right` / `Ctrl+Right` | Accept autosuggestion (full / next word or fix command typo) |
-| `Ctrl+Shift+S` | Prefix last command with `sudo` |
-| `Ctrl+Shift+Z` | Presentation mode |
-| `Ctrl+Shift+M` / `O` / `B` | Minimap / Resource monitor / Status bar |
+| `Shift+PageUp` / `PageDown`, wheel | Scroll by page / lines |
+| `Shift+Home` / `Shift+End` | Top / bottom of scrollback |
+| `Ctrl+Shift+Up` / `Down` | Previous / next prompt |
+| `Ctrl+=` / `Ctrl+-` / `Ctrl+0` | Font size: bigger / smaller / reset |
+
+### Shell helpers
+
+| Shortcut | Action |
+|---|---|
+| `Right` / `End` | Accept the autosuggestion |
+| `Ctrl+Right` | Accept the next word, or fix a mistyped command |
+| `Ctrl+Shift+S` | Add `sudo` |
 
 ## Configuration
 
