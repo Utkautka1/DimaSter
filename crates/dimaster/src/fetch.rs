@@ -10,7 +10,8 @@ use std::process::Command;
 
 use dimaster_config::{DEFAULT_FETCH, Layout, config_dir, run_fetch};
 
-use crate::{fetch_random, fetch_view};
+use crate::fetch_random::{self, cache_dir};
+use crate::fetch_view;
 
 type Facts = Vec<(&'static str, Option<String>)>;
 
@@ -94,7 +95,50 @@ fn disk() -> Option<String> {
 }
 
 // без lspci строка просто не показывается
+// идентификаторы видеокарт из sysfs: по ним видно, что железо сменилось
+fn gpu_key() -> String {
+    let cards = std::fs::read_dir("/sys/class/drm")
+        .into_iter()
+        .flatten()
+        .flatten();
+    let mut ids: Vec<String> = cards
+        .filter_map(|card| {
+            let device = card.path().join("device");
+            let vendor = std::fs::read_to_string(device.join("vendor")).ok()?;
+            let model = std::fs::read_to_string(device.join("device")).ok()?;
+            Some(format!("{}:{}", vendor.trim(), model.trim()))
+        })
+        .collect();
+    ids.sort();
+    ids.dedup();
+    ids.join(",")
+}
+
+// первая строка файла — ключ железа, вторая — название
+fn cached<'a>(text: &'a str, key: &str) -> Option<&'a str> {
+    let (stored, name) = text.split_once('\n')?;
+    (stored == key && !name.is_empty()).then_some(name)
+}
+
+// lspci идёт около 100 мс и заметно задерживал каждый запуск, поэтому
+// название запоминается до смены железа
 fn gpu() -> Option<String> {
+    let file = cache_dir().map(|d| d.join("fetch-gpu"));
+    let key = gpu_key();
+    let stored = file.as_ref().and_then(|f| std::fs::read_to_string(f).ok());
+    if let Some(name) = stored.as_deref().and_then(|t| cached(t, &key)) {
+        return Some(name.to_owned());
+    }
+    let name = ask_lspci()?;
+    if let Some(file) = file {
+        let _ = file.parent().map(std::fs::create_dir_all);
+        // без записи следующий запуск просто спросит lspci снова
+        let _ = std::fs::write(file, format!("{key}\n{name}"));
+    }
+    Some(name)
+}
+
+fn ask_lspci() -> Option<String> {
     let text = output("lspci", &[])?;
     let line = text
         .lines()
@@ -234,6 +278,13 @@ pub(crate) fn run(options: &[String]) -> io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn gpu_cache_is_tied_to_hardware() {
+        assert_eq!(cached("a:1\nCard", "a:1"), Some("Card"));
+        assert_eq!(cached("a:1\nCard", "a:2"), None);
+        assert_eq!(cached("broken", "broken"), None);
+    }
 
     #[test]
     fn parses_system_files() {

@@ -32,11 +32,12 @@ fn choose(mut found: Vec<PathBuf>, last: Option<&Path>, seed: u64) -> Option<Pat
     found.into_iter().nth(index as usize)
 }
 
-fn memory() -> Option<PathBuf> {
+/// `$XDG_CACHE_HOME/dimaster` или `~/.cache/dimaster`.
+pub(crate) fn cache_dir() -> Option<PathBuf> {
     let cache = std::env::var_os("XDG_CACHE_HOME")
         .map(PathBuf::from)
         .or_else(|| Some(PathBuf::from(std::env::var_os("HOME")?).join(".cache")))?;
-    Some(cache.join("dimaster/fetch-last"))
+    Some(cache.join("dimaster"))
 }
 
 // два окна, открытые в одну секунду, различаются наносекундами и номером процесса
@@ -57,7 +58,7 @@ fn remember(file: &Path, chosen: &Path) {
 
 /// `None`, если в папке нет картинок или она недоступна.
 pub(crate) fn pick(directory: &Path) -> Option<PathBuf> {
-    let memory = memory();
+    let memory = cache_dir().map(|d| d.join("fetch-last"));
     let last = memory
         .as_ref()
         .and_then(|f| std::fs::read_to_string(f).ok());
