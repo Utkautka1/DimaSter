@@ -27,6 +27,7 @@ return {
 | `scroll_top` | начало истории | Shift+Home |
 | `scroll_bottom` | конец истории | Shift+End |
 | `prompt_previous` | предыдущее приглашение | Ctrl+Shift+↑ |
+| `copy_last_output` | скопировать вывод последней команды | Ctrl+Shift+X |
 | `prompt_next` | следующее приглашение | Ctrl+Shift+↓ |
 | `font_increase` | крупнее | Ctrl+= |
 | `font_decrease` | мельче | Ctrl+- |

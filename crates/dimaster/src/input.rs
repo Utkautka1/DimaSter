@@ -314,6 +314,7 @@ impl View {
             Action::NewWindow => open_window(self.shell_directory(), None),
             Action::PromptPrevious => self.jump_prompt(false),
             Action::PromptNext => self.jump_prompt(true),
+            Action::CopyLastOutput => self.copy_last_output(),
             other => self.perform_keys(other),
         }
     }

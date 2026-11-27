@@ -73,7 +73,7 @@ SIGTERM — завершён	SIGTERM — terminated
 в файле не найдено видео	no video found in the file
 нет вывода ffmpeg	no output from ffmpeg
 icat работает внутри DimaSter	icat only works inside DimaSter
-использование: dimaster [-e команда...] [--headless команда...] [--setup] [icat файл...] [fetch [--logo картинка]] [ctl команда] [ssh-terminfo хост]	usage: dimaster [-e command...] [--headless command...] [--setup] [icat file...] [fetch [--logo image]] [ctl command] [ssh-terminfo host]
+использование: dimaster [--class имя] [-e команда...] [--headless команда...] [--setup] [icat файл...] [fetch [--logo картинка]] [ctl команда] [ssh-terminfo хост]	usage: dimaster [--class name] [-e command...] [--headless command...] [--setup] [icat file...] [fetch [--logo image]] [ctl command] [ssh-terminfo host]
 нет действия {name}	no such action: {name}
 неизвестная команда: {command}	unknown command: {command}
 dimaster ctl [list | info | get-text | send-text <текст> | action <имя> | set-title <текст> | reload | new-window]	dimaster ctl [list | info | get-text | send-text <text> | action <name> | set-title <text> | reload | new-window]
@@ -283,3 +283,4 @@ dimaster.command("insert_date", dimaster.tr("Вставить сегодняшн
       -- text = " ✓ Скопировано: {count} ",	      -- text = " ✓ Copied: {count} ",
       -- свой вид (иначе как у panel): background, color, radius, padding, opacity	      -- own looks (otherwise as panel): background, color, radius, padding, opacity
       -- primary = false, -- показывать и при простом выделении мышью	      -- primary = false, -- also show on plain mouse selection
+Копировать вывод последней команды	Copy last command output

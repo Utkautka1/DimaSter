@@ -3,6 +3,7 @@
 use dimaster_i18n::t;
 use std::error::Error;
 use std::sync::Arc;
+use std::sync::OnceLock;
 
 use dimaster_config::{Config, Decorations};
 use dimaster_font::FontSystem;
@@ -35,6 +36,18 @@ pub(crate) enum Wake {
 }
 
 /// Открывает окно и работает, пока оно или shell не закроются.
+// задаётся один раз из командной строки до создания окна
+static CLASS: OnceLock<String> = OnceLock::new();
+
+/// app_id окна (WM_CLASS в X11) вместо `dimaster`.
+pub(crate) fn set_class(name: &str) {
+    let _ = CLASS.set(name.to_owned());
+}
+
+fn class() -> &'static str {
+    CLASS.get().map_or("dimaster", String::as_str)
+}
+
 pub(crate) fn run(
     args: Vec<String>,
     config: Config,
@@ -124,7 +137,7 @@ impl App {
             .with_transparent(true)
             .with_blur(self.config.window.blur)
             // app_id нужен правилам окон композитора
-            .with_name("dimaster", "dimaster");
+            .with_name(class(), "dimaster");
         let window = Arc::new(event_loop.create_window(attributes)?);
         window.set_ime_allowed(true);
         let renderer = renderer(event_loop, &window)?;
@@ -132,7 +145,10 @@ impl App {
         let fonts = settings::fonts(&config, window.scale_factor())?;
         let proxy = self.proxy.clone();
         let wake = move || drop(proxy.send_event(Wake::Output));
-        request_size(&window, &config, &fonts);
+        // окну со своим классом размер задаёт правило композитора
+        if CLASS.get().is_none() {
+            request_size(&window, &config, &fonts);
+        }
         Ok(View::new(window, renderer, fonts, config, &self.args, wake))
     }
 }

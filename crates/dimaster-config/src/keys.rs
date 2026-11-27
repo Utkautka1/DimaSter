@@ -57,6 +57,8 @@ pub enum Action {
     /// Прокрутить к предыдущему приглашению shell (нужны метки OSC 133).
     PromptPrevious,
     PromptNext,
+    /// Скопировать вывод последней завершившейся команды.
+    CopyLastOutput,
     /// Отправить программе заданный текст.
     Send(String),
     /// Команда плагина по имени.
@@ -76,7 +78,8 @@ pub enum Action {
     None,
 }
 
-const ACTIONS: [(&str, Action); 33] = [
+const ACTIONS: [(&str, Action); 34] = [
+    ("copy_last_output", Action::CopyLastOutput),
     ("ignore", Action::Ignore),
     ("unbind", Action::None),
     ("deactivate_key_table", Action::DeactivateTable),
@@ -246,7 +249,8 @@ impl Binding {
 }
 
 // сочетания по умолчанию совпадают с привычными по Ghostty и kitty
-const DEFAULTS: [(&str, &str, Action); 28] = [
+const DEFAULTS: [(&str, &str, Action); 29] = [
+    ("x", "ctrl+shift", Action::CopyLastOutput),
     ("m", "ctrl+shift", Action::Minimap),
     ("o", "ctrl+shift", Action::ToggleMonitor),
     ("b", "ctrl+shift", Action::ToggleStatusBar),

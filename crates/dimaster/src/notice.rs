@@ -42,6 +42,16 @@ impl View {
         }
     }
 
+    /// Вывод берётся из учёта команд (нужна интеграция с shell).
+    pub(crate) fn copy_last_output(&mut self) {
+        let last = self.term.commands().next_back();
+        let text = last.map(|c| c.output.join("\n")).unwrap_or_default();
+        let text = text.trim_end();
+        if !text.is_empty() {
+            self.put_clipboard(Target::Clipboard, text.to_owned());
+        }
+    }
+
     pub(crate) fn notice_panel(&self) -> Drawn {
         let live = self.notice.expires(Instant::now());
         let Some((text, _)) = self.notice.shown.as_ref().filter(|_| live.is_some()) else {

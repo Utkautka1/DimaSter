@@ -53,7 +53,7 @@ use std::process::ExitCode;
 
 use dimaster_config::Config;
 
-const USAGE: &str = "использование: dimaster [-e команда...] [--headless команда...] [--setup] [icat файл...] [fetch [--logo картинка]] [ctl команда] [ssh-terminfo хост]";
+const USAGE: &str = "использование: dimaster [--class имя] [-e команда...] [--headless команда...] [--setup] [icat файл...] [fetch [--logo картинка]] [ctl команда] [ssh-terminfo хост]";
 
 fn main() -> ExitCode {
     // wgpu слишком подробен на info, поэтому по умолчанию только предупреждения
@@ -80,11 +80,23 @@ fn first_command(config: &Config) -> Vec<String> {
     }
 }
 
+// `--class имя` перед остальным: свой app_id для правил композитора
+fn take_class(args: Vec<String>) -> Vec<String> {
+    match args.as_slice() {
+        [flag, class, rest @ ..] if flag == "--class" => {
+            app::set_class(class);
+            rest.to_vec()
+        }
+        _ => args,
+    }
+}
+
 fn run(args: Vec<String>) -> Result<(), Box<dyn Error>> {
     // ошибки самого конфига показываются на языке системы
     dimaster_i18n::set_language("auto", Vec::new());
     let config = settings::read_or_default();
     settings::set_language(&config);
+    let args = take_class(args);
     match args.split_first() {
         None => app::run(first_command(&config), config, true),
         Some((flag, command)) if flag == "-e" && !command.is_empty() => {

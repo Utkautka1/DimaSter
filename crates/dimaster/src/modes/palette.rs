@@ -5,7 +5,8 @@ use dimaster_i18n::tr;
 
 use super::Press;
 
-const COMMANDS: [(&str, Action); 24] = [
+const COMMANDS: [(&str, Action); 25] = [
+    ("Копировать вывод последней команды", Action::CopyLastOutput),
     ("Миникарта", Action::Minimap),
     ("Монитор ресурсов", Action::ToggleMonitor),
     ("Строка статуса", Action::ToggleStatusBar),
