@@ -1,6 +1,6 @@
 # Maintainer: Utkautka1 <https://github.com/Utkautka1>
 pkgname=dimaster-bin
-pkgver=0.4.0
+pkgver=0.4.1
 pkgrel=1
 pkgdesc="GPU-accelerated Linux terminal emulator with Lua configuration and graphics protocols (prebuilt binary)"
 arch=('x86_64')
@@ -20,7 +20,7 @@ optdepends=(
   'ffmpeg: video and extra image formats in icat / Kitty protocol'
 )
 source=("$pkgname-$pkgver.tar.gz::$url/releases/download/v$pkgver/dimaster-linux-x86_64.tar.gz")
-sha256sums=('1f3f8048ecaf060114858c4862ef2dc21f8c744f554f6684e5d0efe6b7297d46')
+sha256sums=('e2adaf5d6de0ddbc52ba1ceb80b4d2a04a16c86a28c332b17000add83c6c7465')
 
 package() {
   cd "dimaster-linux-x86_64"

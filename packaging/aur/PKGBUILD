@@ -1,6 +1,6 @@
 # Maintainer: Utkautka1 <https://github.com/Utkautka1>
 pkgname=dimaster
-pkgver=0.4.0
+pkgver=0.4.1
 pkgrel=1
 pkgdesc="GPU-accelerated Linux terminal emulator with Lua configuration and graphics protocols"
 arch=('x86_64')
