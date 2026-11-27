@@ -284,3 +284,8 @@ dimaster.command("insert_date", dimaster.tr("Вставить сегодняшн
       -- свой вид (иначе как у panel): background, color, radius, padding, opacity	      -- own looks (otherwise as panel): background, color, radius, padding, opacity
       -- primary = false, -- показывать и при простом выделении мышью	      -- primary = false, -- also show on plain mouse selection
 Копировать вывод последней команды	Copy last command output
+dimaster.bind: нужны клавиша и функция	dimaster.bind: a key and a function are required
+dimaster.every: нужны секунды и функция	dimaster.every: seconds and a function are required
+dimaster.set: нужны числа, строки, флаги и таблицы	dimaster.set: only numbers, strings, flags and tables
+dimaster.set: нужна таблица	dimaster.set: a table is required
+таймер 	timer 

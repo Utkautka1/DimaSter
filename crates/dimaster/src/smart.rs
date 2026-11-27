@@ -80,7 +80,7 @@ impl View {
         if exit != 127 {
             self.history_store.record_command(&command);
         }
-        self.emit("command", &command);
+        self.plugin_command(&command, exit, seconds.as_secs_f64());
         let limit = self.config.smart.long_command;
         if limit > 0.0 && !self.focused && seconds.as_secs_f32() >= limit {
             self.long_command_finished(&command, exit, seconds);

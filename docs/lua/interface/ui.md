@@ -146,3 +146,42 @@ ui = {
 | `{target}` | `clipboard` или `primary` (выделение мышью) |
 
 `copy = false` отключает плашку. Простое выделение мышью кладёт текст только в primary (вставка средней кнопкой), поэтому плашки нет; `primary = true` включает её и там. С `copy_on_select = "clipboard"` выделение копирует в обычный буфер, и плашка показывается.
+
+## Рецепты
+
+```lua
+-- стеклянные скруглённые панели
+return { ui = { panel = { radius = 14, padding = 10, opacity = 0.92, background = "#1e1e2e" } } }
+```
+
+```lua
+-- палитра по центру со своим списком
+return { ui = { palette = { position = "center", width = 40, items = {
+  { title = "Поиск", action = "search" },
+  { title = "История команд", action = "command_history" },
+  { title = "Перечитать настройки", action = "reload_config" },
+} } } }
+```
+
+```lua
+-- кнопки слева, как в macOS
+return {
+  window = { decorations = "own" },
+  ui = { title = { align = "center", buttons_side = "left", buttons = {
+    { action = "close", text = " ● ", color = "#f38ba8" },
+    { action = "minimize", text = " ● ", color = "#f9e2af" },
+    { action = "maximize", text = " ● ", color = "#a6e3a1" },
+  } } },
+}
+```
+
+```lua
+-- прокрутка и миникарта слева, монитор снизу
+return {
+  widgets = { monitor = true, minimap = true },
+  ui = { scrollbar = { side = "left", width = 8 }, minimap = { side = "left" },
+    monitor = { position = "bottom" } },
+}
+```
+
+Панели не должны накладываться друг на друга: сквозь верхнюю проступит текст нижней.

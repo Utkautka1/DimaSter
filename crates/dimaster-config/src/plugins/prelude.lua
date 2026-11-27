@@ -59,7 +59,70 @@ function dimaster.graph(g)
   return lines
 end
 
+local bound, timers = {}, {}
+local MAX_BOUND, MAX_TIMERS = 128, 16
+
+-- нажатие вида "ctrl+shift+e"; вернув false, обработчик отдаёт клавишу дальше
+function dimaster.bind(chord, callback)
+  assert(type(chord) == "string" and type(callback) == "function", dimaster.tr("dimaster.bind: нужны клавиша и функция"))
+  if #bound < MAX_BOUND then bound[#bound + 1] = { chord = chord, run = callback } end
+end
+
+function dimaster.every(seconds, callback)
+  assert(type(seconds) == "number" and type(callback) == "function", dimaster.tr("dimaster.every: нужны секунды и функция"))
+  -- чаще раза в секунду окно не будится
+  if #timers < MAX_TIMERS then timers[#timers + 1] = { seconds = math.max(seconds, 1), run = callback } end
+end
+
+-- таблица настроек превращается в литерал: так она переживает перезагрузку
+local function literal(value, depth)
+  local kind = type(value)
+  if kind == "string" then return string.format("%q", value) end
+  if kind == "boolean" or (kind == "number" and value == value and math.abs(value) < math.huge) then
+    return tostring(value)
+  end
+  assert(kind == "table" and depth < 8, dimaster.tr("dimaster.set: нужны числа, строки, флаги и таблицы"))
+  local parts = {}
+  for _, item in ipairs(value) do parts[#parts + 1] = literal(item, depth + 1) end
+  for key, item in pairs(value) do
+    if type(key) == "string" then
+      parts[#parts + 1] = "[" .. string.format("%q", key) .. "]=" .. literal(item, depth + 1)
+    end
+  end
+  return "{" .. table.concat(parts, ",") .. "}"
+end
+
+function dimaster.set(settings)
+  assert(type(settings) == "table", dimaster.tr("dimaster.set: нужна таблица"))
+  dimaster.set_literal(literal(settings, 0))
+end
+
 local registry = {}
+
+function registry.keys()
+  local list = {}
+  for index, entry in ipairs(bound) do list[index] = entry.chord end
+  return list
+end
+
+function registry.key(index)
+  local entry = bound[index]
+  if not entry then return false end
+  local ok, result = pcall(entry.run)
+  if not ok then dimaster.log(entry.chord .. ": " .. tostring(result)) end
+  return ok and result ~= false
+end
+
+function registry.intervals()
+  local list = {}
+  for index, entry in ipairs(timers) do list[index] = entry.seconds end
+  return list
+end
+
+function registry.tick(index)
+  local entry = timers[index]
+  if entry then guard(dimaster.tr("таймер ") .. index, entry.run) end
+end
 
 function registry.draw(info)
   if drawing then return drawing(info) end

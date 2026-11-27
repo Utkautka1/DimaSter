@@ -22,7 +22,7 @@ impl View {
         if being_written() {
             return;
         }
-        match settings::read() {
+        match settings::read_with(&self.hooks.overrides) {
             Ok(config) => {
                 // новые настройки отменяют презентацию
                 self.normal_config = None;

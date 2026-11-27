@@ -21,6 +21,7 @@ use crate::history_store::AssistStore;
 use crate::keymap::KeyState;
 use crate::modes::Mode;
 use crate::notice::Notice;
+use crate::plugin_runtime::Hooks;
 use crate::pointer::Pointer;
 use crate::select::Selecting;
 use crate::session::{Launch, Output, Session};
@@ -93,6 +94,7 @@ pub(crate) struct View {
     pub(crate) normal_config: Option<Config>,
     pub(crate) plugins: Option<Plugins>,
     pub(crate) plugin_depth: u8,
+    pub(crate) hooks: Hooks,
     pub(crate) socket: Option<PathBuf>,
     // каталог восстановленной сессии
     pub(crate) start_directory: Option<PathBuf>,
@@ -185,6 +187,7 @@ impl View {
             normal_config: None,
             plugins: None,
             plugin_depth: 0,
+            hooks: Hooks::default(),
             socket: None,
             start_directory: None,
             saved_at: Instant::now(),
@@ -330,7 +333,11 @@ impl View {
         }
         let drag = self.drag_scroll_step();
         let sync = self.sync_since.and_then(|_| self.refresh());
-        [sync, self.animate_at, drag].into_iter().flatten().min()
+        let timers = self.run_timers();
+        [sync, self.animate_at, drag, timers]
+            .into_iter()
+            .flatten()
+            .min()
     }
 
     // ближайшее из: кадр картинки, шаг анимации, мигание

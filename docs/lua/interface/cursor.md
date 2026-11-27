@@ -59,3 +59,35 @@ cursor = { shape = "bar", pulse = true, pulse_period = 900, pulse_min = 0.15 }
 Пока окно в фокусе, пульсация перерисовывает его постоянно (около 60 кадров в секунду) и тратит чуть больше энергии. После ввода цикл начинается с полной высоты. Это не мигание: `effects.cursor_blink` лучше оставить выключенным.
 
 Включают и выключают движение, мигание и хвост ключи `effects` ([Анимации](../settings/effects.md)). Программы вроде vim могут сами менять форму курсора.
+
+## Готовые наборы
+
+```lua
+-- тонкая спокойная черта
+return { cursor = { shape = "bar", thickness = 2, height = 0.9, pulse = true, pulse_period = 1500 } }
+```
+
+```lua
+-- мягкий блок с хвостом
+return {
+  effects = { cursor_trail = true },
+  cursor = { shape = "block", radius = 5, opacity = 0.85, trail_length = 14, trail_opacity = 0.18 },
+}
+```
+
+```lua
+-- как в старых терминалах
+return {
+  effects = { cursor_blink = true, cursor_animation = false },
+  cursor = { shape = "underline", thickness = 3, blink_interval = 600 },
+}
+```
+
+## Частые вопросы
+
+| Вопрос | Ответ |
+|---|---|
+| Почему форма не меняется? | программа задала свою; запретить: `programs = { cursor_shape = false }` |
+| Почему курсор не двигается плавно? | проверьте `effects.cursor_animation` |
+| Почему не пульсирует? | пульсация идёт только в окне с фокусом |
+| Где задать цвет? | `cursor.color`; без него цвет берётся из темы |

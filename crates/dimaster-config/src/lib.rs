@@ -33,7 +33,7 @@ pub use fetch::{DEFAULT_FETCH, Layout, fetch_color, run_fetch};
 pub use fetch_picture::{PicturePosition, PictureStyle};
 pub use keys::{Action, Binding, Chord, Mods};
 pub use lang::translations;
-pub use load::{ConfigError, config_dir, load, parse};
+pub use load::{ConfigError, config_dir, load, load_with, parse, parse_with};
 pub use plugins::{BarStyle, Segment, StatusBar, StatusLine};
 pub use plugins::{Effect, Plugins, Snapshot};
 pub use plugins::{Paint, Shape};

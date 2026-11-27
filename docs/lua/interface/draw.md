@@ -28,3 +28,29 @@ dimaster.draw(function(info)
   }
 end)
 ```
+
+## Ещё примеры
+
+```lua
+-- полоска времени дня вдоль верхнего края
+dimaster.draw(function(info)
+  local now = os.date("*t")
+  local share = (now.hour * 60 + now.min) / 1440
+  return { { kind = "rect", x = 0, y = 0, width = tonumber(info.width) * share, height = 3, color = "#89b4fa" } }
+end)
+```
+
+```lua
+-- метка на рабочем сервере
+dimaster.draw(function(info)
+  if info.host ~= "prod" then return {} end
+  return {
+    { kind = "rect", x = -150, y = 10, width = 140, height = 30, radius = 8, color = "#f38ba8" },
+    { kind = "text", x = -135, y = 16, text = "PRODUCTION", color = "#11111b" },
+  }
+end)
+```
+
+## Как перерисовывать чаще
+
+Рисование обновляется с периодом `widgets.interval` (от 1 секунды), при смене режима и размера окна. Чтобы значения копились между вызовами, храните их в `local`-переменной вне функции.

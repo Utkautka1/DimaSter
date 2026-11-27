@@ -51,9 +51,15 @@ pub fn config_dir() -> Option<PathBuf> {
 
 /// Читает файл; отсутствие файла — не ошибка, а настройки по умолчанию.
 pub fn load(path: &Path) -> Result<Config, ConfigError> {
+    load_with(path, &[])
+}
+
+pub fn load_with(path: &Path, overrides: &[String]) -> Result<Config, ConfigError> {
     match std::fs::read_to_string(path) {
-        Ok(source) => parse(&source, path.parent()),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Config::default()),
+        Ok(source) => parse_with(&source, path.parent(), overrides),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            parse_with("return {}", None, overrides)
+        }
         Err(e) => {
             let (path, error) = (path.display().to_string(), e.to_string());
             let values = [("path", path.as_str()), ("error", error.as_str())];
@@ -75,24 +81,59 @@ pub(crate) fn expand(path: String) -> PathBuf {
 
 /// `directory` — каталог настроек: оттуда берутся модули и темы.
 pub fn parse(source: &str, directory: Option<&Path>) -> Result<Config, ConfigError> {
+    parse_with(source, directory, &[])
+}
+
+/// То же с наложенными поверх таблицами плагинов (литералы Lua).
+pub fn parse_with(
+    source: &str,
+    directory: Option<&Path>,
+    overrides: &[String],
+) -> Result<Config, ConfigError> {
     let lua = Lua::new();
     if let Some(directory) = directory {
         context::install(&lua, directory)?;
     }
     let table: Table = lua.load(source).set_name("init.lua").eval()?;
+    for literal in overrides {
+        let extra: Table = lua.load(format!("return {literal}")).eval()?;
+        merge(&table, extra)?;
+    }
+    from_table(&lua, &table, directory)
+}
+
+// словари объединяются по ключам, списки заменяются, `keys` накапливаются
+fn merge(target: &Table, extra: Table) -> mlua::Result<()> {
+    for pair in extra.pairs::<Value, Value>() {
+        let (key, value) = pair?;
+        let appended = matches!(&key, Value::String(k) if k.as_bytes() == b"keys");
+        match (target.get::<Value>(key.clone())?, value) {
+            (Value::Table(old), Value::Table(new)) if appended => {
+                for item in new.sequence_values::<Value>() {
+                    old.push(item?)?;
+                }
+            }
+            (Value::Table(old), Value::Table(new)) if new.raw_len() == 0 => merge(&old, new)?,
+            (_, value) => target.set(key, value)?,
+        }
+    }
+    Ok(())
+}
+
+fn from_table(lua: &Lua, table: &Table, directory: Option<&Path>) -> Result<Config, ConfigError> {
     let mut config = Config::default();
     if let Some(name) = table.get::<Option<String>>("theme")? {
-        load_theme(&lua, &name, directory, &mut config.theme)?;
+        load_theme(lua, &name, directory, &mut config.theme)?;
     }
     if let Some(colors) = table.get::<Option<Table>>("colors")? {
         apply_colors(&colors, &mut config.theme)?;
     }
-    apply_language(&table, &mut config)?;
-    apply_font(&table, &mut config)?;
-    apply_general(&table, &mut config)?;
-    load_keys::apply(&table, &mut config)?;
-    programs::apply(&table, &mut config)?;
-    apply_sections(&table, &mut config)?;
+    apply_language(table, &mut config)?;
+    apply_font(table, &mut config)?;
+    apply_general(table, &mut config)?;
+    load_keys::apply(table, &mut config)?;
+    programs::apply(table, &mut config)?;
+    apply_sections(table, &mut config)?;
     Ok(config)
 }
 

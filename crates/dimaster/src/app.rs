@@ -224,6 +224,8 @@ impl ApplicationHandler<Wake> for App {
         };
         match event {
             Wake::ConfigChanged => {
+                // плагины перезагружаются и заново ставят своё
+                view.hooks.overrides.clear();
                 view.reload();
                 view.load_plugins();
             }

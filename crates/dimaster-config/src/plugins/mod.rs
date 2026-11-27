@@ -6,6 +6,7 @@
 
 mod api;
 mod draw;
+mod hooks;
 mod status;
 
 use dimaster_i18n::t;
@@ -32,14 +33,23 @@ pub struct Snapshot {
     pub cwd: String,
     pub selection: String,
     pub screen: String,
+    /// Последние строки истории вместе с экраном; пусто для бара и рисования.
+    pub history: String,
 }
 
 /// Действие, запрошенное плагином.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Effect {
     Send(String),
-    Notify { title: String, body: String },
+    Notify {
+        title: String,
+        body: String,
+    },
     Action(String),
+    /// Таблица настроек литералом Lua: накладывается поверх файлов.
+    Set(String),
+    /// Забыть всё, что установили плагины.
+    Reset,
 }
 
 #[derive(Default)]

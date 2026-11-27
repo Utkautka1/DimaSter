@@ -103,7 +103,10 @@ impl View {
         let physical = physical_name(event.physical_key);
         if let Some(name) = key_name(key).filter(|_| !is_modifier(key)) {
             let pressed = variants(&physical, &name, mods(self.modifiers));
-            if self.bound_key(pressed, bytes.clone().unwrap_or_default()) {
+            // плагины спрашиваются раньше обычных привязок и могут пропустить
+            if self.plugin_key(&pressed)
+                || self.bound_key(pressed, bytes.clone().unwrap_or_default())
+            {
                 return self.render_status();
             }
         }

@@ -24,6 +24,7 @@ impl View {
                     .iter()
                     .for_each(|e| log::warn!("{}", t!("Плагин не загружен: {error}", error = e)));
                 self.plugins = Some(plugins);
+                self.collect_hooks();
                 self.emit("startup", "");
                 self.render_status();
             }
@@ -41,6 +42,7 @@ impl View {
                 .unwrap_or_default(),
             selection: selection.unwrap_or_default(),
             screen: self.term.text(),
+            history: String::new(),
         }
     }
 
@@ -52,11 +54,11 @@ impl View {
 
     pub(crate) fn run_plugin(&mut self, name: &str) {
         let Some(plugins) = &self.plugins else { return };
-        let effects = plugins.run(name, self.plugin_snapshot());
+        let effects = plugins.run(name, self.full_snapshot());
         self.apply_effects(effects);
     }
 
-    fn apply_effects(&mut self, effects: Vec<Effect>) {
+    pub(crate) fn apply_effects(&mut self, effects: Vec<Effect>) {
         if self.plugin_depth >= MAX_DEPTH {
             return log::warn!("{}", t!("Плагины вызывают друг друга по кругу"));
         }
@@ -64,6 +66,7 @@ impl View {
         for effect in effects {
             match effect {
                 Effect::Send(text) => self.type_bytes(text.into_bytes()),
+                effect @ (Effect::Set(_) | Effect::Reset) => self.plugin_settings(effect),
                 Effect::Notify { title, body } => desktop::notify(&title, &body),
                 Effect::Action(name) => match Action::parse(&name) {
                     Some(action) => self.perform(action),

@@ -17,38 +17,39 @@ fn push(shared: &Shared, effect: Effect) {
     }
 }
 
+// функция Lua, которая лишь ставит действие в очередь
+fn queue<A: mlua::FromLuaMulti + 'static>(
+    lua: &Lua,
+    api: &Table,
+    shared: &Rc<Shared>,
+    name: &str,
+    effect: impl Fn(A) -> Effect + 'static,
+) -> mlua::Result<()> {
+    let shared = shared.clone();
+    let function = move |_: &Lua, arguments: A| {
+        push(&shared, effect(arguments));
+        Ok(())
+    };
+    api.set(name, lua.create_function(function)?)
+}
+
 fn effects(lua: &Lua, api: &Table, shared: &Rc<Shared>) -> mlua::Result<()> {
-    let queue = shared.clone();
-    api.set(
-        "send",
-        lua.create_function(move |_, text: String| {
-            push(&queue, Effect::Send(text));
-            Ok(())
-        })?,
-    )?;
-    let queue = shared.clone();
-    api.set(
-        "action",
-        lua.create_function(move |_, name: String| {
-            push(&queue, Effect::Action(name));
-            Ok(())
-        })?,
-    )?;
-    let queue = shared.clone();
-    api.set(
-        "notify",
-        lua.create_function(move |_, (title, body): (String, String)| {
-            push(&queue, Effect::Notify { title, body });
-            Ok(())
-        })?,
-    )
+    queue(lua, api, shared, "send", Effect::Send)?;
+    queue(lua, api, shared, "action", Effect::Action)?;
+    queue(lua, api, shared, "set_literal", Effect::Set)?;
+    queue(lua, api, shared, "reset", |(): ()| Effect::Reset)?;
+    queue(lua, api, shared, "notify", |(title, body)| Effect::Notify {
+        title,
+        body,
+    })
 }
 
 // какое поле снимка отдаёт функция
 type Field = fn(&Snapshot) -> &String;
 
 fn queries(lua: &Lua, api: &Table, shared: &Rc<Shared>) -> mlua::Result<()> {
-    let fields: [(&str, Field); 4] = [
+    let fields: [(&str, Field); 5] = [
+        ("history", |s| &s.history),
         ("title", |s| &s.title),
         ("cwd", |s| &s.cwd),
         ("selection", |s| &s.selection),

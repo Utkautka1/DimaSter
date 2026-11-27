@@ -159,6 +159,9 @@ classDiagram
     Config *-- Ui
     Config *-- CursorLook
     class Drawn { rects; labels }
+    class Hooks { keys; timers; overrides }
+    View *-- Hooks
+    Plugins ..> Hooks : bind, every, set
     class Notice { shown; +expires(now) }
     View *-- Notice
     class Layout { lines; logo; image; random; picture; logo_width }

@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use dimaster_config::{Config, CursorStyle, Decorations, config_dir, load, translations};
+use dimaster_config::{Config, CursorStyle, Decorations, config_dir, load_with, translations};
 use dimaster_font::{FontError, FontSystem};
 use dimaster_grid::{CursorShape, DefaultColors, Picture};
 use dimaster_i18n::tr;
@@ -31,10 +31,15 @@ pub(crate) fn set_language(config: &Config) {
 
 /// Конфиг пользователя; `Err` — текст ошибки, который стоит показать.
 pub(crate) fn read() -> Result<Config, String> {
+    read_with(&[])
+}
+
+/// То же с таблицами, установленными плагинами через `dimaster.set`.
+pub(crate) fn read_with(overrides: &[String]) -> Result<Config, String> {
     let Some(path) = config_path() else {
         return Ok(Config::default());
     };
-    load(&path).map_err(|e| e.to_string())
+    load_with(&path, overrides).map_err(|e| e.to_string())
 }
 
 /// При ошибке в конфиге запускаемся с настройками по умолчанию.

@@ -67,7 +67,8 @@ fn settings_examples(page: &str) -> impl Iterator<Item = &str> {
 }
 
 // темы, fetch и свои модули — не настройки или требуют каталога
-const EXAMPLE_PAGES: [&str; 11] = [
+const EXAMPLE_PAGES: [&str; 12] = [
+    "interface/ui.md",
     "start.md",
     "recipes.md",
     "core/layers.md",

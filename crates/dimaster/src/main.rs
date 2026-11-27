@@ -26,6 +26,7 @@ mod mouse;
 mod notice;
 mod overlay;
 mod panels;
+mod plugin_runtime;
 mod pointer;
 mod presentation;
 mod reload;
