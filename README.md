@@ -19,9 +19,14 @@ A fast, GPU-accelerated Linux terminal emulator written in Rust (`wgpu` + `winit
   - **Kitty** (`t=d/f/t/s` including POSIX shared memory, `a=f`/`a=a` frame animations, `U=1` Unicode placeholders for `tmux` + `yazi`, `x/y/w/h` cropping).
   - **Sixel**, **iTerm2** (`OSC 1337`), and built-in `dimaster icat` (images and video via `ffmpeg`) + `dimaster fetch`.
 - **Memory-Efficient Scrollback**: RLE + style-run packed history compression with full reflow on resize.
-- **Layered Lua 5.4 Configuration**: hot-reloaded on save, with built-in migration wizard from Ghostty, Kitty, and Alacritty (`dimaster --setup`) and Ghostty theme support.
+- **Layered Lua 5.4 Configuration**: hot-reloaded on save, with Catppuccin Mocha & blur/Starship defaults and built-in migration wizard from Ghostty, Kitty, and Alacritty (`dimaster --setup`) + Ghostty theme support.
+- **Out-of-the-Box Smart Shell (No ZSH Plugins Needed)**: works across `zsh`, `bash`, `fish`, and `sh`:
+  - **Command Syntax Highlighting**: validates commands live against `$PATH`, built-ins, and disk paths (green/red) plus flags, strings, variables, operators, and comments.
+  - **Typo Correction & Ghost Autosuggestions**: suggests corrections (`cs` → `cd`, press `Ctrl+Right` / `Ctrl+End` to fix) and finishes commands from persistent history (`Right` / `End` for full line, `Ctrl+Right` word-by-word).
+  - **Auto-Pairing & Colored Tools**: auto-closes `() [] {} "" ''` (`smart.autopair`), injects Catppuccin `LS_COLORS` with colored `ls`/`eza` (`smart.color_ls`), and runs `dimaster fetch` on shell startup (`smart.startup_fetch`).
+  - **Fuzzy File & Directory Pickers**: built-in `fzf`-style file inserter (`Ctrl+Shift+T`) and `zoxide`-style frequent directory jumper (`Ctrl+Shift+G`), plus fuzzy-searchable command history (`Ctrl+Shift+H`).
 - **Productivity Modes & Widgets**:
-  - Command Palette (`Ctrl+Shift+P`), Scrollback Search (`Ctrl+Shift+F`), Vi Mode (`Ctrl+Shift+Space`), Link Hints (`Ctrl+Shift+U`), Command History (`Ctrl+Shift+H`), Minimap (`Ctrl+Shift+M`), Resource Monitor (`Ctrl+Shift+O`), Status Bar (`Ctrl+Shift+B`), Sudo Fix (`Ctrl+Shift+S`), Presentation Mode (`Ctrl+Shift+Z`).
+  - Command Palette (`Ctrl+Shift+P`), Scrollback Search (`Ctrl+Shift+F`), Vi Mode (`Ctrl+Shift+Space`), Link Hints (`Ctrl+Shift+U`), Command History (`Ctrl+Shift+H`, `Ctrl+Y` copies output), File Picker (`Ctrl+Shift+T`), Directory Jumper (`Ctrl+Shift+G`), Minimap (`Ctrl+Shift+M`), Resource Monitor (`Ctrl+Shift+O`), Status Bar (`Ctrl+Shift+B`), Sudo Fix (`Ctrl+Shift+S`), Presentation Mode (`Ctrl+Shift+Z`).
   - Lua plugin API (`~/.config/dimaster/plugins/*.lua`) and CLI remote control (`dimaster ctl`).
 
 ## Installation
@@ -87,7 +92,10 @@ dimaster ssh-terminfo u@host   # install xterm-dimaster terminfo on a remote ser
 | `Ctrl+Shift+Space` | Vi mode (`hjkl`, `w b`, `0 $`, `g G`, `v V`, `y`, `/`, `q`) |
 | `Ctrl+Shift+P` | Command palette |
 | `Ctrl+Click` / `Ctrl+Shift+U` | Open link or file / Link hints overlay |
-| `Ctrl+Shift+H` | Command history with output snapshots |
+| `Ctrl+Shift+H` | Searchable command history (`Ctrl+Y` copies output) |
+| `Ctrl+Shift+T` | Fuzzy file picker (`fzf`-style path insert) |
+| `Ctrl+Shift+G` | Frequent directory jumper (`zoxide`-style `cd`) |
+| `Right` / `Ctrl+Right` | Accept autosuggestion (full / next word or fix command typo) |
 | `Ctrl+Shift+S` | Prefix last command with `sudo` |
 | `Ctrl+Shift+Z` | Presentation mode |
 | `Ctrl+Shift+M` / `O` / `B` | Minimap / Resource monitor / Status bar |
