@@ -5,7 +5,11 @@
 
 A fast, GPU-accelerated Linux terminal emulator written in Rust (`wgpu` + `winit`), featuring modular **Lua 5.4** configuration, full **Kitty keyboard & graphics protocols**, **COLR/CBDT color emoji**, **shell integration**, **vi mode**, **command palette**, and a built-in **Lua status bar**.
 
-![DimaSter terminal screenshot](assets/screenshots/main.png)
+![DimaSter: fetch, file listing and highlighted code in the Glass look](assets/screenshots/main.png)
+
+| `dimaster docker` | `dimaster view services.csv` |
+|---|---|
+| ![Container screen with states, CPU and memory](assets/screenshots/docker.png) | ![Table viewer with colored columns defined in view.lua](assets/screenshots/view.png) |
 
 ## Features
 
@@ -117,7 +121,7 @@ Press `Ctrl+Shift+K` to browse 800+ built-in color schemes and 8 complete looks 
 
 A look changes more than colors: the status bar and its contents, widgets, window frame, cursor, panels, starship prompt and a procedurally drawn background.
 
-![The eight built-in looks: Glass, Neon, Minimal, Retro, macOS, Sunset, Night city, Petals](assets/screenshots/styles.png)
+![Four of the eight built-in looks: Neon, Sunset, Night city, Petals](assets/screenshots/styles.png)
 
 <img src="assets/screenshots/skins.png" alt="Skin gallery with color swatches" width="480">
 
