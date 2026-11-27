@@ -136,7 +136,7 @@ impl CommandCache {
         self.updated = Some(Instant::now());
     }
 
-    fn exists(&mut self, word: &str, cwd: Option<&str>) -> bool {
+    pub(crate) fn exists(&mut self, word: &str, cwd: Option<&str>) -> bool {
         if BUILTINS.binary_search(&word).is_ok() {
             return true;
         }

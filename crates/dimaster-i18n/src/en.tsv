@@ -93,6 +93,10 @@ dimaster ctl [list | info | get-text | send-text <текст> | action <имя> 
 Команда завершилась с ошибкой	Command failed
 DimaSter — ошибка в init.lua	DimaSter — error in init.lua
 Добро пожаловать в DimaSter!	Welcome to DimaSter!
+Файл не запускается: chmod +x {file}	File is not executable: chmod +x {file}
+Нет прав: Ctrl+Shift+S добавит sudo	No permission: Ctrl+Shift+S adds sudo
+Программа {name} не установлена	{name} is not installed
+Возможно, вы имели в виду: {fix}	Did you mean: {fix}
   →              принять подсказку команды	  →              accept the command suggestion
   Ctrl+Shift+H   поиск по истории	  Ctrl+Shift+H   search history
   Ctrl+Shift+G   переход в частую папку	  Ctrl+Shift+G   jump to a frequent directory

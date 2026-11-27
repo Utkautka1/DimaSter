@@ -76,7 +76,9 @@ impl View {
         let Some(last) = self.term.commands().next_back() else {
             return;
         };
-        let (command, exit, seconds) = (last.command.clone(), last.exit, last.duration);
+        let last = last.clone();
+        self.help_with(&last);
+        let (command, exit, seconds) = (last.command, last.exit, last.duration);
         if exit != 127 {
             self.history_store.record_command(&command);
         }

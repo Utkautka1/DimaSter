@@ -4,7 +4,7 @@ use std::fmt::Write;
 use std::path::Path;
 
 use crate::color::format_color;
-use crate::{Config, Theme};
+use crate::{Config, Smart, Theme};
 
 // строка Lua: экранируются только символы, ломающие литерал
 fn quote(text: &str) -> String {
@@ -148,13 +148,12 @@ pub(super) fn effects(config: &Config) -> String {
 }
 
 // умная оболочка: подсказки под командами и реакция на долгие
-fn smart(config: &Config) -> String {
-    let s = &config.smart;
+fn smart(s: &Smart, scrollbar: bool) -> String {
     format!(
-        "  scrollbar = {},\n  smart = {{\n    integration = {},\n    startup_fetch = {},\n    fetch_early = {},\n    syntax_highlight = {},\n    color_ls = {},\n    color_nano = {},\n    autosuggest = {},\n    autopair = {},\n    not_found = {},\n    ok = {},\n    empty = {},\n    \
+        "  scrollbar = {},\n  smart = {{\n    integration = {},\n    startup_fetch = {},\n    fetch_early = {},\n    syntax_highlight = {},\n    color_ls = {},\n    color_nano = {},\n    autosuggest = {},\n    autopair = {},\n    not_found = {},\n    help = {},\n    ok = {},\n    empty = {},\n    \
          errors = {},\n    search_tools = {},\n    long_command = {},\n    glow = {},\n    \
          glow_color = {},\n    notify = {},\n    double_alt_sudo = {},\n  }},\n",
-        config.scrollbar,
+        scrollbar,
         s.integration,
         s.startup_fetch,
         s.fetch_early,
@@ -164,6 +163,7 @@ fn smart(config: &Config) -> String {
         s.autosuggest,
         s.autopair,
         s.not_found,
+        s.help,
         quote(&s.ok),
         quote(&s.empty),
         s.errors,
@@ -230,7 +230,10 @@ pub(super) fn behavior(config: &Config) -> String {
         config.images_scroll,
         config.rtl,
         quote(&config.term),
-        interaction(config) + &smart(config) + &widgets(config) + &environment(config),
+        interaction(config)
+            + &smart(&config.smart, config.scrollbar)
+            + &widgets(config)
+            + &environment(config),
         config.remote_control,
         config.restore_session,
         config.session_history,

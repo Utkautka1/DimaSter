@@ -26,6 +26,13 @@ impl Notice {
     }
 }
 
+impl Notice {
+    /// Показывает свой текст на заданное время.
+    pub(crate) fn show(&mut self, text: String, duration: Duration) {
+        self.shown = Some((text, Instant::now() + duration));
+    }
+}
+
 impl View {
     /// Кладёт текст в буфер по действию пользователя и сообщает об этом.
     pub(crate) fn put_clipboard(&mut self, target: Target, text: String) {

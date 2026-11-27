@@ -15,6 +15,7 @@ mod fetch;
 mod fetch_random;
 mod fetch_view;
 mod headless;
+mod help;
 mod history_store;
 mod host;
 mod icat;

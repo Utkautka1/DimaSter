@@ -28,6 +28,7 @@ fn reactions(table: &Table, smart: &mut Smart) -> mlua::Result<()> {
     set(table, "autosuggest", &mut smart.autosuggest)?;
     set(table, "autopair", &mut smart.autopair)?;
     set(table, "not_found", &mut smart.not_found)?;
+    set(table, "help", &mut smart.help)?;
     set(table, "long_command", &mut smart.long_command)?;
     set(table, "glow", &mut smart.glow)?;
     set(table, "notify", &mut smart.notify)?;

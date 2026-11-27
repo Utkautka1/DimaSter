@@ -157,6 +157,10 @@ classDiagram
     State *-- Commands
     Commands *-- Finished
     Commands *-- SmartOptions
+    class Help { help_with(Finished) }
+    Help ..> Commands
+    Help ..> CommandCache
+    Help ..> Notice
     View *-- Assist
     class Status { target; facts; line }
     class Sampler { versions; previous; ticks; +sample(target) }
