@@ -220,6 +220,15 @@ pub(crate) fn editing_command(term: &Terminal) -> bool {
 }
 
 /// Возвращает набранную команду, если курсор стоит в самом конце ввода.
+// под строкой ввода что-то есть — открыт список дополнения: стрелки и место
+// принадлежат ему, а не подсказке
+fn list_below(term: &Terminal) -> bool {
+    let below = term.screen().rows().iter().skip(term.cursor().row + 1);
+    below
+        .take(2)
+        .any(|row| !row.wrapped && row.text().chars().any(|c| c != ' '))
+}
+
 pub(crate) fn input_text_at_end(term: &Terminal) -> Option<String> {
     let cells = read_input_cells(term)?;
     let last = cells.last()?;
@@ -230,7 +239,7 @@ pub(crate) fn input_text_at_end(term: &Terminal) -> Option<String> {
         .line(cursor_line)
         .and_then(|r| r.cells.get(cursor.col).map(|c| c.ch));
     let taken = below.is_some_and(|ch| ch != ' ');
-    if cursor_line != last.line || cursor.col <= last.col || taken {
+    if cursor_line != last.line || cursor.col <= last.col || taken || list_below(term) {
         return None;
     }
     Some(cells.iter().map(|c| c.ch).collect())
@@ -510,6 +519,12 @@ mod tests {
         term.advance(b"\x1b]133;A\x07> \x1b]133;B\x07");
         term.advance(output.as_bytes());
         input_text_at_end(&term)
+    }
+
+    #[test]
+    fn open_completion_list_hides_the_suggestion() {
+        assert_eq!(typed("cd d\x1b7\r\ndocs/  da/\x1b8"), None);
+        assert_eq!(typed("cd d").as_deref(), Some("cd d"));
     }
 
     #[test]
