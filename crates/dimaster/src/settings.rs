@@ -284,6 +284,14 @@ pub(crate) fn shell_env(config: &Config) -> Vec<(String, String)> {
         ));
     }
     apply_smart_env(config, &mut env);
+    // starship читает копию, которую терминал красит под скин
+    if let Some(copy) = crate::prompt::redirected(config) {
+        env.retain(|v| v.0 != "STARSHIP_CONFIG");
+        env.push((
+            "STARSHIP_CONFIG".to_owned(),
+            copy.to_string_lossy().into_owned(),
+        ));
+    }
     env
 }
 

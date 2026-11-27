@@ -30,6 +30,7 @@ mod panels;
 mod plugin_runtime;
 mod pointer;
 mod presentation;
+mod prompt;
 mod reload;
 mod remote;
 mod restore;

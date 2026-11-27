@@ -28,6 +28,8 @@ const SWATCH: [usize; 6] = [1, 3, 2, 6, 4, 5];
 #[derive(Default)]
 pub(crate) struct Look {
     pub(crate) style: Option<&'static Style>,
+    // выбран скин или стиль: приглашение красится под него
+    pub(crate) painted: bool,
     // тема без скина: нужна, пока открыта витрина
     plain: Theme,
     // фон рисуется заново только при смене сцены или цветов
@@ -38,6 +40,7 @@ impl Look {
     pub(crate) fn saved() -> Self {
         Self {
             style: chosen("style").and_then(|id| style(&id)),
+            painted: chosen("skin").is_some() || chosen("style").is_some(),
             ..Self::default()
         }
     }
@@ -162,6 +165,7 @@ impl View {
         match settings::read_plain(&stack) {
             Ok(config) => {
                 self.look.style = look;
+                self.look.painted = name.is_some() || look.is_some();
                 self.apply(config);
                 self.apply_style_bar();
                 self.renderer.reset_glyphs();

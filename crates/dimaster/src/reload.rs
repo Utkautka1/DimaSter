@@ -80,6 +80,7 @@ impl View {
         look.top = self.content_top();
         look.wallpaper = self.wallpaper();
         self.animator.look = self.config.cursor_look;
+        self.sync_outside();
         self.renderer.set_appearance(look);
         self.term
             .set_default_colors(settings::default_colors(&self.config));
@@ -96,10 +97,15 @@ impl View {
             errors: smart.errors,
             search_tools: smart.search_tools.clone(),
         });
+    }
+
+    // то, что живёт вне сетки: рамка композитора и файл приглашения
+    fn sync_outside(&self) {
         let window = &self.config.window;
         self.window
             .set_decorations(window.decorations == Decorations::System);
         self.window.set_blur(window.blur);
+        crate::prompt::sync(&self.config, self.look.painted);
     }
 
     fn rebuild_fonts(&mut self) {
