@@ -13,6 +13,7 @@
 | `settings/window.lua` | [Окно](settings/window.md) |
 | `settings/effects.lua` | [Анимации](settings/effects.md) |
 | `settings/behavior.lua` | [Поведение, умная оболочка, окружение](settings/behavior.md) |
+| ключ `native` | [Меню по Tab, история стрелками, сокращения, алиасы](settings/native.md) |
 | ключ `help` | [Приветствие и советы при ошибке](settings/help.md) |
 | ключ `tuning` | [Тайминги, клавиши подсказок, размеры списков](settings/tuning.md) |
 | ключ `limits` | [Защитные пределы и размеры отрисовки](settings/limits.md) |

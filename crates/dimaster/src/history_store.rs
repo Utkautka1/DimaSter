@@ -67,6 +67,18 @@ impl AssistStore {
         }
     }
 
+    /// Команды, начинающиеся с `prefix`: сначала новые, без повторов.
+    pub(crate) fn matching(&self, prefix: &str, live: &[String]) -> Vec<String> {
+        let mut found: Vec<String> = Vec::new();
+        let all = self.commands.iter().chain(live).rev();
+        for command in all.filter(|c| c.starts_with(prefix) && c.as_str() != prefix) {
+            if !found.contains(command) {
+                found.push(command.clone());
+            }
+        }
+        found
+    }
+
     pub(crate) fn best_suggestion(&self, prefix: &str, live: &[String]) -> Option<String> {
         if prefix.is_empty() {
             return None;

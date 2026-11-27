@@ -108,6 +108,8 @@ pub(crate) struct CommandCache {
     bins: HashSet<String>,
     updated: Option<Instant>,
     last_path: String,
+    /// Алиасы и сокращения из настроек: тоже команды.
+    pub(crate) own: Vec<String>,
 }
 
 impl CommandCache {
@@ -134,7 +136,7 @@ impl CommandCache {
     }
 
     pub(crate) fn exists(&mut self, word: &str, cwd: Option<&str>) -> bool {
-        if BUILTINS.binary_search(&word).is_ok() {
+        if BUILTINS.binary_search(&word).is_ok() || self.own.iter().any(|o| o == word) {
             return true;
         }
         if word.contains('/') || word.starts_with("~/") {
@@ -142,6 +144,23 @@ impl CommandCache {
         }
         self.refresh();
         self.bins.contains(word)
+    }
+
+    /// Все команды, начинающиеся с `prefix`, по алфавиту.
+    pub(crate) fn names(&mut self, prefix: &str) -> Vec<String> {
+        self.refresh();
+        let all = BUILTINS
+            .iter()
+            .copied()
+            .chain(self.bins.iter().map(String::as_str))
+            .chain(self.own.iter().map(String::as_str));
+        let mut found: Vec<String> = all
+            .filter(|n| n.starts_with(prefix))
+            .map(str::to_owned)
+            .collect();
+        found.sort();
+        found.dedup();
+        found
     }
 
     /// Ищет наиболее близкую команду по расстоянию Левенштейна ≤ 2 (аналог thefuck).

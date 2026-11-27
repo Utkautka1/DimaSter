@@ -73,6 +73,16 @@ if [[ -o interactive ]]; then
     }
     add-zsh-hook precmd __dimaster_color_nano
   fi
+  if [[ -n "$DIMASTER_ALIASES" ]]; then
+    # алиасы из настроек терминала: после .zshrc, поверх своих
+    __dimaster_aliases() {
+      add-zsh-hook -d precmd __dimaster_aliases
+      unset -f __dimaster_aliases
+      eval "$DIMASTER_ALIASES"
+      unset DIMASTER_ALIASES
+    }
+    add-zsh-hook precmd __dimaster_aliases
+  fi
   add-zsh-hook precmd __dimaster_precmd
   add-zsh-hook preexec __dimaster_preexec
 fi

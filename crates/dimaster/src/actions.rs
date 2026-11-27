@@ -157,6 +157,9 @@ impl View {
         match state.press(press) {
             picker::Outcome::Stay => self.mode = Mode::Picker(state),
             picker::Outcome::Insert(path) => self.type_bytes(format!("{path} ").into_bytes()),
+            picker::Outcome::Complete { word, choice } => {
+                self.type_bytes(crate::complete::replace(&word, &choice));
+            }
             picker::Outcome::ChangeDir(dir) => self.type_bytes(format!("cd {dir}\r").into_bytes()),
             picker::Outcome::Close => {}
             picker::Outcome::Launch(command) => self.launch(command),

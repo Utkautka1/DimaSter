@@ -162,6 +162,10 @@ classDiagram
     class Tuning { timings; limits; hint_letters; pairs; suggest_keys; sizes }
     class DockerTiming { query; action; ssh_persist; tunnel }
     View ..> Tuning
+    class Native { history_search; complete; abbreviations; aliases }
+    class Walk { prefix; index; shown }
+    View ..> Native
+    Assist *-- Walk
     class Limit { name; default; min; max; risk; +get() +set(value) }
     View ..> Limit : apply(Config.limits)
     View *-- Assist

@@ -7,7 +7,7 @@ use crate::keys::default_bindings;
 use crate::{
     Bell, Binding, CursorLook, Effects, Programs, Smart, Theme, Ui, Widgets, WindowConfig,
 };
-use crate::{Help, Tuning};
+use crate::{Help, Native, Tuning};
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum CursorStyle {
@@ -124,6 +124,8 @@ pub struct Config {
     pub help: Help,
     /// Тайминги и пределы.
     pub tuning: Tuning,
+    /// Удобства shell силами терминала.
+    pub native: Native,
     /// Изменённые защитные пределы: имя и значение.
     pub limits: Vec<(String, u64)>,
     /// Свои команды для списка сниппетов.
@@ -177,6 +179,7 @@ impl Default for Config {
             smart: Smart::default(),
             help: Help::default(),
             tuning: Tuning::default(),
+            native: Native::default(),
             limits: Vec::new(),
             snippets: Vec::new(),
             scrollbar: true,

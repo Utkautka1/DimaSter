@@ -78,6 +78,16 @@ impl View {
         }
     }
 
+    // что окно помнит о командах; свои алиасы не подсвечиваются как несуществующие
+    fn apply_command_memory(&mut self) {
+        let native = &self.config.native;
+        let own = native.aliases.iter().chain(&native.abbreviations);
+        self.syntax.own = own.map(|a| a.0.clone()).collect();
+        let tuning = &self.config.tuning;
+        self.term
+            .set_command_limits(tuning.memory_commands, tuning.memory_lines);
+    }
+
     pub(crate) fn apply_to_terminal(&mut self) {
         let cell_height = self.fonts.metrics().cell_height;
         let mut look = settings::appearance(&self.config, cell_height);
@@ -95,9 +105,7 @@ impl View {
         self.term.set_policy(policy);
         self.term.set_history_limit(self.config.scrollback);
         self.term.set_images_scroll(self.config.images_scroll);
-        let tuning = &self.config.tuning;
-        self.term
-            .set_command_limits(tuning.memory_commands, tuning.memory_lines);
+        self.apply_command_memory();
         let smart = &self.config.smart;
         self.term.set_smart_options(SmartOptions {
             ok: smart.ok.clone(),

@@ -58,3 +58,9 @@ if set -q DIMASTER_COLOR_NANO; and test -r $__dimaster_nanorc; and not test -e ~
     end
 end
 set -e DIMASTER_COLOR_NANO
+
+# алиасы из настроек терминала
+if set -q DIMASTER_ALIASES
+    eval $DIMASTER_ALIASES
+    set -e DIMASTER_ALIASES
+end

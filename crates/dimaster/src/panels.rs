@@ -35,6 +35,7 @@ fn picker_header(picker: &Picker) -> String {
         Kind::Dirs => t!(" Папки: {q}_", q = q),
         Kind::Ssh => t!(" SSH: {q}_  (Enter подключиться)", q = q),
         Kind::Snippets => t!(" Сниппеты: {q}_", q = q),
+        Kind::Complete => t!(" Дополнение: {q}_", q = q),
         Kind::Docker => t!(
             " Docker: {q}_  (Enter войти · ^L логи · ^S старт/стоп · ^R перезапуск)",
             q = q

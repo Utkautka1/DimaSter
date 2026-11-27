@@ -11,6 +11,12 @@ if [ -n "${DIMASTER_STARTUP_FETCH-}" ]; then
   unset DIMASTER_STARTUP_FETCH DIMASTER_BIN
 fi
 
+# алиасы из настроек терминала, поверх своих
+if [ -n "${DIMASTER_ALIASES-}" ]; then
+  eval "$DIMASTER_ALIASES"
+  unset DIMASTER_ALIASES
+fi
+
 __dimaster_precmd() {
   local code=$?
   printf '\e]133;D;%s\a\e]7;file://%s%s\a\e]133;A\a' "$code" "$HOSTNAME" "${PWD//%/%25}"

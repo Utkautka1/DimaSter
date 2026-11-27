@@ -12,6 +12,8 @@ use crate::view::View;
 #[derive(Debug, Default)]
 pub(crate) struct Assist {
     seen: u64,
+    /// Листание истории стрелками.
+    pub(crate) walk: crate::native::Walk,
     pub(crate) glow_since: Option<Instant>,
     /// Пользователь что-то набрал после последней команды.
     pub(crate) typed: bool,
@@ -72,6 +74,8 @@ impl View {
         }
         self.assist.seen = completed;
         self.assist.typed = false;
+        // после команды стрелки листают историю заново
+        self.assist.walk = crate::native::Walk::default();
         let Some(last) = self.term.commands().next_back() else {
             return;
         };

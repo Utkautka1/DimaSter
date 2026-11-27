@@ -6,7 +6,7 @@ use std::fmt::Write;
 use std::path::Path;
 
 use crate::color::format_color;
-use crate::{Chord, Config, Help, Smart, Theme, Tuning};
+use crate::{Chord, Config, Help, Native, Smart, Theme, Tuning};
 
 // строка Lua: экранируются только символы, ломающие литерал
 fn quote(text: &str) -> String {
@@ -322,6 +322,34 @@ fn limits(chosen: &[(String, u64)]) -> String {
     format!("{title}\n  limits = {{\n{lines}  }},\n")
 }
 
+fn dictionary(pairs: &[(String, String)]) -> String {
+    list(pairs, |p| format!("[{}] = {}", quote(&p.0), quote(&p.1)))
+}
+
+fn native_keys(n: &Native) -> String {
+    format!(
+        "    history_back = {},\n    history_forward = {},\n    complete_keys = {},\n",
+        list(&n.history_back, chord_text),
+        list(&n.history_forward, chord_text),
+        list(&n.complete_keys, chord_text),
+    )
+}
+
+// удобства shell силами терминала
+fn native(n: &Native) -> String {
+    format!(
+        "  native = {{\n    history_search = {},\n    complete = {},\n    man_flags = {},\n{}    \
+         path_commands = {},\n    abbreviations = {},\n    aliases = {},\n  }},\n",
+        n.history_search,
+        n.complete,
+        n.man_flags,
+        native_keys(n),
+        list(&n.path_commands, |c| quote(c)),
+        dictionary(&n.abbreviations),
+        dictionary(&n.aliases),
+    )
+}
+
 // мышь и буфер обмена
 fn interaction(config: &Config) -> String {
     format!(
@@ -356,6 +384,7 @@ pub(super) fn behavior(config: &Config) -> String {
             + &smart(&config.smart, config.scrollbar)
             + &help(&config.help)
             + &tuning(&config.tuning)
+            + &native(&config.native)
             + &limits(&config.limits)
             + &widgets(config)
             + &environment(config),

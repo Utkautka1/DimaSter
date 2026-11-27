@@ -252,6 +252,27 @@ fn apply_fetch_env(config: &Config, env: &mut Vec<(String, String)>) {
     }
 }
 
+// `alias` для shell; fish экранирует кавычку внутри кавычек обратной чертой
+fn aliases(list: &[(String, String)], fish: bool) -> String {
+    let line = |(name, value): &(String, String)| match fish {
+        true => {
+            let value = value.replace('\\', "\\\\").replace('\'', "\\'");
+            format!("alias {name} '{value}'")
+        }
+        false => format!("alias {name}='{}'", value.replace('\'', "'\\''")),
+    };
+    list.iter().map(line).collect::<Vec<_>>().join("; ")
+}
+
+fn apply_aliases(config: &Config, env: &mut Vec<(String, String)>) {
+    if config.native.aliases.is_empty() {
+        return;
+    }
+    let fish = shell(config).first().is_some_and(|s| s.ends_with("fish"));
+    let script = aliases(&config.native.aliases, fish);
+    env.push(("DIMASTER_ALIASES".to_owned(), script));
+}
+
 fn apply_smart_env(config: &Config, env: &mut Vec<(String, String)>) {
     if config.smart.not_found {
         env.push(("DIMASTER_NOT_FOUND".to_owned(), tr("команда не найдена")));
@@ -288,6 +309,7 @@ pub(crate) fn shell_env(config: &Config) -> Vec<(String, String)> {
         ));
     }
     apply_smart_env(config, &mut env);
+    apply_aliases(config, &mut env);
     // starship читает копию, которую терминал красит под скин
     if let Some(copy) = crate::prompt::redirected() {
         env.retain(|v| v.0 != "STARSHIP_CONFIG");
@@ -330,5 +352,17 @@ mod tests {
         let disabled = shell_env(&config);
         assert!(!disabled.iter().any(|(k, _)| k == "DIMASTER_STARTUP_FETCH"));
         assert!(!disabled.iter().any(|(k, _)| k == "DIMASTER_COLOR_LS"));
+    }
+}
+
+#[cfg(test)]
+mod alias_tests {
+    use super::*;
+
+    #[test]
+    fn quotes_survive_each_shell() {
+        let list = [("hi".to_owned(), r#"echo "it's" a\b"#.to_owned())];
+        assert_eq!(aliases(&list, false), r#"alias hi='echo "it'\''s" a\b'"#);
+        assert_eq!(aliases(&list, true), r#"alias hi 'echo "it\'s" a\\b'"#);
     }
 }

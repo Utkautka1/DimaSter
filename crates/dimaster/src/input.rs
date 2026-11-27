@@ -122,6 +122,9 @@ impl View {
         if let Some(bytes) = self.accept_ghost_bytes(key) {
             return Some(bytes);
         }
+        if let Some(bytes) = self.native_bytes(key) {
+            return Some(bytes);
+        }
         if self.config.smart.autopair {
             return crate::autopair::handle(
                 &self.term,
@@ -134,7 +137,7 @@ impl View {
         None
     }
 
-    fn pressed(&self, key: &Key, chords: &[Chord]) -> bool {
+    pub(crate) fn pressed(&self, key: &Key, chords: &[Chord]) -> bool {
         let name = key_name(key).unwrap_or_default();
         let held = mods(self.modifiers);
         chords.iter().any(|c| c.key == name && c.mods == held)

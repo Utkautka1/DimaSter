@@ -10,8 +10,8 @@ use crate::import::ghostty_theme;
 use crate::theme::builtin_source;
 use crate::{Config, CopyOnSelect, Decorations, Effects, Theme, WindowConfig, parse_color};
 use crate::{
-    context, cursor, help, limits, load_keys, load_smart, load_ui, programs, snippets, tuning,
-    widgets,
+    context, cursor, help, limits, load_keys, load_smart, load_ui, native, programs, snippets,
+    tuning, widgets,
 };
 
 /// Понятное человеку описание того, что не так в конфиге.
@@ -337,6 +337,9 @@ fn apply_extras(table: &Table, config: &mut Config) -> Result<(), ConfigError> {
     }
     if let Some(tuning_table) = table.get::<Option<Table>>("tuning")? {
         tuning::apply(&tuning_table, &mut config.tuning)?;
+    }
+    if let Some(native_table) = table.get::<Option<Table>>("native")? {
+        native::apply(&native_table, &mut config.native)?;
     }
     Ok(())
 }

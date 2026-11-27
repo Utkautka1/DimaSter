@@ -484,3 +484,4 @@ Docker: управление	Docker: manage
 наибольшая разрешённая прозрачность, проценты; выше 100 на экране не отличается	largest allowed opacity, percent; above 100 looks the same
 наименьшая ширина панели истории, проценты окна	narrowest history panel, percent of the window
 наибольшая ширина панели истории, проценты окна	widest history panel, percent of the window
+ Дополнение: {q}_	 Completion: {q}_

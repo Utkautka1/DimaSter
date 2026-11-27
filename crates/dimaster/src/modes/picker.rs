@@ -14,6 +14,8 @@ pub(crate) enum Kind {
     Ssh,
     Snippets,
     Docker,
+    /// Меню дополнения по `Tab`; `values` — дополняемое слово.
+    Complete,
     /// Заполнение поля сниппета: набранное и есть значение.
     Fill,
 }
@@ -34,6 +36,11 @@ pub(crate) enum Outcome {
     Stay,
     Close,
     Insert(String),
+    /// Заменить набранное слово выбранным.
+    Complete {
+        word: String,
+        choice: String,
+    },
     ChangeDir(String),
     Launch(Command),
     /// Спросить значения полей шаблона.
@@ -213,7 +220,7 @@ impl Picker {
                 launch::docker(name, up == "1", press).map(Outcome::Launch)
             }
             Kind::Fill => enter.map(|_| self.filled()),
-            Kind::Files | Kind::Dirs => None,
+            Kind::Files | Kind::Dirs | Kind::Complete => None,
         }
     }
 
@@ -231,6 +238,11 @@ impl Picker {
         let Some(chosen) = self.matches().get(self.selected).copied() else {
             return Outcome::Close;
         };
+        if self.kind == Kind::Complete {
+            let word = self.values.first().cloned().unwrap_or_default();
+            let choice = chosen.to_owned();
+            return Outcome::Complete { word, choice };
+        }
         let escaped = shell_escape(chosen);
         match (self.kind, shift) {
             (Kind::Dirs, false) => Outcome::ChangeDir(escaped),

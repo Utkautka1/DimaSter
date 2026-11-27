@@ -35,7 +35,7 @@ fn single_char(text: Option<&str>) -> Option<char> {
     chars.next().is_none().then_some(ch)
 }
 
-fn neighbors(term: &Terminal) -> (Option<char>, Option<char>) {
+pub(crate) fn neighbors(term: &Terminal) -> (Option<char>, Option<char>) {
     let cursor = term.cursor();
     let line = term.visible_line(0) + cursor.row as u64;
     let Some(row) = term.line(line) else {

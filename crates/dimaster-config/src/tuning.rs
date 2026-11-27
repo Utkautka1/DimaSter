@@ -62,7 +62,7 @@ fn chord(text: &str) -> Option<Chord> {
     })
 }
 
-fn chords(texts: &[&str]) -> Vec<Chord> {
+pub(crate) fn chords(texts: &[&str]) -> Vec<Chord> {
     texts.iter().filter_map(|t| chord(t)).collect()
 }
 

@@ -31,6 +31,7 @@ A fast, GPU-accelerated Linux terminal emulator written in Rust (`wgpu` + `winit
   - **Typo Correction & Ghost Autosuggestions**: suggests corrections (`cs` → `cd`, press `Ctrl+Right` / `Ctrl+End` to fix) and finishes commands from persistent history (`Right` / `End` for full line, `Ctrl+Right` word-by-word).
   - **Auto-Pairing & Colored Tools**: auto-closes `() [] {} "" ''` (`smart.autopair`), injects Catppuccin `LS_COLORS` with colored `ls`/`eza` (`smart.color_ls`), and runs `dimaster fetch` on shell startup (`smart.startup_fetch`).
   - **Fuzzy File & Directory Pickers**: built-in `fzf`-style file inserter (`Ctrl+Shift+T`) and `zoxide`-style frequent directory jumper (`Ctrl+Shift+G`), plus fuzzy-searchable command history (`Ctrl+Shift+H`).
+- **Native replacements for shell plugins**: `Tab` completion menu (commands, flags, files), `↑` history search by prefix, abbreviations and cross-shell aliases from Lua ([details](docs/lua/settings/native.md)).
 - **Productivity Modes & Widgets**:
   - Command Palette (`Ctrl+Shift+P`), Scrollback Search (`Ctrl+Shift+F`), Vi Mode (`Ctrl+Shift+Space`), Link Hints (`Ctrl+Shift+U`), Command History (`Ctrl+Shift+H`, `Ctrl+Y` copies output), File Picker (`Ctrl+Shift+T`), Directory Jumper (`Ctrl+Shift+G`), Minimap (`Ctrl+Shift+M`), Resource Monitor (`Ctrl+Shift+O`), Status Bar (`Ctrl+Shift+B`), Sudo Fix (`Ctrl+Shift+S`), Presentation Mode (`Ctrl+Shift+Z`).
   - Lua plugin API (`~/.config/dimaster/plugins/*.lua`) and CLI remote control (`dimaster ctl`).
