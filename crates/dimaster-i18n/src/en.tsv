@@ -93,6 +93,10 @@ dimaster ctl [list | info | get-text | send-text <текст> | action <имя> 
 Команда завершилась с ошибкой	Command failed
 DimaSter — ошибка в init.lua	DimaSter — error in init.lua
 Добро пожаловать в DimaSter!	Welcome to DimaSter!
+  →              принять подсказку команды	  →              accept the command suggestion
+  Ctrl+Shift+H   поиск по истории	  Ctrl+Shift+H   search history
+  Ctrl+Shift+G   переход в частую папку	  Ctrl+Shift+G   jump to a frequent directory
+  Ctrl+Shift+P   все остальные команды	  Ctrl+Shift+P   all other commands
 Откуда взять настройки (шрифт, цвета, отступы, курсор)?	Where to take settings from (font, colors, padding, cursor)?
   0) начать с базовых	  0) start with defaults
 Номер или несколько через пробел [0]: 	Number, or several separated by spaces [0]: 

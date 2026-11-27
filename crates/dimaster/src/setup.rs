@@ -45,6 +45,10 @@ fn menu(found: &[Source], out: &mut impl Write) -> io::Result<()> {
 
 // None — ввод закрыт: пользователь не ответил, ничего не пишем
 fn ask(found: &[Source]) -> io::Result<Option<Vec<Source>>> {
+    // переносить нечего — не спрашиваем: «поставил и работает»
+    if found.is_empty() {
+        return Ok(Some(Vec::new()));
+    }
     let (input, mut out) = (io::stdin(), io::stdout());
     loop {
         menu(found, &mut out)?;
@@ -125,12 +129,28 @@ fn save(directory: &Path, config: &Config) -> io::Result<()> {
     Ok(())
 }
 
+// четыре клавиши, без которых встроенные возможности не найти
+fn tips() -> String {
+    [
+        tr("Добро пожаловать в DimaSter!"),
+        tr("  →              принять подсказку команды"),
+        tr("  Ctrl+Shift+H   поиск по истории"),
+        tr("  Ctrl+Shift+G   переход в частую папку"),
+        tr("  Ctrl+Shift+P   все остальные команды"),
+    ]
+    .join("\n")
+}
+
 fn wizard() -> io::Result<()> {
     let directory = config_dir().ok_or_else(|| io::Error::other(tr("не задан HOME")))?;
     let config_home = directory.parent().unwrap_or(Path::new("."));
     let found = detect(config_home);
     match ask(&found)? {
-        Some(chosen) => save(&directory, &build(&chosen, config_home)),
+        Some(chosen) => {
+            save(&directory, &build(&chosen, config_home))?;
+            println!("{}\n", tips());
+            Ok(())
+        }
         None => Ok(()),
     }
 }
@@ -172,6 +192,11 @@ pub(crate) fn run(then: &[String]) -> io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn nothing_to_import_asks_nothing() {
+        assert_eq!(ask(&[]).ok(), Some(Some(Vec::new())));
+    }
 
     #[test]
     fn parses_answers() {
