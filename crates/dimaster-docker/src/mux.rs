@@ -72,29 +72,26 @@ pub(crate) fn path() -> Option<&'static OsString> {
 
 #[cfg(test)]
 mod tests {
-    use std::process::Command;
-
     use super::*;
 
+    // обёртка не запускается: подставные программы ведут себя по-разному на
+    // разных системах, а только что записанный файл бывает «занят»
     #[test]
     fn shim_comes_first_and_adds_master_options() {
         let root = std::env::temp_dir().join(format!("dimaster-mux-{}", std::process::id()));
         std::fs::create_dir_all(&root).expect("каталог");
-        // вместо ssh — программа, печатающая свои аргументы
-        std::os::unix::fs::symlink("/bin/echo", root.join("ssh")).expect("ссылка");
+        std::fs::write(root.join("ssh"), "").expect("файл");
         let own = root.join("shim");
         let path = shimmed(root.as_os_str(), &own).expect("PATH");
-        assert_eq!(
-            std::env::split_paths(&path).next().as_deref(),
-            Some(own.as_path())
+        let first = std::env::split_paths(&path).next();
+        assert_eq!(first.as_deref(), Some(own.as_path()));
+        let text = std::fs::read_to_string(own.join("ssh")).expect("обёртка");
+        let real = format!(
+            "exec '{}' -o ControlMaster=auto",
+            root.join("ssh").display()
         );
-        // через sh: прямой запуск только что записанного файла иногда даёт
-        // «Text file busy», пока соседний тест порождает процесс
-        let mut wrapper = Command::new("sh");
-        let output = wrapper.arg(own.join("ssh")).arg("a b").output();
-        let output = output.expect("запуск");
-        let text = String::from_utf8_lossy(&output.stdout);
-        assert!(text.contains("ControlMaster=auto") && text.trim_end().ends_with("a b"));
+        assert!(text.starts_with("#!/bin/sh\n") && text.contains(&real));
+        assert!(text.ends_with("\"$@\"\n"));
         std::fs::remove_dir_all(root).expect("уборка");
     }
 }
