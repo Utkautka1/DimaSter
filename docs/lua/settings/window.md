@@ -30,3 +30,37 @@ hl.bind("SUPER + SHIFT + Return", function()
   end
 end)
 ```
+
+## Стекло и фоновая картинка
+
+```lua
+return { window = { opacity = 0.7, blur = true } }
+```
+
+```lua
+return {
+  window = {
+    background_dir = "~/Pictures/walls",   -- случайная картинка из папки
+    background_opacity = 0.25,
+    opacity = 1.0,
+  },
+}
+```
+
+## Рамка окна
+
+| `decorations` | Что видно |
+|---|---|
+| `"none"` | только содержимое (по умолчанию): удобно в тайловых композиторах |
+| `"own"` | своя полоса заголовка с кнопками; вид — `ui.title` |
+| `"system"` | рамка композитора |
+
+```lua
+return { window = { decorations = "own", columns = 120, rows = 35 } }
+```
+
+Закрытие с подтверждением:
+
+```lua
+return { confirm_close = true }
+```

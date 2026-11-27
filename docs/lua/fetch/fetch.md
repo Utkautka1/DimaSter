@@ -55,3 +55,42 @@ return {
 ```bash
 if [[ $TERM_PROGRAM != dimaster ]]; then fastfetch; fi
 ```
+
+## Свой макет с нуля
+
+```lua
+local lines = { color("bold", color("magenta", info.user .. "@" .. info.host)) }
+local function row(title, value)
+  if value then lines[#lines + 1] = color("blue", title) .. "  " .. value end
+end
+row("OS", info.os)
+row("Up", info.uptime)
+row("RAM", info.memory)
+return { lines = lines, logo = { "  /\\  ", " /  \\ " }, logo_width = 10 }
+```
+
+Неизвестное значение равно `nil`, поэтому проверяйте его перед склейкой строк.
+
+## Свои сведения
+
+```lua
+local function run(command)
+  local pipe = io.popen(command)
+  local out = pipe:read("l")
+  pipe:close()
+  return out
+end
+return { lines = { "kernel  " .. info.kernel, "ip  " .. (run("hostname -i 2>/dev/null") or "-") } }
+```
+
+Каждая внешняя программа замедляет появление `fetch`.
+
+## Скорость
+
+Название видеокарты запоминается в `~/.cache/dimaster/fetch-gpu` до смены железа. Чтобы `fetch` не ждал ваш `.zshrc`:
+
+```lua
+return { smart = { fetch_early = true } }
+```
+
+Отключить автозапуск: `smart = { startup_fetch = false }`.

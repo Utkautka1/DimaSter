@@ -42,3 +42,30 @@ return { theme = night and "catppuccin-mocha" or "gruvbox-dark" }
 ```
 
 Условие вычисляется при загрузке и перезагрузке конфига, а не по таймеру.
+
+## Как объединяются слои: пример
+
+```lua
+-- settings/font.lua
+return { font = { family = "Fira Code", size = 11 } }
+```
+
+```lua
+-- local.lua
+return { font = { size = 14 } }
+```
+
+Итог: `family = "Fira Code"` из первого файла, `size = 14` из второго. Списки так не складываются: `shell`, `ansi`, `dirs`, `ui.title.buttons` из более позднего слоя заменяют прежние целиком. Привязки `keys`, наоборот, накапливаются; чтобы убрать стандартные, задайте `clear_default_keys = true`.
+
+## Свой модуль
+
+```lua
+-- colors.lua в каталоге настроек
+return { accent = "#cba6f7" }
+```
+
+```lua
+-- local.lua
+local colors = require("colors")
+return { smart = { glow_color = colors.accent } }
+```

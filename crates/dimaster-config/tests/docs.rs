@@ -55,3 +55,45 @@ fn documented_theme_example_is_valid() {
     let colors = docs[start..end].replacen("return ", "return { colors = ", 1) + " }";
     parse(&colors, None).unwrap();
 }
+
+// блоки ```lua, начинающиеся с `return {` или `local hour`
+fn settings_examples(page: &str) -> impl Iterator<Item = &str> {
+    page.split("```lua\n").skip(1).filter_map(|rest| {
+        let block = &rest[..rest.find("\n```")?];
+        let code = block.lines().find(|l| !l.starts_with("--"))?;
+        let config = code.starts_with("return {") || code.starts_with("local hour");
+        config.then_some(block)
+    })
+}
+
+// темы, fetch и свои модули — не настройки или требуют каталога
+const EXAMPLE_PAGES: [&str; 11] = [
+    "start.md",
+    "recipes.md",
+    "core/layers.md",
+    "core/profiles.md",
+    "settings/appearance.md",
+    "settings/font.md",
+    "settings/window.md",
+    "settings/effects.md",
+    "settings/behavior.md",
+    "settings/programs.md",
+    "interface/cursor.md",
+];
+
+#[test]
+fn settings_examples_load() {
+    let mut checked = 0;
+    for page in EXAMPLE_PAGES {
+        let text = std::fs::read_to_string(format!("../../docs/lua/{page}")).unwrap();
+        for block in settings_examples(&text) {
+            let source = block.replace("dimaster.ssh", "false");
+            let known = source.contains("theme = \"mine\"") || source.contains("require(");
+            if !known {
+                parse(&source, None).unwrap_or_else(|e| panic!("{page}: {e}\n{block}"));
+                checked += 1;
+            }
+        }
+    }
+    assert!(checked > 20, "проверено примеров: {checked}");
+}

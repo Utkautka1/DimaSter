@@ -51,3 +51,47 @@ end)
 ```
 
 Плагин выполняется с вашими правами и полной стандартной библиотекой Lua (`io`, `os`). Ставьте только те, чей код прочли.
+
+## Первый плагин
+
+Создайте `~/.config/dimaster/plugins/hello.lua`:
+
+```lua
+dimaster.command("hello", "Поздороваться", function()
+  dimaster.notify("DimaSter", "Каталог: " .. dimaster.cwd())
+end)
+```
+
+Сохраните, откройте палитру (`Ctrl+Shift+P`) и выберите «Поздороваться». Чтобы повесить на клавишу:
+
+```lua
+-- local.lua
+return { keys = { { key = "ctrl+shift+e", action = "plugin:hello" } } }
+```
+
+## Идеи
+
+```lua
+-- команда с текстом из выделения
+dimaster.command("google", "Искать выделенное", function()
+  local text = dimaster.selection()
+  if text ~= "" then
+    dimaster.send("xdg-open 'https://duckduckgo.com/?q=" .. text:gsub("'", ""):gsub(" ", "+") .. "'\r")
+  end
+end)
+```
+
+```lua
+-- напомнить о долгой сборке
+dimaster.on("command", function(line)
+  if line:match("^cargo build") then dimaster.notify("Сборка", "Готово: " .. line) end
+end)
+```
+
+## Ограничения и отладка
+
+- Все плагины, `statusbar.lua` и `draw.lua` живут в одном состоянии Lua: объявляйте переменные через `local`, чтобы не мешать друг другу.
+- За один вызов можно поставить в очередь не больше 256 действий.
+- Обработчик дольше 100 мс прерывается.
+- Ошибка одного плагина не останавливает остальные; смотрите её в stderr. `dimaster.log("…")` пишет туда же.
+- `dimaster.tr("…")` переводит строку на язык терминала.

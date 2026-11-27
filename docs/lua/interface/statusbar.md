@@ -92,3 +92,28 @@ end)
 Поля без данных равны `nil`. Пинг SSH-сервера из ТЗ не реализован.
 
 Ветка читается из `.git/HEAD`, программа `git` не запускается. `git_changes = true` включает `git status`: учтите, что чужой репозиторий (например, из скачанного архива) может через фильтры в `.git/config` выполнить свою программу, стоит лишь зайти в его каталог.
+
+## Рецепты
+
+```lua
+-- минимальный бар: каталог и время
+dimaster.statusbar(function(info)
+  return { left = { info.cwd or "" }, right = { os.date("%H:%M") } }
+end)
+```
+
+```lua
+-- режим показывается, только когда он не обычный
+dimaster.statusbar(function(info)
+  local left = {}
+  if info.mode ~= "NORMAL" then
+    left[#left + 1] = { text = " " .. info.mode .. " ", color = "#11111b", background = "#f9e2af", radius = 8 }
+  end
+  if info.key_table then left[#left + 1] = " [" .. info.key_table .. "]" end
+  return { left = left, right = { os.date("%d.%m %H:%M") } }
+end)
+```
+
+Дополнительные поля `info`: `key_table` (включённая таблица клавиш), `sequence` (сколько клавиш цепочки нажато), `progress` (проценты от программы).
+
+Отключить бар: `widgets = { statusbar = false }` или `Ctrl+Shift+B`.
