@@ -68,8 +68,8 @@ Prebuilt packages for every major Linux distribution are published on [GitHub Re
 - **Arch Linux / CachyOS (`pacman`)**:
   ```sh
   # Direct pacman install from Release:
-  curl -LO https://github.com/Utkautka1/DimaSter/releases/latest/download/dimaster-0.2.0-1-x86_64.pkg.tar.zst
-  sudo pacman -U dimaster-0.2.0-1-x86_64.pkg.tar.zst
+  curl -LO https://github.com/Utkautka1/DimaSter/releases/latest/download/dimaster-0.3.0-1-x86_64.pkg.tar.zst
+  sudo pacman -U dimaster-0.3.0-1-x86_64.pkg.tar.zst
   ```
   Or build locally via AUR-ready `PKGBUILD` ([packaging/aur/PKGBUILD](packaging/aur/PKGBUILD) or prebuilt [packaging/aur/dimaster-bin/PKGBUILD](packaging/aur/dimaster-bin/PKGBUILD)):
   ```sh
@@ -77,14 +77,14 @@ Prebuilt packages for every major Linux distribution are published on [GitHub Re
   ```
 - **Debian / Ubuntu / Linux Mint (`.deb`)**:
   ```sh
-  curl -LO https://github.com/Utkautka1/DimaSter/releases/latest/download/dimaster_0.2.0_amd64.deb
-  sudo apt install ./dimaster_0.2.0_amd64.deb
+  curl -LO https://github.com/Utkautka1/DimaSter/releases/latest/download/dimaster_0.3.0_amd64.deb
+  sudo apt install ./dimaster_0.3.0_amd64.deb
   ```
   Or build locally: `./packaging/deb/build-deb.sh`
 - **Fedora / RHEL / openSUSE (`.rpm`)**:
   ```sh
-  curl -LO https://github.com/Utkautka1/DimaSter/releases/latest/download/dimaster-0.2.0-1.x86_64.rpm
-  sudo dnf install ./dimaster-0.2.0-1.x86_64.rpm
+  curl -LO https://github.com/Utkautka1/DimaSter/releases/latest/download/dimaster-0.3.0-1.x86_64.rpm
+  sudo dnf install ./dimaster-0.3.0-1.x86_64.rpm
   ```
   Or build locally: `./packaging/rpm/build-rpm.sh`
 

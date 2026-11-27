@@ -1003,7 +1003,7 @@ dependencies = [
 
 [[package]]
 name = "dimaster"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "arboard",
  "dimaster-config",
@@ -1026,7 +1026,7 @@ dependencies = [
 
 [[package]]
 name = "dimaster-config"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "dimaster-i18n",
  "log",
@@ -1036,7 +1036,7 @@ dependencies = [
 
 [[package]]
 name = "dimaster-data"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "arrow-array",
  "arrow-cast",
@@ -1054,7 +1054,7 @@ dependencies = [
 
 [[package]]
 name = "dimaster-font"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "dimaster-i18n",
  "dimaster-image",
@@ -1066,7 +1066,7 @@ dependencies = [
 
 [[package]]
 name = "dimaster-grid"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "criterion",
  "dimaster-i18n",
@@ -1082,18 +1082,18 @@ dependencies = [
 
 [[package]]
 name = "dimaster-i18n"
-version = "0.2.0"
+version = "0.3.0"
 
 [[package]]
 name = "dimaster-image"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "proptest",
 ]
 
 [[package]]
 name = "dimaster-pty"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "dimaster-i18n",
  "libc",
@@ -1102,7 +1102,7 @@ dependencies = [
 
 [[package]]
 name = "dimaster-render"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bytemuck",
  "dimaster-font",
@@ -1117,7 +1117,7 @@ dependencies = [
 
 [[package]]
 name = "dimaster-view"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "crossterm",
  "dimaster-config",
@@ -1129,7 +1129,7 @@ dependencies = [
 
 [[package]]
 name = "dimaster-vt"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "proptest",
 ]
