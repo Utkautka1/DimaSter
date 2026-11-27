@@ -123,7 +123,9 @@ A look changes more than colors: the status bar and its contents, widgets, windo
 
 ![Four of the eight built-in looks: Neon, Sunset, Night city, Petals](assets/screenshots/styles.png)
 
-<img src="assets/screenshots/skins.png" alt="Skin gallery with color swatches" width="480">
+| Skin gallery (`Ctrl+Shift+K`) | Command palette (`Ctrl+Shift+P`) |
+|---|---|
+| ![Skin gallery with color swatches](assets/screenshots/skins.png) | ![Command palette](assets/screenshots/palette.png) |
 
 In the gallery: `↑`/`↓` or wheel picks a color scheme, `←`/`→` switches the look, typing searches, click or `Enter` keeps the choice, `Esc` reverts. "As configured" brings your own settings back. Details: [docs/lua/themes/skins.md](docs/lua/themes/skins.md).
 
