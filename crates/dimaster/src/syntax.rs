@@ -249,11 +249,12 @@ pub(crate) fn input_text_at_end(term: &Terminal) -> Option<String> {
     let text = input_before_cursor(term)?;
     let cursor = term.cursor();
     let cursor_line = term.visible_line(0) + cursor.row as u64;
-    // чужая подсказка под курсором уже занимает место нашей
-    let below = term
-        .line(cursor_line)
-        .and_then(|r| r.cells.get(cursor.col).map(|c| c.ch));
-    (!below.is_some_and(|ch| ch != ' ')).then_some(text)
+    // чужая подсказка уже занимает место нашей; она может начинаться с пробела
+    let after = term.line(cursor_line).is_some_and(|row| {
+        let mut near = row.cells.iter().skip(cursor.col).take(2);
+        near.any(|c| c.ch != ' ')
+    });
+    (!after).then_some(text)
 }
 
 /// То же для клавиш: серая подсказка плагина после курсора им не мешает.
@@ -535,6 +536,10 @@ mod tests {
         term.advance(b"\x1b]133;A\x07$ \x1b]133;B\x07cd \x1b[90m/tmp/x\x1b[0m\x1b[6D");
         assert_eq!(super::input_before_cursor(&term).as_deref(), Some("cd"));
         assert_eq!(super::input_text_at_end(&term), None);
+        // подсказка с пробела: `cd` + ` /tmp` не должна накрываться нашей
+        term.advance(b"\r\n\x1b]133;A\x07$ \x1b]133;B\x07cd\x1b[90m /tmp\x1b[0m\x1b[5D");
+        assert_eq!(super::input_text_at_end(&term), None);
+        assert_eq!(super::input_before_cursor(&term).as_deref(), Some("cd"));
     }
 
     use super::*;
