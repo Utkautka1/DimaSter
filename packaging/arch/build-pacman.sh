@@ -2,7 +2,7 @@
 # Build an Arch Linux / CachyOS pacman package (.pkg.tar.zst) from target/release/dimaster.
 set -eu
 
-VERSION="${1:-0.3.0}"
+VERSION="${1:-0.4.0}"
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)"
 OUT="$ROOT/target/arch"
 

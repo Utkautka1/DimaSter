@@ -4,7 +4,7 @@
 #   APPIMAGETOOL=/path/to/appimagetool skips the pinned download.
 set -eu
 
-VERSION="${1:-0.3.0}"
+VERSION="${1:-0.4.0}"
 ARCH="$(uname -m)"
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)"
 OUT="$ROOT/target/appimage"
