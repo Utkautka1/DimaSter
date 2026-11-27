@@ -289,3 +289,14 @@ dimaster.every: нужны секунды и функция	dimaster.every: seco
 dimaster.set: нужны числа, строки, флаги и таблицы	dimaster.set: only numbers, strings, flags and tables
 dimaster.set: нужна таблица	dimaster.set: a table is required
 таймер 	timer 
+в ~/.ssh/config нет серверов	no hosts in ~/.ssh/config
+нет сниппетов: добавьте snippets в local.lua	no snippets: add snippets to local.lua
+контейнеров нет	no containers
+Docker не отвечает	Docker is not responding
+ SSH: {q}_  (Enter подключиться)	 SSH: {q}_  (Enter to connect)
+ Сниппеты: {q}_	 Snippets: {q}_
+ Docker: {q}_  (Enter войти · ^L логи · ^S старт/стоп · ^R перезапуск)	 Docker: {q}_  (Enter shell · ^L logs · ^S start/stop · ^R restart)
+ {field}: {q}_	 {field}: {q}_
+SSH: подключиться к серверу	SSH: connect to a server
+Сниппеты	Snippets
+Docker: контейнеры	Docker: containers

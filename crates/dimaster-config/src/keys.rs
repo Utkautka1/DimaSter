@@ -48,6 +48,12 @@ pub enum Action {
     CommandHistory,
     PickFile,
     JumpDir,
+    /// Серверы из `~/.ssh/config`.
+    SshHosts,
+    /// Свои команды из `snippets`.
+    Snippets,
+    /// Контейнеры Docker.
+    Docker,
     SudoFix,
     Presentation,
     Minimap,
@@ -78,7 +84,10 @@ pub enum Action {
     None,
 }
 
-const ACTIONS: [(&str, Action); 34] = [
+const ACTIONS: [(&str, Action); 37] = [
+    ("ssh_hosts", Action::SshHosts),
+    ("snippets", Action::Snippets),
+    ("docker", Action::Docker),
     ("copy_last_output", Action::CopyLastOutput),
     ("ignore", Action::Ignore),
     ("unbind", Action::None),
@@ -249,7 +258,10 @@ impl Binding {
 }
 
 // сочетания по умолчанию совпадают с привычными по Ghostty и kitty
-const DEFAULTS: [(&str, &str, Action); 29] = [
+const DEFAULTS: [(&str, &str, Action); 32] = [
+    ("e", "ctrl+shift", Action::SshHosts),
+    ("i", "ctrl+shift", Action::Snippets),
+    ("d", "ctrl+shift", Action::Docker),
     ("x", "ctrl+shift", Action::CopyLastOutput),
     ("m", "ctrl+shift", Action::Minimap),
     ("o", "ctrl+shift", Action::ToggleMonitor),

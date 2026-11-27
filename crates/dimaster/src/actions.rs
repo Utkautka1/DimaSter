@@ -139,10 +139,13 @@ impl View {
         let items = match kind {
             picker::Kind::Files => picker::collect_files(&root),
             picker::Kind::Dirs => picker::merge_dirs(&root, &self.history_store.dirs),
+            // остальные списки открывает launcher
+            _ => return,
         };
         self.mode = Mode::Picker(picker::Picker {
             kind,
             items,
+            values: Vec::new(),
             query: String::new(),
             selected: 0,
         });
@@ -155,6 +158,16 @@ impl View {
             picker::Outcome::Insert(path) => self.type_bytes(format!("{path} ").into_bytes()),
             picker::Outcome::ChangeDir(dir) => self.type_bytes(format!("cd {dir}\r").into_bytes()),
             picker::Outcome::Close => {}
+            picker::Outcome::Launch(command) => self.launch(command),
+            picker::Outcome::Fill(template) => {
+                self.mode = Mode::Picker(picker::Picker {
+                    kind: picker::Kind::Fill,
+                    items: Vec::new(),
+                    values: vec![template],
+                    query: String::new(),
+                    selected: 0,
+                });
+            }
         }
     }
 

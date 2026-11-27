@@ -13,6 +13,7 @@
 | `settings/window.lua` | [Окно](settings/window.md) |
 | `settings/effects.lua` | [Анимации](settings/effects.md) |
 | `settings/behavior.lua` | [Поведение, умная оболочка, окружение](settings/behavior.md) |
+| `snippets` и списки SSH, Docker | [Списки](settings/lists.md) |
 | `settings/keys.lua` | [Клавиши и действия](settings/keys.md) |
 | `ui.lua` | [Вид интерфейса](interface/ui.md) |
 | `draw.lua` | [Свободное рисование](interface/draw.md) |

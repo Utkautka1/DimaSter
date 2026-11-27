@@ -28,6 +28,9 @@ return {
 | `scroll_bottom` | конец истории | Shift+End |
 | `prompt_previous` | предыдущее приглашение | Ctrl+Shift+↑ |
 | `copy_last_output` | скопировать вывод последней команды | Ctrl+Shift+X |
+| `ssh_hosts` | серверы из `~/.ssh/config` | Ctrl+Shift+E |
+| `snippets` | свои команды | Ctrl+Shift+I |
+| `docker` | контейнеры Docker | Ctrl+Shift+D |
 | `prompt_next` | следующее приглашение | Ctrl+Shift+↓ |
 | `font_increase` | крупнее | Ctrl+= |
 | `font_decrease` | мельче | Ctrl+- |

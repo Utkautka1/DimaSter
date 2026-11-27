@@ -3,6 +3,7 @@
 use std::path::{Path, PathBuf};
 
 use super::Press;
+use super::launch::{self, Command};
 
 const MAX_FILES: usize = 1500;
 const MAX_DEPTH: usize = 5;
@@ -12,12 +13,20 @@ const SKIP_DIRS: [&str; 4] = [".git", "target", "node_modules", ".cache"];
 pub(crate) enum Kind {
     Files,
     Dirs,
+    Ssh,
+    Snippets,
+    Docker,
+    /// Заполнение поля сниппета: набранное и есть значение.
+    Fill,
 }
 
 #[derive(Debug)]
 pub(crate) struct Picker {
     pub(crate) kind: Kind,
     pub(crate) items: Vec<String>,
+    /// Что стоит за каждой строкой списков SSH, сниппетов и Docker;
+    /// для `Fill` — один шаблон.
+    pub(crate) values: Vec<String>,
     pub(crate) query: String,
     pub(crate) selected: usize,
 }
@@ -28,6 +37,9 @@ pub(crate) enum Outcome {
     Close,
     Insert(String),
     ChangeDir(String),
+    Launch(Command),
+    /// Спросить значения полей шаблона.
+    Fill(String),
 }
 
 /// Оценка нечёткого совпадения подпоследовательности символов (больше — лучше).
@@ -145,6 +157,9 @@ impl Picker {
 
     pub(crate) fn press(&mut self, press: Press) -> Outcome {
         let count = self.matches().len();
+        if let Some(outcome) = self.special(press) {
+            return outcome;
+        }
         match press {
             Press::Escape | Press::Ctrl('c') => Outcome::Close,
             Press::Up | Press::Ctrl('k') => {
@@ -158,16 +173,59 @@ impl Picker {
             Press::Enter { shift } => self.accept(shift),
             Press::Backspace => {
                 self.query.pop();
-                self.selected = 0;
-                Outcome::Stay
+                self.retype()
             }
             Press::Char(ch) => {
                 self.query.push(ch);
-                self.selected = 0;
-                Outcome::Stay
+                self.retype()
             }
             _ => Outcome::Stay,
         }
+    }
+
+    // новый запрос начинает выбор сверху
+    fn retype(&mut self) -> Outcome {
+        self.selected = 0;
+        Outcome::Stay
+    }
+
+    // значение выбранной строки; у поясняющей строки пустого списка его нет
+    fn chosen_value(&self) -> Option<&str> {
+        let chosen = self.matches().get(self.selected).copied()?;
+        let index = self.items.iter().position(|i| i == chosen)?;
+        self.values.get(index).map(String::as_str)
+    }
+
+    // клавиши, смысл которых зависит от вида списка
+    fn special(&self, press: Press) -> Option<Outcome> {
+        let enter = match press {
+            Press::Enter { shift } => Some(shift),
+            _ => None,
+        };
+        match self.kind {
+            Kind::Ssh => {
+                let shift = enter?;
+                let host = self.chosen_value().map(|h| launch::ssh(h, shift));
+                Some(host.map_or(Outcome::Close, Outcome::Launch))
+            }
+            Kind::Snippets => enter.map(|_| self.snippet()),
+            Kind::Docker => {
+                let (name, up) = self.chosen_value()?.split_once('\t')?;
+                launch::docker(name, up == "1", press).map(Outcome::Launch)
+            }
+            Kind::Fill => enter.map(|_| self.filled()),
+            Kind::Files | Kind::Dirs => None,
+        }
+    }
+
+    fn snippet(&self) -> Outcome {
+        self.chosen_value()
+            .map_or(Outcome::Close, |template| after_fill(template.to_owned()))
+    }
+
+    fn filled(&self) -> Outcome {
+        let template = self.values.first().map(String::as_str).unwrap_or_default();
+        after_fill(launch::fill_field(template, &self.query))
     }
 
     fn accept(&self, shift: bool) -> Outcome {
@@ -179,6 +237,17 @@ impl Picker {
             (Kind::Dirs, false) => Outcome::ChangeDir(escaped),
             _ => Outcome::Insert(escaped),
         }
+    }
+}
+
+// пока в шаблоне есть поля — спрашиваем дальше, потом вставляем
+fn after_fill(template: String) -> Outcome {
+    match launch::next_field(&template) {
+        Some(_) => Outcome::Fill(template),
+        None => Outcome::Launch(Command {
+            text: template,
+            run: false,
+        }),
     }
 }
 

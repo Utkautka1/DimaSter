@@ -159,6 +159,10 @@ classDiagram
     Config *-- Ui
     Config *-- CursorLook
     class Drawn { rects; labels }
+    class Picker { kind; items; values; query; +press() }
+    class Snippet { name; command }
+    Config *-- Snippet
+    View ..> Picker : SSH, Docker, snippets
     class Hooks { keys; timers; overrides }
     View *-- Hooks
     Plugins ..> Hooks : bind, every, set

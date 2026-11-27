@@ -5,7 +5,8 @@ use dimaster_grid::{Finished, describe_exit};
 use dimaster_i18n::{t, tr};
 use dimaster_render::Label;
 
-use crate::modes::Mode;
+use crate::modes::picker::{Kind, Picker};
+use crate::modes::{Mode, launch};
 use crate::overlay::{Drawn, fill};
 use crate::view::View;
 
@@ -24,6 +25,30 @@ fn details(entry: &Finished, texts: &Texts) -> Vec<(String, bool)> {
     let mut lines = vec![(format!(" ── {status} ──"), false)];
     lines.extend(entry.output.iter().map(|l| (format!(" {l}"), false)));
     lines
+}
+
+// что за список и как им пользоваться
+fn picker_header(picker: &Picker) -> String {
+    let q = &picker.query;
+    match picker.kind {
+        Kind::Files => t!(" Файлы: {q}_", q = q),
+        Kind::Dirs => t!(" Папки: {q}_", q = q),
+        Kind::Ssh => t!(" SSH: {q}_  (Enter подключиться)", q = q),
+        Kind::Snippets => t!(" Сниппеты: {q}_", q = q),
+        Kind::Docker => t!(
+            " Docker: {q}_  (Enter войти · ^L логи · ^S старт/стоп · ^R перезапуск)",
+            q = q
+        ),
+        Kind::Fill => {
+            let template = picker
+                .values
+                .first()
+                .map(String::as_str)
+                .unwrap_or_default();
+            let field = launch::next_field(template).unwrap_or_default();
+            t!(" {field}: {q}_", field = field, q = q)
+        }
+    }
 }
 
 impl View {
@@ -98,11 +123,9 @@ impl View {
         };
         let style = &self.config.ui.palette;
         let columns = (self.window.inner_size().width / self.fonts.metrics().cell_width) as usize;
-        let columns = columns.min(style.width.max(56));
-        let header = match picker.kind {
-            crate::modes::picker::Kind::Files => t!(" Файлы: {q}_", q = picker.query),
-            crate::modes::picker::Kind::Dirs => t!(" Папки: {q}_", q = picker.query),
-        };
+        let wide = if picker.kind == Kind::Docker { 80 } else { 56 };
+        let columns = columns.min(style.width.max(wide));
+        let header = picker_header(picker);
         let mut lines = vec![(header, false)];
         let start = picker.selected.saturating_sub(style.rows - 1);
         for (i, item) in picker

@@ -2,6 +2,7 @@
 
 pub(crate) mod hint;
 pub(crate) mod history;
+pub(crate) mod launch;
 pub(crate) mod minimap;
 pub(crate) mod palette;
 pub(crate) mod paste;

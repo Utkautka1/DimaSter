@@ -5,7 +5,10 @@ use dimaster_i18n::tr;
 
 use super::Press;
 
-const COMMANDS: [(&str, Action); 25] = [
+const COMMANDS: [(&str, Action); 28] = [
+    ("SSH: подключиться к серверу", Action::SshHosts),
+    ("Сниппеты", Action::Snippets),
+    ("Docker: контейнеры", Action::Docker),
     ("Копировать вывод последней команды", Action::CopyLastOutput),
     ("Миникарта", Action::Minimap),
     ("Монитор ресурсов", Action::ToggleMonitor),

@@ -21,6 +21,7 @@ mod plugins;
 mod programs;
 mod scaffold;
 mod smart;
+mod snippets;
 mod theme;
 mod ui;
 mod widgets;
@@ -40,6 +41,7 @@ pub use plugins::{Paint, Shape};
 pub use programs::{Bell, Programs};
 pub use scaffold::{File, scaffold};
 pub use smart::Smart;
+pub use snippets::Snippet;
 pub use theme::{Theme, builtin_names};
 pub use ui::{
     Align, Anchor, HistoryStyle, Marks, MonitorStyle, NoticeStyle, PaletteStyle, PanelStyle, Strip,

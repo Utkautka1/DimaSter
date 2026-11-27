@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 
+use crate::Snippet;
 use crate::keys::default_bindings;
 use crate::{
     Bell, Binding, CursorLook, Effects, Programs, Smart, Theme, Ui, Widgets, WindowConfig,
@@ -118,6 +119,8 @@ pub struct Config {
     /// Спрашивать подтверждение перед закрытием окна.
     pub confirm_close: bool,
     pub smart: Smart,
+    /// Свои команды для списка сниппетов.
+    pub snippets: Vec<Snippet>,
     /// Полоса прокрутки с метками команд.
     pub scrollbar: bool,
     pub widgets: Widgets,
@@ -165,6 +168,7 @@ impl Default for Config {
             mouse_hide_while_typing: false,
             confirm_close: false,
             smart: Smart::default(),
+            snippets: Vec::new(),
             scrollbar: true,
             widgets: Widgets::default(),
             programs: Programs::default(),
