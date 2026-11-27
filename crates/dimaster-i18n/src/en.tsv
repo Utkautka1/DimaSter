@@ -439,3 +439,31 @@ Docker: управление	Docker: manage
 больше — анимации картинок идут рывками	bigger: image animations stutter
 больше — история может занять всю память	bigger: scrollback can fill all memory
 больше — сохранённая сессия занимает диск	bigger: a saved session fills the disk
+наибольший радиус углов панелей	largest panel corner radius
+наибольший внутренний отступ панелей и заголовка	largest padding of panels and title
+наибольшая ширина палитры в ячейках	largest palette width in cells
+наибольшее число строк в списках	largest number of list rows
+наибольшая ширина полосы прокрутки и миникарты	largest scrollbar and minimap width
+наименьшее время плашки	shortest notice time
+наибольшее время плашки	longest notice time
+наибольший отступ плашки	largest notice margin
+наибольший начальный размер окна в ячейках	largest initial window size in cells
+наибольшая ширина логотипа fetch	widest fetch logo
+наименьшая высота ползунка	smallest scrollbar thumb height
+высота метки на полосе прокрутки	height of a scrollbar mark
+высота одной полоски миникарты	height of one minimap bar
+наименьшая высота рамки миникарты и поля слева	smallest minimap view height and left field
+толщина полоски выполнения	thickness of the progress bar
+средняя толщина пульсирующей рамки	middle thickness of the glowing frame
+размах пульсации рамки	pulse amplitude of the frame
+наименьшая ширина панели истории в ячейках	narrowest history panel in cells
+зазор между монитором и миникартой	gap between monitor and minimap
+отступ монитора от края	monitor margin from the edge
+ширина витрины скинов в ячейках	skin gallery width in cells
+строк в витрине скинов	rows in the skin gallery
+поля презентации: ширина окна делится на это число	presentation margins: window width divided by this
+наименьшее поле презентации сверху	smallest top margin in presentation
+наименьшее затемнение фото, проценты	weakest photo shade, percent
+наибольшее затемнение фото, проценты	strongest photo shade, percent
+ширина рисованного фона в пикселях	drawn background width in pixels
+высота рисованного фона в пикселях	drawn background height in pixels

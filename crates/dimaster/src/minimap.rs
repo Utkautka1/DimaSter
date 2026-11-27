@@ -20,17 +20,18 @@ struct Area {
 impl Area {
     // строк на одну полоску в 2 пикселя; короткая история не растягивается
     fn step(self) -> u64 {
-        (self.total * 2)
+        (self.total * dimaster_limits::MINIMAP_ROW_PX.get())
             .div_ceil(u64::from(self.height).max(1))
             .max(1)
     }
 
     fn y(self, line: u64) -> u32 {
-        self.top + (line / self.step()) as u32 * 2
+        self.top + (line / self.step()) as u32 * dimaster_limits::MINIMAP_ROW_PX.u32()
     }
 
     fn line_at(self, y: f64) -> u64 {
-        let offset = (y - f64::from(self.top)).max(0.0) as u64 / 2;
+        let offset =
+            (y - f64::from(self.top)).max(0.0) as u64 / dimaster_limits::MINIMAP_ROW_PX.get();
         (offset * self.step()).min(self.total.saturating_sub(1))
     }
 }
@@ -82,12 +83,18 @@ impl View {
     fn minimap_frame(&self, area: Area) -> [Rect; 2] {
         let first = self.term.visible_line(self.scroll) - self.term.line_range().start;
         let rows = self.term.screen().rows().len() as u64;
-        let size = (area.style.width + 4, area.height);
-        let x = area.x.saturating_sub(4);
+        let size = (
+            area.style.width + dimaster_limits::MINIMAP_VIEW_PX.u32(),
+            area.height,
+        );
+        let x = area
+            .x
+            .saturating_sub(dimaster_limits::MINIMAP_VIEW_PX.u32());
         let backdrop = self.plain_rect(x, area.top, size, self.config.theme.background);
         let view = Rect {
             y: area.y(first),
-            height: (area.y(first + rows) - area.y(first)).max(4),
+            height: (area.y(first + rows) - area.y(first))
+                .max(dimaster_limits::MINIMAP_VIEW_PX.u32()),
             color: area.style.color,
             translucent: true,
             ..backdrop

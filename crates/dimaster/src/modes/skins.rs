@@ -3,8 +3,6 @@
 use super::Press;
 
 /// Строк списка на экране.
-pub(crate) const ROWS: usize = 14;
-
 #[derive(Debug, Default)]
 pub(crate) struct Skins {
     // первая строка — «как в настройках», дальше имена скинов
@@ -52,7 +50,10 @@ impl Skins {
     pub(crate) fn show_selected(&mut self) {
         let found = self.matches();
         let at = found.iter().position(|&i| i == self.selected).unwrap_or(0);
-        self.top = self.top.clamp(at.saturating_sub(ROWS - 1), at);
+        self.top = self.top.clamp(
+            at.saturating_sub(dimaster_limits::SKINS_ROWS.size() - 1),
+            at,
+        );
     }
 
     fn search(&mut self) {
@@ -63,7 +64,10 @@ impl Skins {
 
     /// Щелчок по видимой строке с номером `row`.
     pub(crate) fn click(&mut self, row: usize) -> Option<Outcome> {
-        let index = *self.matches().get(self.top + row).filter(|_| row < ROWS)?;
+        let index = *self
+            .matches()
+            .get(self.top + row)
+            .filter(|_| row < dimaster_limits::SKINS_ROWS.size())?;
         self.selected = index;
         Some(Outcome::Keep(false))
     }
@@ -111,7 +115,10 @@ mod tests {
     fn selection_wraps_and_stays_visible() {
         let mut skins = list();
         assert_eq!(skins.press(Press::Up), Outcome::Preview);
-        assert_eq!((skins.selected, skins.top), (39, 40 - ROWS));
+        assert_eq!(
+            (skins.selected, skins.top),
+            (39, 40 - dimaster_limits::SKINS_ROWS.size())
+        );
         skins.press(Press::Down);
         assert_eq!((skins.selected, skins.top), (0, 0));
     }

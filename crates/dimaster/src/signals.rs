@@ -99,7 +99,12 @@ impl View {
             _ => ansi[4],
         };
         let width = self.window.inner_size().width * u32::from(progress.value) / 100;
-        Some(self.plain_rect(0, self.content_top(), (width, 3), color))
+        Some(self.plain_rect(
+            0,
+            self.content_top(),
+            (width, dimaster_limits::PROGRESS_PX.u32()),
+            color,
+        ))
     }
 
     /// Форма указателя, которую просит программа.

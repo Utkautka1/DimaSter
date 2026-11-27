@@ -47,10 +47,16 @@ pub(crate) fn read_plain(overrides: &[String]) -> Result<Config, String> {
     let Some(path) = config_path() else {
         return Ok(Config::default());
     };
-    let config = load_with(&path, overrides).map_err(|e| e.to_string())?;
-    // и файлы, и плагины: предел действует с этого чтения
+    let load = || load_with(&path, overrides).map_err(|e| e.to_string());
+    // часть пределов действует при самом разборе: стандартные, затем свои
+    dimaster_limits::apply(&[]);
+    let config = load()?;
+    if config.limits.is_empty() {
+        return Ok(config);
+    }
+    // и файлы, и плагины: второй разбор уже с их значениями
     dimaster_limits::apply(&config.limits);
-    Ok(config)
+    load()
 }
 
 /// При ошибке в конфиге запускаемся с настройками по умолчанию.

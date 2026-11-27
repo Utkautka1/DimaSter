@@ -54,7 +54,9 @@ fn prepare(animation: Animation) -> Loaded {
     Loaded {
         theme,
         picture: settings::picture(animation),
-        shade: (0.62 - light * 0.5).clamp(0.2, 0.6),
+        shade: (0.62 - light * 0.5)
+            .max(dimaster_limits::PHOTO_SHADE_MIN.u32() as f32 / 100.0)
+            .min(dimaster_limits::PHOTO_SHADE_MAX.u32() as f32 / 100.0),
     }
 }
 

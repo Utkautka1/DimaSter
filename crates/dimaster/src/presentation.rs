@@ -8,7 +8,13 @@ use crate::view::View;
 pub(crate) fn derive(config: &Config, window_width: u32) -> Config {
     let mut shown = config.clone();
     shown.font_size += config.tuning.presentation_zoom;
-    shown.padding = (window_width / 10, config.padding.1.max(24));
+    shown.padding = (
+        window_width / dimaster_limits::PRESENTATION_SIDE_DIVISOR.u32(),
+        config
+            .padding
+            .1
+            .max(dimaster_limits::PRESENTATION_TOP_PX.u32()),
+    );
     shown.window.decorations = Decorations::None;
     shown.scrollbar = false;
     shown.effects.cursor_trail = false;

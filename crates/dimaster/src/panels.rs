@@ -103,7 +103,9 @@ impl View {
         let (metrics, style) = (self.fonts.metrics(), self.config.ui.history);
         let size = self.window.inner_size();
         let all = (size.width / metrics.cell_width) as usize;
-        let columns = ((all as f32 * style.width) as usize).max(30).min(all);
+        let columns = ((all as f32 * style.width) as usize)
+            .max(dimaster_limits::HISTORY_COLUMNS_MIN.size())
+            .min(all);
         let (top, pad) = (self.title_height(), self.config.ui.panel.padding * 2);
         let height = size
             .height

@@ -3,9 +3,6 @@
 use dimaster_config::{Scene, Theme};
 use dimaster_image::Animation;
 
-const WIDTH: usize = 960;
-const HEIGHT: usize = 600;
-
 type Rgb = [f32; 3];
 
 fn rgb(color: u32) -> Rgb {
@@ -27,7 +24,9 @@ fn noise(n: u32) -> f32 {
 
 // расстояние в долях высоты: круг остаётся кругом
 fn distance(x: f32, y: f32, cx: f32, cy: f32) -> f32 {
-    ((x - cx) * WIDTH as f32 / HEIGHT as f32).hypot(y - cy)
+    ((x - cx) * dimaster_limits::SCENE_WIDTH.size() as f32
+        / dimaster_limits::SCENE_HEIGHT.size() as f32)
+        .hypot(y - cy)
 }
 
 fn blobs(x: f32, y: f32, theme: &Theme) -> Rgb {
@@ -67,7 +66,7 @@ fn grid(x: f32, y: f32, theme: &Theme) -> Rgb {
 fn scanlines(x: f32, y: f32, theme: &Theme) -> Rgb {
     let glow = 1.0 - distance(x, y, 0.5, 0.5);
     let base = mix(rgb(theme.background), rgb(theme.ansi[2]), glow * 0.35);
-    let dark = (y * HEIGHT as f32) as usize % 4 < 2;
+    let dark = (y * dimaster_limits::SCENE_HEIGHT.size() as f32) as usize % 4 < 2;
     mix(base, [0.0; 3], if dark { 0.45 } else { 0.0 })
 }
 
@@ -102,7 +101,10 @@ fn sunset(x: f32, y: f32, theme: &Theme) -> Rgb {
 fn city(x: f32, y: f32, theme: &Theme) -> Rgb {
     let block = (x * 28.0) as u32;
     let roof = 0.45 + noise(block) * 0.38;
-    let (px, py) = ((x * WIDTH as f32) as u32, (y * HEIGHT as f32) as u32);
+    let (px, py) = (
+        (x * dimaster_limits::SCENE_WIDTH.size() as f32) as u32,
+        (y * dimaster_limits::SCENE_HEIGHT.size() as f32) as u32,
+    );
     if y > roof {
         let lit = px % 9 > 4 && py % 14 > 8 && noise(px / 9 * 977 + py / 14) > 0.68;
         let wall = mix(rgb(theme.background), [0.0; 3], 0.35);
@@ -146,16 +148,26 @@ fn painter(scene: Scene) -> Option<fn(f32, f32, &Theme) -> Rgb> {
 /// Картинка фона; `None` — у сцены его нет.
 pub(crate) fn paint(scene: Scene, theme: &Theme) -> Option<Animation> {
     let draw = painter(scene)?;
-    let mut pixels = Vec::with_capacity(WIDTH * HEIGHT * 4);
-    for row in 0..HEIGHT {
-        for column in 0..WIDTH {
-            let x = column as f32 / WIDTH as f32;
-            let color = draw(x, row as f32 / HEIGHT as f32, theme);
+    let mut pixels = Vec::with_capacity(
+        dimaster_limits::SCENE_WIDTH.size() * dimaster_limits::SCENE_HEIGHT.size() * 4,
+    );
+    for row in 0..dimaster_limits::SCENE_HEIGHT.size() {
+        for column in 0..dimaster_limits::SCENE_WIDTH.size() {
+            let x = column as f32 / dimaster_limits::SCENE_WIDTH.size() as f32;
+            let color = draw(
+                x,
+                row as f32 / dimaster_limits::SCENE_HEIGHT.size() as f32,
+                theme,
+            );
             pixels.extend(color.map(|c| c.round() as u8));
             pixels.push(255);
         }
     }
-    Some(Animation::still(WIDTH, HEIGHT, pixels))
+    Some(Animation::still(
+        dimaster_limits::SCENE_WIDTH.size(),
+        dimaster_limits::SCENE_HEIGHT.size(),
+        pixels,
+    ))
 }
 
 #[cfg(test)]
@@ -169,7 +181,10 @@ mod tests {
         let theme = Theme::default();
         for style in styles() {
             match paint(style.scene, &theme) {
-                Some(picture) => assert_eq!(picture.frames[0].pixels.len(), WIDTH * HEIGHT * 4),
+                Some(picture) => assert_eq!(
+                    picture.frames[0].pixels.len(),
+                    dimaster_limits::SCENE_WIDTH.size() * dimaster_limits::SCENE_HEIGHT.size() * 4
+                ),
                 None => assert_eq!(style.scene, Scene::None),
             }
         }

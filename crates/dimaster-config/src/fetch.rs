@@ -93,6 +93,6 @@ fn layout(table: &Table) -> Result<Layout, ConfigError> {
         logo_width: table
             .get::<Option<usize>>("logo_width")?
             .unwrap_or(22)
-            .min(200),
+            .min(dimaster_limits::FETCH_LOGO_WIDTH_MAX.size()),
     })
 }

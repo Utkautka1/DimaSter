@@ -173,16 +173,21 @@ impl View {
         let cell = self.fonts.metrics().cell_width;
         // миникарта у того же края — монитор встаёт рядом с ней
         let beside = self.config.widgets.minimap && minimap.left == style.left;
-        let inset = cell + if beside { minimap.width + 20 } else { 0 };
+        let inset = cell
+            + if beside {
+                minimap.width + dimaster_limits::MONITOR_GAP_PX.u32()
+            } else {
+                0
+            };
         let x = match style.left {
             true => inset,
             false => size.width.saturating_sub(width + inset),
         };
         let y = match style.bottom {
-            true => size
-                .height
-                .saturating_sub(height + self.content_bottom() + 4),
-            false => self.content_top() + 4,
+            true => size.height.saturating_sub(
+                height + self.content_bottom() + dimaster_limits::MONITOR_MARGIN_PX.u32(),
+            ),
+            false => self.content_top() + dimaster_limits::MONITOR_MARGIN_PX.u32(),
         };
         (x, y)
     }

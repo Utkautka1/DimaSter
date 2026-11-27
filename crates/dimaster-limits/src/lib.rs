@@ -472,6 +472,161 @@ pub static SESSION_LINES_MAX: Limit = Limit::new(
     "больше — сохранённая сессия занимает диск",
 );
 
+pub static PANEL_RADIUS_MAX: Limit = Limit::new(
+    "panel_radius_max",
+    [200, 0, 100000],
+    "наибольший радиус углов панелей",
+);
+
+pub static PANEL_PADDING_MAX: Limit = Limit::new(
+    "panel_padding_max",
+    [100, 0, 100000],
+    "наибольший внутренний отступ панелей и заголовка",
+);
+
+pub static PALETTE_COLUMNS_MAX: Limit = Limit::new(
+    "palette_columns_max",
+    [500, 10, 100000],
+    "наибольшая ширина палитры в ячейках",
+);
+
+pub static LIST_ROWS_MAX: Limit = Limit::new(
+    "list_rows_max",
+    [100, 1, 100000],
+    "наибольшее число строк в списках",
+);
+
+pub static STRIP_WIDTH_MAX: Limit = Limit::new(
+    "strip_width_max",
+    [400, 1, 100000],
+    "наибольшая ширина полосы прокрутки и миникарты",
+);
+
+pub static NOTICE_MIN_MS: Limit =
+    Limit::new("notice_min_ms", [200, 1, 60000], "наименьшее время плашки");
+
+pub static NOTICE_MAX_MS: Limit = Limit::new(
+    "notice_max_ms",
+    [60000, 60000, 1099511627776],
+    "наибольшее время плашки",
+);
+
+pub static NOTICE_MARGIN_MAX: Limit = Limit::new(
+    "notice_margin_max",
+    [2000, 0, 100000],
+    "наибольший отступ плашки",
+);
+
+pub static WINDOW_CELLS_MAX: Limit = Limit::new(
+    "window_cells_max",
+    [1000, 10, 100000],
+    "наибольший начальный размер окна в ячейках",
+);
+
+pub static FETCH_LOGO_WIDTH_MAX: Limit = Limit::new(
+    "fetch_logo_width_max",
+    [200, 0, 100000],
+    "наибольшая ширина логотипа fetch",
+);
+
+pub static SCROLLBAR_THUMB_PX: Limit = Limit::new(
+    "scrollbar_thumb_px",
+    [12, 1, 100000],
+    "наименьшая высота ползунка",
+);
+
+pub static SCROLLBAR_MARK_PX: Limit = Limit::new(
+    "scrollbar_mark_px",
+    [2, 1, 100000],
+    "высота метки на полосе прокрутки",
+);
+
+pub static MINIMAP_ROW_PX: Limit = Limit::new(
+    "minimap_row_px",
+    [2, 1, 100],
+    "высота одной полоски миникарты",
+);
+
+pub static MINIMAP_VIEW_PX: Limit = Limit::new(
+    "minimap_view_px",
+    [4, 1, 100000],
+    "наименьшая высота рамки миникарты и поля слева",
+);
+
+pub static PROGRESS_PX: Limit =
+    Limit::new("progress_px", [3, 0, 100000], "толщина полоски выполнения");
+
+pub static GLOW_PX: Limit = Limit::new(
+    "glow_px",
+    [4, 1, 100000],
+    "средняя толщина пульсирующей рамки",
+);
+
+pub static GLOW_WAVE_PX: Limit =
+    Limit::new("glow_wave_px", [3, 0, 100000], "размах пульсации рамки");
+
+pub static HISTORY_COLUMNS_MIN: Limit = Limit::new(
+    "history_columns_min",
+    [30, 1, 100000],
+    "наименьшая ширина панели истории в ячейках",
+);
+
+pub static MONITOR_GAP_PX: Limit = Limit::new(
+    "monitor_gap_px",
+    [20, 0, 100000],
+    "зазор между монитором и миникартой",
+);
+
+pub static MONITOR_MARGIN_PX: Limit = Limit::new(
+    "monitor_margin_px",
+    [4, 0, 100000],
+    "отступ монитора от края",
+);
+
+pub static SKINS_COLUMNS: Limit = Limit::new(
+    "skins_columns",
+    [46, 16, 1000],
+    "ширина витрины скинов в ячейках",
+);
+
+pub static SKINS_ROWS: Limit = Limit::new("skins_rows", [14, 1, 1000], "строк в витрине скинов");
+
+pub static PRESENTATION_SIDE_DIVISOR: Limit = Limit::new(
+    "presentation_side_divisor",
+    [10, 2, 100000],
+    "поля презентации: ширина окна делится на это число",
+);
+
+pub static PRESENTATION_TOP_PX: Limit = Limit::new(
+    "presentation_top_px",
+    [24, 0, 100000],
+    "наименьшее поле презентации сверху",
+);
+
+pub static PHOTO_SHADE_MIN: Limit = Limit::new(
+    "photo_shade_min",
+    [20, 0, 100],
+    "наименьшее затемнение фото, проценты",
+);
+
+pub static PHOTO_SHADE_MAX: Limit = Limit::new(
+    "photo_shade_max",
+    [60, 0, 100],
+    "наибольшее затемнение фото, проценты",
+);
+
+pub static SCENE_WIDTH: Limit = Limit::new(
+    "scene_width",
+    [960, 16, 4096],
+    "ширина рисованного фона в пикселях",
+);
+
+pub static SCENE_HEIGHT: Limit = Limit::new(
+    "scene_height",
+    [600, 16, 4096],
+    "высота рисованного фона в пикселях",
+);
+
 /// Все пределы в порядке записи в конфиг.
 #[rustfmt::skip]
 pub static ALL: &[&Limit] = &[
@@ -542,6 +697,34 @@ pub static ALL: &[&Limit] = &[
     &REDRAW_WAIT_MS,
     &SCROLLBACK_MAX,
     &SESSION_LINES_MAX,
+    &PANEL_RADIUS_MAX,
+    &PANEL_PADDING_MAX,
+    &PALETTE_COLUMNS_MAX,
+    &LIST_ROWS_MAX,
+    &STRIP_WIDTH_MAX,
+    &NOTICE_MIN_MS,
+    &NOTICE_MAX_MS,
+    &NOTICE_MARGIN_MAX,
+    &WINDOW_CELLS_MAX,
+    &FETCH_LOGO_WIDTH_MAX,
+    &SCROLLBAR_THUMB_PX,
+    &SCROLLBAR_MARK_PX,
+    &MINIMAP_ROW_PX,
+    &MINIMAP_VIEW_PX,
+    &PROGRESS_PX,
+    &GLOW_PX,
+    &GLOW_WAVE_PX,
+    &HISTORY_COLUMNS_MIN,
+    &MONITOR_GAP_PX,
+    &MONITOR_MARGIN_PX,
+    &SKINS_COLUMNS,
+    &SKINS_ROWS,
+    &PRESENTATION_SIDE_DIVISOR,
+    &PRESENTATION_TOP_PX,
+    &PHOTO_SHADE_MIN,
+    &PHOTO_SHADE_MAX,
+    &SCENE_WIDTH,
+    &SCENE_HEIGHT,
 ];
 
 #[cfg(test)]

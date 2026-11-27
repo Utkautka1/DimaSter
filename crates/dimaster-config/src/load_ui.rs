@@ -65,7 +65,10 @@ fn look(table: &Table, style: &mut PanelStyle) -> Done {
     set(table, "radius", &mut style.radius)?;
     set(table, "padding", &mut style.padding)?;
     set(table, "opacity", &mut style.opacity)?;
-    (style.radius, style.padding) = (style.radius.min(200), style.padding.min(100));
+    (style.radius, style.padding) = (
+        style.radius.min(dimaster_limits::PANEL_RADIUS_MAX.u32()),
+        style.padding.min(dimaster_limits::PANEL_PADDING_MAX.u32()),
+    );
     style.opacity = style.opacity.clamp(0.0, 1.0);
     Ok(())
 }
@@ -88,7 +91,7 @@ fn title_button(entry: &Table) -> Result<TitleButton, ConfigError> {
 fn title(table: &Table, ui: &mut Ui) -> Done {
     let style = &mut ui.title;
     set(table, "padding", &mut style.padding)?;
-    style.padding = style.padding.min(100);
+    style.padding = style.padding.min(dimaster_limits::PANEL_PADDING_MAX.u32());
     set(table, "format", &mut style.format)?;
     let aligns = [
         ("left", Align::Left),
@@ -122,7 +125,12 @@ fn palette(table: &Table, ui: &mut Ui) -> Done {
     let style = &mut ui.palette;
     set(table, "width", &mut style.width)?;
     set(table, "rows", &mut style.rows)?;
-    (style.width, style.rows) = (style.width.clamp(10, 500), style.rows.clamp(1, 100));
+    (style.width, style.rows) = (
+        style
+            .width
+            .clamp(10, dimaster_limits::PALETTE_COLUMNS_MAX.size()),
+        style.rows.clamp(1, dimaster_limits::LIST_ROWS_MAX.size()),
+    );
     let anchors = [
         ("top", Anchor::Top),
         ("center", Anchor::Center),
@@ -140,7 +148,10 @@ fn history(table: &Table, ui: &mut Ui) -> Done {
     let style = &mut ui.history;
     set(table, "width", &mut style.width)?;
     set(table, "rows", &mut style.rows)?;
-    (style.width, style.rows) = (style.width.clamp(0.2, 1.0), style.rows.clamp(1, 100));
+    (style.width, style.rows) = (
+        style.width.clamp(0.2, 1.0),
+        style.rows.clamp(1, dimaster_limits::LIST_ROWS_MAX.size()),
+    );
     side(table, "side", &mut style.left)
 }
 
@@ -155,7 +166,7 @@ fn marks(table: &Table, ui: &mut Ui) -> Done {
 
 fn strip(table: &Table, strip: &mut crate::ui::Strip) -> Done {
     set(table, "width", &mut strip.width)?;
-    strip.width = strip.width.clamp(1, 400);
+    strip.width = strip.width.clamp(1, dimaster_limits::STRIP_WIDTH_MAX.u32());
     color(table, "color", &mut strip.color)?;
     color(table, "command", &mut strip.command)?;
     color(table, "error", &mut strip.error)?;
@@ -204,6 +215,18 @@ fn margin(table: &Table, target: &mut (u32, u32)) -> Done {
     }
 }
 
+// время плашки в разрешённых пределах
+fn shown(duration: u32) -> u32 {
+    duration
+        .max(dimaster_limits::NOTICE_MIN_MS.u32())
+        .min(dimaster_limits::NOTICE_MAX_MS.u32())
+}
+
+fn inside((x, y): (u32, u32)) -> (u32, u32) {
+    let most = dimaster_limits::NOTICE_MARGIN_MAX.u32();
+    (x.min(most), y.min(most))
+}
+
 fn notice(table: &Table, ui: &mut Ui) -> Done {
     notice_look(table, ui)?;
     let style = &mut ui.notice;
@@ -211,7 +234,7 @@ fn notice(table: &Table, ui: &mut Ui) -> Done {
     set(table, "primary", &mut style.primary)?;
     set(table, "text", &mut style.text)?;
     set(table, "duration", &mut style.duration)?;
-    style.duration = style.duration.clamp(200, 60_000);
+    style.duration = shown(style.duration);
     let sides = [
         ("left", Align::Left),
         ("center", Align::Center),
@@ -225,7 +248,7 @@ fn notice(table: &Table, ui: &mut Ui) -> Done {
     ];
     word(table, "position", &anchors, &mut style.position)?;
     margin(table, &mut style.margin)?;
-    style.margin = (style.margin.0.min(2000), style.margin.1.min(2000));
+    style.margin = inside(style.margin);
     Ok(())
 }
 

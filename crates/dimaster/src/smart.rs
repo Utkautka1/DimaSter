@@ -36,7 +36,11 @@ impl Assist {
 // ширина рамки плавно растёт и убывает
 fn pulse_width(elapsed: f32, period: f32) -> u32 {
     let wave = (elapsed / period * std::f32::consts::TAU).sin();
-    (4.0 + wave * 3.0).round() as u32
+    let (middle, swing) = (
+        dimaster_limits::GLOW_PX.u32() as f32,
+        dimaster_limits::GLOW_WAVE_PX.u32() as f32,
+    );
+    (middle + wave * swing).round().max(0.0) as u32
 }
 
 fn frame(width: u32, height: u32, thickness: u32, color: u32) -> [Rect; 4] {

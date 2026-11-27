@@ -291,7 +291,8 @@ fn apply_window(table: &Table, window: &mut WindowConfig) -> Result<(), ConfigEr
     fraction(table, "opacity", &mut window.opacity)?;
     fraction(table, "background_opacity", &mut window.background_opacity)?;
     flag(table, "blur", &mut window.blur)?;
-    let side = |value: Option<u32>| value.map(|v| v.clamp(10, 1000));
+    let side =
+        |value: Option<u32>| value.map(|v| v.clamp(10, dimaster_limits::WINDOW_CELLS_MAX.u32()));
     window.columns = side(table.get("columns")?);
     window.rows = side(table.get("rows")?);
     window.background_dir = table.get::<Option<String>>("background_dir")?.map(expand);

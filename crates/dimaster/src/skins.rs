@@ -13,13 +13,12 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::choice::{Choice, choice, choices};
 use crate::history_store::data_dir;
-use crate::modes::skins::{Outcome, ROWS, Skins};
+use crate::modes::skins::{Outcome, Skins};
 use crate::modes::{Mode, Press};
 use crate::overlay::Drawn;
 use crate::view::View;
 use crate::{scenery, settings};
 
-const COLUMNS: usize = 46;
 // строки над списком: поиск и стиль
 const HEADER: usize = 2;
 // цвета ANSI, которые видны в образце строки
@@ -217,7 +216,7 @@ impl View {
 
     fn skins_corner(&self, rows: usize) -> (u32, u32) {
         let size = self.window.inner_size();
-        let (width, height) = self.panel_size(COLUMNS, rows);
+        let (width, height) = self.panel_size(dimaster_limits::SKINS_COLUMNS.size(), rows);
         let top = self.title_height() + self.fonts.metrics().cell_height;
         let y = top.min(size.height.saturating_sub(height));
         (size.width.saturating_sub(width) / 2, y)
@@ -229,7 +228,11 @@ impl View {
             (t!(" Скины: {q}_", q = state.query), false),
             (t!(" Стиль:  ◀  {name}  ▶", name = name), false),
         ];
-        let found = state.matches().into_iter().skip(state.top).take(ROWS);
+        let found = state
+            .matches()
+            .into_iter()
+            .skip(state.top)
+            .take(dimaster_limits::SKINS_ROWS.size());
         lines.extend(found.map(|index| {
             let mark = if index == state.saved { '●' } else { ' ' };
             (
@@ -254,8 +257,13 @@ impl View {
         let (cell, line) = (metrics.cell_width, metrics.cell_height);
         let pad = self.config.ui.panel.padding;
         let used = state.names.iter().map(|n| n.width()).max().unwrap_or(0);
-        let column = (used + 5).min(COLUMNS - SWATCH.len() - 2) as u32;
-        let found = state.matches().into_iter().skip(state.top).take(ROWS);
+        let column =
+            (used + 5).min(dimaster_limits::SKINS_COLUMNS.size() - SWATCH.len() - 2) as u32;
+        let found = state
+            .matches()
+            .into_iter()
+            .skip(state.top)
+            .take(dimaster_limits::SKINS_ROWS.size());
         for (row, index) in found.enumerate() {
             let theme = self.skin_theme(index);
             let y = corner.1 + pad + (row + HEADER) as u32 * line + line / 6;
@@ -277,17 +285,21 @@ impl View {
         };
         let lines = self.skin_lines(state);
         let corner = self.skins_corner(lines.len());
-        let mut out = self.panel(corner, COLUMNS, &lines);
+        let mut out = self.panel(corner, dimaster_limits::SKINS_COLUMNS.size(), &lines);
         self.swatches(state, corner, &mut out);
         out
     }
 
     // строка панели под указателем и доля ширины
     fn skin_point(&self, state: &Skins) -> Option<(usize, f64)> {
-        let listed = state.matches().len().saturating_sub(state.top).min(ROWS);
+        let listed = state
+            .matches()
+            .len()
+            .saturating_sub(state.top)
+            .min(dimaster_limits::SKINS_ROWS.size());
         let rows = listed + HEADER + 1;
         let corner = self.skins_corner(rows);
-        let (width, height) = self.panel_size(COLUMNS, rows);
+        let (width, height) = self.panel_size(dimaster_limits::SKINS_COLUMNS.size(), rows);
         let (x, y) = self.pointer.position;
         let across = (x - f64::from(corner.0)) / f64::from(width.max(1));
         let down = y - f64::from(corner.1 + self.config.ui.panel.padding);

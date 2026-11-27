@@ -79,8 +79,34 @@ return {
 | `redraw_wait_ms` | 40 | больше — анимации картинок идут рывками |
 | `scrollback_max` | 1000000 | больше — история может занять всю память |
 | `session_lines_max` | 100000 | больше — сохранённая сессия занимает диск |
-
-`scrollback_max` и `session_lines_max` читаются при разборе конфига: новое значение действует со следующего перечитывания.
+| `panel_radius_max` | 200 | наибольший радиус углов панелей |
+| `panel_padding_max` | 100 | наибольший внутренний отступ панелей и заголовка |
+| `palette_columns_max` | 500 | наибольшая ширина палитры в ячейках |
+| `list_rows_max` | 100 | наибольшее число строк в списках |
+| `strip_width_max` | 400 | наибольшая ширина полосы прокрутки и миникарты |
+| `notice_min_ms` | 200 | наименьшее время плашки |
+| `notice_max_ms` | 60000 | наибольшее время плашки |
+| `notice_margin_max` | 2000 | наибольший отступ плашки |
+| `window_cells_max` | 1000 | наибольший начальный размер окна в ячейках |
+| `fetch_logo_width_max` | 200 | наибольшая ширина логотипа fetch |
+| `scrollbar_thumb_px` | 12 | наименьшая высота ползунка |
+| `scrollbar_mark_px` | 2 | высота метки на полосе прокрутки |
+| `minimap_row_px` | 2 | высота одной полоски миникарты |
+| `minimap_view_px` | 4 | наименьшая высота рамки миникарты и поля слева |
+| `progress_px` | 3 | толщина полоски выполнения |
+| `glow_px` | 4 | средняя толщина пульсирующей рамки |
+| `glow_wave_px` | 3 | размах пульсации рамки |
+| `history_columns_min` | 30 | наименьшая ширина панели истории в ячейках |
+| `monitor_gap_px` | 20 | зазор между монитором и миникартой |
+| `monitor_margin_px` | 4 | отступ монитора от края |
+| `skins_columns` | 46 | ширина витрины скинов в ячейках |
+| `skins_rows` | 14 | строк в витрине скинов |
+| `presentation_side_divisor` | 10 | поля презентации: ширина окна делится на это число |
+| `presentation_top_px` | 24 | наименьшее поле презентации сверху |
+| `photo_shade_min` | 20 | наименьшее затемнение фото, проценты |
+| `photo_shade_max` | 60 | наибольшее затемнение фото, проценты |
+| `scene_width` | 960 | ширина рисованного фона в пикселях |
+| `scene_height` | 600 | высота рисованного фона в пикселях |
 
 ```lua
 return {
@@ -152,6 +178,34 @@ return {
     redraw_wait_ms = 40,
     scrollback_max = 1000000,
     session_lines_max = 100000,
+    panel_radius_max = 200,
+    panel_padding_max = 100,
+    palette_columns_max = 500,
+    list_rows_max = 100,
+    strip_width_max = 400,
+    notice_min_ms = 200,
+    notice_max_ms = 60000,
+    notice_margin_max = 2000,
+    window_cells_max = 1000,
+    fetch_logo_width_max = 200,
+    scrollbar_thumb_px = 12,
+    scrollbar_mark_px = 2,
+    minimap_row_px = 2,
+    minimap_view_px = 4,
+    progress_px = 3,
+    glow_px = 4,
+    glow_wave_px = 3,
+    history_columns_min = 30,
+    monitor_gap_px = 20,
+    monitor_margin_px = 4,
+    skins_columns = 46,
+    skins_rows = 14,
+    presentation_side_divisor = 10,
+    presentation_top_px = 24,
+    photo_shade_min = 20,
+    photo_shade_max = 60,
+    scene_width = 960,
+    scene_height = 600,
   },
 }
 ```

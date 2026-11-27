@@ -38,10 +38,16 @@ impl Track {
         }
     }
 
+    // метка команды, ошибки или находки на своей строке
+    fn mark(self, line: u64, color: u32) -> Rect {
+        let height = dimaster_limits::SCROLLBAR_MARK_PX.u32();
+        self.rect(self.y(line), height, color, false)
+    }
+
     // ползунок: какая часть всех строк сейчас на экране
     fn thumb(self, first: u64, rows: u64) -> Rect {
         let top = self.y(first);
-        let height = (self.y(first + rows) - top).max(12);
+        let height = (self.y(first + rows) - top).max(dimaster_limits::SCROLLBAR_THUMB_PX.u32());
         let limit = self.top + self.height;
         self.rect(
             top.min(limit.saturating_sub(height)),
@@ -80,7 +86,7 @@ impl View {
 
     // команды, ошибки и найденное
     fn scroll_ticks(&self, track: Track, range: std::ops::Range<u64>) -> Vec<Rect> {
-        let tick = |line: u64, color| track.rect(track.y(line - range.start), 2, color, false);
+        let tick = |line: u64, color| track.mark(line - range.start, color);
         let mut ticks: Vec<Rect> = range
             .clone()
             .filter_map(|line| {
