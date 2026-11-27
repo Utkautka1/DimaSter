@@ -10,6 +10,8 @@ mod chrome;
 mod clipboard;
 mod desktop;
 mod fetch;
+mod fetch_random;
+mod fetch_view;
 mod headless;
 mod history_store;
 mod host;

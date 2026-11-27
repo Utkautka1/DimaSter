@@ -63,4 +63,6 @@ return {
   logo = logo,
   -- image = "~/Pictures/logo.png", -- картинка вместо текстового логотипа
   logo_width = 22,
+  -- random = "~/Pictures/avatars", -- папка: каждый запуск новая картинка
+  -- picture = { width = 30, height = 15, fit = "cover", position = "left", gap = 3, top = 0, left = 0, border = "rounded", border_color = "magenta" },
 }

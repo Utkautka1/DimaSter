@@ -6,6 +6,7 @@
 
 mod budget;
 mod diacritics;
+mod fit;
 mod iterm;
 mod kitty;
 mod place;
@@ -149,14 +150,31 @@ impl State {
         if !header.split(',').any(|p| p == "a=show") {
             return;
         }
-        if let Some(animation) = decode_base64(&data[split + 1..]).and_then(|d| decode(&d)) {
-            let picture = self.graphics.picture(animation);
-            let cells = self.image_cells(&picture, value("c"), value("r"), None);
-            if value("C") == Some(1) {
-                self.place(picture, cells, (0, 0), None);
-            } else {
-                self.place_and_advance(picture, cells, (0, 0), None);
+        let Some(animation) = decode_base64(&data[split + 1..]).and_then(|d| decode(&d)) else {
+            return;
+        };
+        let picture = self.graphics.picture(animation);
+        let mode = header.split(',').find_map(|p| p.strip_prefix("fit="));
+        let (cells, crop) = self.own_cells(&picture, mode, (value("c"), value("r")));
+        if value("C") == Some(1) {
+            self.place(picture, cells, (0, 0), crop);
+        } else {
+            self.place_and_advance(picture, cells, (0, 0), crop);
+        }
+    }
+
+    // `fit` имеет смысл, только когда рамка задана обеими сторонами
+    fn own_cells(
+        &self,
+        picture: &Picture,
+        mode: Option<&str>,
+        size: (Option<usize>, Option<usize>),
+    ) -> fit::Fitted {
+        match (mode, size) {
+            (Some(mode), (Some(c), Some(r))) => {
+                fit::fit(mode, picture.dimensions(), (c, r), self.cell_size())
             }
+            (_, (c, r)) => (self.image_cells(picture, c, r, None), None),
         }
     }
 

@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 
 use mlua::{Lua, Table};
 
+use crate::fetch_picture::{self, PictureStyle};
 use crate::load::expand;
 use crate::{ConfigError, context};
 
@@ -30,13 +31,21 @@ pub struct Layout {
     pub logo: Vec<String>,
     /// Картинка вместо текстового логотипа.
     pub image: Option<PathBuf>,
+    /// Папка: картинка берётся случайно при каждом запуске.
+    pub random: Option<PathBuf>,
+    pub picture: PictureStyle,
     // ширина колонки логотипа в ячейках
     pub logo_width: usize,
 }
 
+/// Код цвета ANSI по имени из `color()`.
+pub fn fetch_color(name: &str) -> &'static str {
+    COLORS.iter().find(|c| c.0 == name).map_or("0", |c| c.1)
+}
+
 // сброс после каждого куска; вложенный color("bold", color(..)) тоже работает
 fn paint(lua: &Lua, (name, text): (String, String)) -> mlua::Result<mlua::LuaString> {
-    let code = COLORS.iter().find(|c| c.0 == name).map_or("0", |c| c.1);
+    let code = fetch_color(&name);
     lua.create_string(format!("\x1b[{code}m{text}\x1b[0m"))
 }
 
@@ -65,15 +74,22 @@ pub fn run_fetch(
     }
     prepare(&lua, facts)?;
     let table: Table = lua.load(source).set_name("fetch.lua").eval()?;
+    layout(&table)
+}
+
+fn layout(table: &Table) -> Result<Layout, ConfigError> {
     let list = |key| {
         table
             .get::<Option<Vec<String>>>(key)
             .map(Option::unwrap_or_default)
     };
+    let path = |key| table.get::<Option<String>>(key).map(|p| p.map(expand));
     Ok(Layout {
         lines: list("lines")?,
         logo: list("logo")?,
-        image: table.get::<Option<String>>("image")?.map(expand),
+        image: path("image")?,
+        random: path("random")?,
+        picture: fetch_picture::parse(table.get("picture")?)?,
         logo_width: table
             .get::<Option<usize>>("logo_width")?
             .unwrap_or(22)

@@ -10,7 +10,7 @@ use std::process::Command;
 
 use dimaster_config::{DEFAULT_FETCH, Layout, config_dir, run_fetch};
 
-use crate::icat;
+use crate::{fetch_random, fetch_view};
 
 type Facts = Vec<(&'static str, Option<String>)>;
 
@@ -175,16 +175,17 @@ fn layout() -> io::Result<Layout> {
     Ok(layout)
 }
 
-// картинка не двигает курсор, текст печатается правее неё
+// без картинки слева стоит текстовый логотип
 fn print(out: &mut impl Write, layout: &Layout, image: Option<&[u8]>) -> io::Result<()> {
     if let Some(data) = image {
-        let width = layout.logo_width.saturating_sub(2).max(1);
-        let options = format!("c={width},r={},C=1", layout.lines.len().max(1));
-        icat::show(out, data, &options)?;
+        return fetch_view::with_picture(out, layout, data);
     }
-    let art: &[String] = if image.is_some() { &[] } else { &layout.logo };
-    for index in 0..layout.lines.len().max(art.len()) {
-        let logo = art.get(index).map(String::as_str).unwrap_or_default();
+    for index in 0..layout.lines.len().max(layout.logo.len()) {
+        let logo = layout
+            .logo
+            .get(index)
+            .map(String::as_str)
+            .unwrap_or_default();
         let text = layout
             .lines
             .get(index)
@@ -212,7 +213,14 @@ fn load_image(path: &Path) -> Option<Vec<u8>> {
 pub(crate) fn run(options: &[String]) -> io::Result<()> {
     let layout = layout()?;
     let image = match options {
-        [] => layout.image.as_deref().and_then(load_image),
+        [] => {
+            // случайная из папки важнее постоянной картинки
+            let random = layout.random.as_deref().and_then(fetch_random::pick);
+            random
+                .or_else(|| layout.image.clone())
+                .as_deref()
+                .and_then(load_image)
+        }
         [flag, path] if flag == "--logo" => Some(std::fs::read(path)?),
         _ => {
             return Err(io::Error::other(tr(

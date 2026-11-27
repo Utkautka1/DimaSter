@@ -30,3 +30,28 @@ return {
 ```
 
 `dimaster fetch --logo файл` перекрывает `image`. Чтобы fetch показывался при открытии терминала, добавьте `dimaster fetch` в конец `~/.zshrc`.
+
+## Картинка: случайная, размер, положение, рамка
+
+```lua
+return {
+  lines = lines,
+  random = "~/avatars",   -- только путь к папке: png, jpg, jpeg, webp, gif
+  picture = {
+    width = 34, height = 17,   -- в ячейках
+    position = "left",         -- left | right | top
+    gap = 4, top = 1, left = 0,
+    fit = "cover",             -- cover (обрезать) | contain (вписать) | stretch
+    border = "rounded",        -- rounded | single | double | heavy | none | 6 своих символов
+    border_color = "magenta",
+  },
+}
+```
+
+`random` берёт новую картинку при каждом запуске (прошлая не повторяется) и важнее `image`. Без `picture` ширина берётся из `logo_width`, высота — половина ширины. Шесть своих символов рамки идут так: левый верхний, правый верхний, левый нижний, правый нижний, горизонтальный, вертикальный. Картинки вписывает сам DimaSter, в других терминалах `fit` не действует.
+
+Чтобы fetch показывался при открытии DimaSter вместо fastfetch, в `~/.zshrc`:
+
+```bash
+if [[ $TERM_PROGRAM == dimaster ]]; then dimaster fetch; else fastfetch; fi
+```

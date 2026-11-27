@@ -159,6 +159,9 @@ classDiagram
     Config *-- Ui
     Config *-- CursorLook
     class Drawn { rects; labels }
+    class Layout { lines; logo; image; random; picture; logo_width }
+    class PictureStyle { width; height; fit; position; gap; border }
+    Layout *-- PictureStyle
     class Shape { <<enum>> Rect; Line; Polygon; Text }
     Plugins ..> Shape : draw.lua
     class Binding { chords; actions; unconsumed; performable; table }

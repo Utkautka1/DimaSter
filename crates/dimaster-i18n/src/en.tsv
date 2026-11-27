@@ -277,3 +277,4 @@ dimaster.command("insert_date", dimaster.tr("Вставить сегодняшн
  Папки: {q}_	 Dirs: {q}_
  Поиск: {q}_	 Filter: {q}_
 ВЫБОР	PICKER
+  -- random = "~/Pictures/avatars", -- папка: каждый запуск новая картинка	  -- random = "~/Pictures/avatars", -- a folder: a new picture on every run
