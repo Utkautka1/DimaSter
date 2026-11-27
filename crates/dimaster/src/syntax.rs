@@ -181,7 +181,11 @@ pub(crate) fn highlight_input(
 }
 
 fn read_input_cells(term: &Terminal) -> Option<Vec<CellChar>> {
-    let (start_line, start_col) = term.input_start().or_else(|| fallback_start(term))?;
+    let cursor_line = term.visible_line(0) + term.cursor().row as u64;
+    let (start_line, start_col) = term
+        .input_start()
+        .filter(|&(line, _)| line <= cursor_line)
+        .or_else(|| fallback_start(term))?;
     let range = term.line_range();
     if start_line < range.start || start_line >= range.end {
         return None;
@@ -229,18 +233,20 @@ fn trim_trailing_spaces(cells: &mut Vec<CellChar>) {
     }
 }
 
-// Запасной поиск начала ввода для оболочек без OSC 133;B (sh/dash).
+// Запасной поиск начала ввода для оболочек без OSC 133;B (поддерживает многострочный prompt).
 fn fallback_start(term: &Terminal) -> Option<(u64, usize)> {
     let cursor = term.cursor();
     let cursor_line = term.visible_line(0) + cursor.row as u64;
-    let row = term.line(cursor_line)?;
-    if !matches!(row.mark, Some(PromptMark::Prompt | PromptMark::Failed)) {
-        return None;
-    }
+    let has_prompt = (cursor_line.saturating_sub(3)..=cursor_line).any(|l| {
+        term.line(l)
+            .and_then(|r| r.mark)
+            .is_some_and(|m| matches!(m, PromptMark::Prompt | PromptMark::Failed))
+    });
+    let row = has_prompt.then(|| term.line(cursor_line)).flatten()?;
     let limit = cursor.col.min(row.cells.len());
     for i in (0..limit).rev() {
         let ch = row.cells[i].ch;
-        if matches!(ch, '➜' | '❯' | '$' | '%' | '#')
+        if matches!(ch, '➜' | '❯' | '→' | '$' | '%' | '#' | '>')
             && row.cells.get(i + 1).is_some_and(|c| c.ch == ' ')
         {
             return Some((cursor_line, i + 2));
