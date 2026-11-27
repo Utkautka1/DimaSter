@@ -467,3 +467,20 @@ Docker: управление	Docker: manage
 наибольшее затемнение фото, проценты	strongest photo shade, percent
 ширина рисованного фона в пикселях	drawn background width in pixels
 высота рисованного фона в пикселях	drawn background height in pixels
+место под волной: толщин линии от низа ячейки	room under the wave: line thicknesses from the cell bottom
+шаг двойного подчёркивания в толщинах линии	double underline step in line thicknesses
+шаг точек подчёркивания в толщинах линии	dotted underline step in line thicknesses
+шаг штрихов, проценты ширины ячейки	dash step, percent of cell width
+длина штриха, проценты ширины ячейки	dash length, percent of cell width
+высота зачёркивания, проценты от базовой линии	strikethrough position, percent of the baseline
+толщина контура курсора в толщинах линии	cursor outline in line thicknesses
+наибольшая плавная прокрутка в строках	longest smooth scroll in rows
+яркость фона, ниже которой текст для контраста светлеет	background brightness below which contrast text turns light
+отступ образца цвета: строка делится на это число	color swatch offset: line divided by this
+насколько образец ниже строки: строка делится на это число	how much shorter the swatch is: line divided by this
+ширина подложки образцов в ячейках	swatch backdrop width in cells
+левая доля строки стиля, щелчок по которой листает назад	left share of the style row that pages back on click
+наименьшая разрешённая прозрачность, проценты	smallest allowed opacity, percent
+наибольшая разрешённая прозрачность, проценты; выше 100 на экране не отличается	largest allowed opacity, percent; above 100 looks the same
+наименьшая ширина панели истории, проценты окна	narrowest history panel, percent of the window
+наибольшая ширина панели истории, проценты окна	widest history panel, percent of the window

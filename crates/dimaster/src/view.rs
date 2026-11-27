@@ -438,7 +438,10 @@ impl View {
         let height = self.fonts.metrics().cell_height as f32;
         let moved = self.scroll as f32 - old as f32;
         if self.config.effects.smooth_scroll {
-            self.animator.scroll(-moved * height, height * 3.0);
+            self.animator.scroll(
+                -moved * height,
+                height * dimaster_limits::SMOOTH_SCROLL_ROWS.get() as f32,
+            );
         }
         self.window.request_redraw();
     }

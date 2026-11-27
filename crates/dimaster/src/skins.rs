@@ -265,17 +265,24 @@ impl View {
             .skip(state.top)
             .take(dimaster_limits::SKINS_ROWS.size());
         for (row, index) in found.enumerate() {
-            let theme = self.skin_theme(index);
-            let y = corner.1 + pad + (row + HEADER) as u32 * line + line / 6;
-            let x = corner.0 + pad + column * cell;
-            let size = (cell, line - line / 3);
+            let y = corner.1 + pad + (row + HEADER) as u32 * line;
+            self.swatch(index, (corner.0 + pad + column * cell, y), out);
+        }
+    }
+
+    fn swatch(&self, index: usize, (x, top): (u32, u32), out: &mut Drawn) {
+        let metrics = self.fonts.metrics();
+        let (cell, line) = (metrics.cell_width, metrics.cell_height);
+        let theme = self.skin_theme(index);
+        let y = top + line / dimaster_limits::SKINS_SWATCH_TOP.u32();
+        let size = (cell, line - line / dimaster_limits::SKINS_SWATCH_CUT.u32());
+        let back = (cell * dimaster_limits::SKINS_SWATCH_CELLS.u32(), size.1);
+        out.rects
+            .push(self.plain_rect(x, y, back, theme.background));
+        for (i, &ansi) in SWATCH.iter().enumerate() {
+            let at = x + i as u32 * cell + cell / 2;
             out.rects
-                .push(self.plain_rect(x, y, (cell * 7, size.1), theme.background));
-            for (i, &ansi) in SWATCH.iter().enumerate() {
-                let at = x + i as u32 * cell + cell / 2;
-                out.rects
-                    .push(self.plain_rect(at, y, size, theme.ansi[ansi]));
-            }
+                .push(self.plain_rect(at, y, size, theme.ansi[ansi]));
         }
     }
 
@@ -317,7 +324,13 @@ impl View {
     fn clicked(&self, state: &mut Skins) -> Outcome {
         match self.skin_point(state) {
             Some((1, across)) => {
-                state.turn(if across < 0.4 { -1 } else { 1 });
+                state.turn(
+                    if across < dimaster_limits::SKINS_BACK_PERCENT.get() as f64 / 100.0 {
+                        -1
+                    } else {
+                        1
+                    },
+                );
                 Outcome::Keep(false)
             }
             Some((0, _)) => Outcome::Preview,

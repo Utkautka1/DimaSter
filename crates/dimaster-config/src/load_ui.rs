@@ -69,7 +69,7 @@ fn look(table: &Table, style: &mut PanelStyle) -> Done {
         style.radius.min(dimaster_limits::PANEL_RADIUS_MAX.u32()),
         style.padding.min(dimaster_limits::PANEL_PADDING_MAX.u32()),
     );
-    style.opacity = style.opacity.clamp(0.0, 1.0);
+    style.opacity = opacity(style.opacity);
     Ok(())
 }
 
@@ -121,6 +121,16 @@ fn palette_item(entry: &Table) -> Result<(String, Action), ConfigError> {
     ))
 }
 
+fn opacity(value: f32) -> f32 {
+    let (low, high) = dimaster_limits::opacity_range();
+    value.max(low).min(high)
+}
+
+fn history_width(value: f32) -> f32 {
+    let (low, high) = dimaster_limits::history_width_range();
+    value.max(low).min(high)
+}
+
 fn palette(table: &Table, ui: &mut Ui) -> Done {
     let style = &mut ui.palette;
     set(table, "width", &mut style.width)?;
@@ -149,7 +159,7 @@ fn history(table: &Table, ui: &mut Ui) -> Done {
     set(table, "width", &mut style.width)?;
     set(table, "rows", &mut style.rows)?;
     (style.width, style.rows) = (
-        style.width.clamp(0.2, 1.0),
+        history_width(style.width),
         style.rows.clamp(1, dimaster_limits::LIST_ROWS_MAX.size()),
     );
     side(table, "side", &mut style.left)

@@ -97,7 +97,10 @@ fn pixels(table: &Table, key: &str, default: u32) -> u32 {
 
 fn opacity(table: &Table) -> f32 {
     let value = table.get::<Option<f32>>("opacity").ok().flatten();
-    value.unwrap_or(1.0).clamp(0.0, 1.0)
+    value
+        .unwrap_or(1.0)
+        .max(dimaster_limits::opacity_range().0)
+        .min(dimaster_limits::opacity_range().1)
 }
 
 // `rounded = true` — сокращение для полукругов Powerline

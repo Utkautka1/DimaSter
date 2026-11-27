@@ -107,6 +107,23 @@ return {
 | `photo_shade_max` | 60 | наибольшее затемнение фото, проценты |
 | `scene_width` | 960 | ширина рисованного фона в пикселях |
 | `scene_height` | 600 | высота рисованного фона в пикселях |
+| `underline_wave_room` | 3 | место под волной: толщин линии от низа ячейки |
+| `underline_double_gap` | 2 | шаг двойного подчёркивания в толщинах линии |
+| `underline_dot_step` | 2 | шаг точек подчёркивания в толщинах линии |
+| `underline_dash_period` | 50 | шаг штрихов, проценты ширины ячейки |
+| `underline_dash_length` | 33 | длина штриха, проценты ширины ячейки |
+| `strike_position` | 67 | высота зачёркивания, проценты от базовой линии |
+| `hollow_cursor_lines` | 2 | толщина контура курсора в толщинах линии |
+| `smooth_scroll_rows` | 3 | наибольшая плавная прокрутка в строках |
+| `light_background_percent` | 50 | яркость фона, ниже которой текст для контраста светлеет |
+| `skins_swatch_top` | 6 | отступ образца цвета: строка делится на это число |
+| `skins_swatch_cut` | 3 | насколько образец ниже строки: строка делится на это число |
+| `skins_swatch_cells` | 7 | ширина подложки образцов в ячейках |
+| `skins_back_percent` | 40 | левая доля строки стиля, щелчок по которой листает назад |
+| `opacity_min_percent` | 0 | наименьшая разрешённая прозрачность, проценты |
+| `opacity_max_percent` | 100 | наибольшая разрешённая прозрачность, проценты; выше 100 на экране не отличается |
+| `history_width_min` | 20 | наименьшая ширина панели истории, проценты окна |
+| `history_width_max` | 100 | наибольшая ширина панели истории, проценты окна |
 
 ```lua
 return {
@@ -206,6 +223,23 @@ return {
     photo_shade_max = 60,
     scene_width = 960,
     scene_height = 600,
+    underline_wave_room = 3,
+    underline_double_gap = 2,
+    underline_dot_step = 2,
+    underline_dash_period = 50,
+    underline_dash_length = 33,
+    strike_position = 67,
+    hollow_cursor_lines = 2,
+    smooth_scroll_rows = 3,
+    light_background_percent = 50,
+    skins_swatch_top = 6,
+    skins_swatch_cut = 3,
+    skins_swatch_cells = 7,
+    skins_back_percent = 40,
+    opacity_min_percent = 0,
+    opacity_max_percent = 100,
+    history_width_min = 20,
+    history_width_max = 100,
   },
 }
 ```

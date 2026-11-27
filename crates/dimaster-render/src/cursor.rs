@@ -78,7 +78,7 @@ impl Builder<'_> {
         let look = self.look.cursor_look;
         let color = look.trail_color.or(look.color).unwrap_or(self.look.cursor);
         let cell = [cell_width as f32, cell_height as f32];
-        let line = (line_thickness * 2) as f32;
+        let line = (line_thickness * dimaster_limits::HOLLOW_CURSOR_LINES.u32()) as f32;
         for &(row, col) in trail {
             let origin = self.cell_origin(row, col);
             let (at, size) = geometry(term.modes().cursor_shape, look, origin, cell, line);
@@ -97,7 +97,7 @@ impl Builder<'_> {
         let cell = [width, metrics.cell_height as f32];
         let look = self.look.cursor_look;
         let color = look.color.unwrap_or(self.look.cursor);
-        let line = (metrics.line_thickness * 2) as f32;
+        let line = (metrics.line_thickness * dimaster_limits::HOLLOW_CURSOR_LINES.u32()) as f32;
         let (at, size) = squeeze(geometry(shape, look, origin, cell, line), shrink);
         if !hollow {
             return self.shaped(at, size, color, (look.opacity, look.radius));

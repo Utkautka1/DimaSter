@@ -58,7 +58,9 @@ fn paint(table: &Table) -> Paint {
     let color: Option<String> = table.get("color").ok().flatten();
     Paint {
         color: color.as_deref().and_then(parse_color),
-        opacity: number(table, "opacity", 1.0).clamp(0.0, 1.0),
+        opacity: number(table, "opacity", 1.0)
+            .max(dimaster_limits::opacity_range().0)
+            .min(dimaster_limits::opacity_range().1),
     }
 }
 

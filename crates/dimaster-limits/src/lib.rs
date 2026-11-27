@@ -627,6 +627,124 @@ pub static SCENE_HEIGHT: Limit = Limit::new(
     "высота рисованного фона в пикселях",
 );
 
+// проценты как доля; границы переставляются, если заданы наоборот
+fn share(low: &Limit, high: &Limit) -> (f32, f32) {
+    let (low, high) = (low.get() as f32 / 100.0, high.get() as f32 / 100.0);
+    (low.min(high), high.max(low))
+}
+
+/// Разрешённые прозрачности.
+pub fn opacity_range() -> (f32, f32) {
+    share(&OPACITY_MIN_PERCENT, &OPACITY_MAX_PERCENT)
+}
+
+/// Разрешённая ширина панели истории в долях окна.
+pub fn history_width_range() -> (f32, f32) {
+    share(&HISTORY_WIDTH_MIN, &HISTORY_WIDTH_MAX)
+}
+
+pub static UNDERLINE_WAVE_ROOM: Limit = Limit::new(
+    "underline_wave_room",
+    [3, 0, 100],
+    "место под волной: толщин линии от низа ячейки",
+);
+
+pub static UNDERLINE_DOUBLE_GAP: Limit = Limit::new(
+    "underline_double_gap",
+    [2, 1, 100],
+    "шаг двойного подчёркивания в толщинах линии",
+);
+
+pub static UNDERLINE_DOT_STEP: Limit = Limit::new(
+    "underline_dot_step",
+    [2, 1, 100],
+    "шаг точек подчёркивания в толщинах линии",
+);
+
+pub static UNDERLINE_DASH_PERIOD: Limit = Limit::new(
+    "underline_dash_period",
+    [50, 1, 1000],
+    "шаг штрихов, проценты ширины ячейки",
+);
+
+pub static UNDERLINE_DASH_LENGTH: Limit = Limit::new(
+    "underline_dash_length",
+    [33, 1, 1000],
+    "длина штриха, проценты ширины ячейки",
+);
+
+pub static STRIKE_POSITION: Limit = Limit::new(
+    "strike_position",
+    [67, 0, 100],
+    "высота зачёркивания, проценты от базовой линии",
+);
+
+pub static HOLLOW_CURSOR_LINES: Limit = Limit::new(
+    "hollow_cursor_lines",
+    [2, 1, 100],
+    "толщина контура курсора в толщинах линии",
+);
+
+pub static SMOOTH_SCROLL_ROWS: Limit = Limit::new(
+    "smooth_scroll_rows",
+    [3, 0, 1000],
+    "наибольшая плавная прокрутка в строках",
+);
+
+pub static LIGHT_BACKGROUND_PERCENT: Limit = Limit::new(
+    "light_background_percent",
+    [50, 0, 100],
+    "яркость фона, ниже которой текст для контраста светлеет",
+);
+
+pub static SKINS_SWATCH_TOP: Limit = Limit::new(
+    "skins_swatch_top",
+    [6, 1, 100],
+    "отступ образца цвета: строка делится на это число",
+);
+
+pub static SKINS_SWATCH_CUT: Limit = Limit::new(
+    "skins_swatch_cut",
+    [3, 2, 100],
+    "насколько образец ниже строки: строка делится на это число",
+);
+
+pub static SKINS_SWATCH_CELLS: Limit = Limit::new(
+    "skins_swatch_cells",
+    [7, 0, 100],
+    "ширина подложки образцов в ячейках",
+);
+
+pub static SKINS_BACK_PERCENT: Limit = Limit::new(
+    "skins_back_percent",
+    [40, 0, 100],
+    "левая доля строки стиля, щелчок по которой листает назад",
+);
+
+pub static OPACITY_MIN_PERCENT: Limit = Limit::new(
+    "opacity_min_percent",
+    [0, 0, 100],
+    "наименьшая разрешённая прозрачность, проценты",
+);
+
+pub static OPACITY_MAX_PERCENT: Limit = Limit::new(
+    "opacity_max_percent",
+    [100, 0, 1000],
+    "наибольшая разрешённая прозрачность, проценты; выше 100 на экране не отличается",
+);
+
+pub static HISTORY_WIDTH_MIN: Limit = Limit::new(
+    "history_width_min",
+    [20, 0, 100],
+    "наименьшая ширина панели истории, проценты окна",
+);
+
+pub static HISTORY_WIDTH_MAX: Limit = Limit::new(
+    "history_width_max",
+    [100, 1, 1000],
+    "наибольшая ширина панели истории, проценты окна",
+);
+
 /// Все пределы в порядке записи в конфиг.
 #[rustfmt::skip]
 pub static ALL: &[&Limit] = &[
@@ -725,6 +843,23 @@ pub static ALL: &[&Limit] = &[
     &PHOTO_SHADE_MAX,
     &SCENE_WIDTH,
     &SCENE_HEIGHT,
+    &UNDERLINE_WAVE_ROOM,
+    &UNDERLINE_DOUBLE_GAP,
+    &UNDERLINE_DOT_STEP,
+    &UNDERLINE_DASH_PERIOD,
+    &UNDERLINE_DASH_LENGTH,
+    &STRIKE_POSITION,
+    &HOLLOW_CURSOR_LINES,
+    &SMOOTH_SCROLL_ROWS,
+    &LIGHT_BACKGROUND_PERCENT,
+    &SKINS_SWATCH_TOP,
+    &SKINS_SWATCH_CUT,
+    &SKINS_SWATCH_CELLS,
+    &SKINS_BACK_PERCENT,
+    &OPACITY_MIN_PERCENT,
+    &OPACITY_MAX_PERCENT,
+    &HISTORY_WIDTH_MIN,
+    &HISTORY_WIDTH_MAX,
 ];
 
 #[cfg(test)]

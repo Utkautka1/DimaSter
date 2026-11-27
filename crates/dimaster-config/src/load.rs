@@ -270,7 +270,8 @@ fn apply_general(table: &Table, config: &mut Config) -> Result<(), ConfigError> 
 
 fn fraction(table: &Table, key: &str, target: &mut f32) -> Result<(), ConfigError> {
     if let Some(value) = table.get::<Option<f32>>(key)? {
-        if !(0.0..=1.0).contains(&value) {
+        let (low, high) = dimaster_limits::opacity_range();
+        if !(low..=high).contains(&value) {
             return Err(invalid(key, value));
         }
         *target = value;

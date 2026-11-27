@@ -62,7 +62,11 @@ fn layout(key: &str, value: &str, config: &mut Config) {
             }
         }
         "background_opacity" => {
-            config.window.opacity = value.parse::<f32>().unwrap_or(1.0).clamp(0.0, 1.0);
+            config.window.opacity = value
+                .parse::<f32>()
+                .unwrap_or(1.0)
+                .max(dimaster_limits::opacity_range().0)
+                .min(dimaster_limits::opacity_range().1);
         }
         "scrollback_lines" => config.scrollback = value.parse().unwrap_or(config.scrollback),
         "cursor_shape" => config.cursor = CursorStyle::parse(value).unwrap_or(config.cursor),

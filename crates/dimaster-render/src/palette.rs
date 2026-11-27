@@ -63,11 +63,12 @@ pub(crate) fn ensure_contrast(fg: Rgb, bg: Rgb, min_ratio: f32) -> Rgb {
     if min_ratio <= 1.0 || fg == bg || contrast_ratio(fg, bg) >= min_ratio {
         return fg;
     }
-    let target = if srgb_luminance(bg) < 0.5 {
-        0xffffff
-    } else {
-        0x000000
-    };
+    let target =
+        if srgb_luminance(bg) < dimaster_limits::LIGHT_BACKGROUND_PERCENT.get() as f32 / 100.0 {
+            0xffffff
+        } else {
+            0x000000
+        };
     if contrast_ratio(target, bg) < min_ratio {
         return target;
     }

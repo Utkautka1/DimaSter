@@ -17,13 +17,33 @@ impl Builder<'_> {
         let (width, thick) = (self.cell_width(cell), line_thickness as f32);
         let style = cell.style;
         // волна и двойная линия не должны выходить за нижний край ячейки
-        let low = cell_height.saturating_sub(line_thickness * 3) as f32;
+        let low = cell_height
+            .saturating_sub(line_thickness * dimaster_limits::UNDERLINE_WAVE_ROOM.u32())
+            as f32;
         let y = origin[1] + (baseline as f32 + thick).min(low);
         let color = self.underline_color(style, text);
         self.underline(style.underline, [origin[0], y], width, color);
         if style.flags.contains(Flags::STRIKE) {
-            let at = [origin[0], origin[1] + (baseline * 2 / 3) as f32];
+            let at = [
+                origin[0],
+                origin[1] + (baseline * dimaster_limits::STRIKE_POSITION.get() as i32 / 100) as f32,
+            ];
             self.quads.push(Quad::solid(at, [width, thick], text));
+        }
+    }
+
+    fn dashes(&mut self, at: [f32; 2], width: f32, color: Rgb) {
+        let part = |percent: u64| width * percent as f32 / 100.0;
+        let step = part(dimaster_limits::UNDERLINE_DASH_PERIOD.get());
+        let length = part(dimaster_limits::UNDERLINE_DASH_LENGTH.get());
+        self.pieces(at, width, step, length, color);
+    }
+
+    fn double(&mut self, [x, y]: [f32; 2], width: f32, color: Rgb) {
+        let thick = self.fonts.metrics().line_thickness as f32;
+        let gap = thick * dimaster_limits::UNDERLINE_DOUBLE_GAP.get() as f32;
+        for at in [[x, y], [x, y + gap]] {
+            self.quads.push(Quad::solid(at, [width, thick], color));
         }
     }
 
@@ -33,14 +53,16 @@ impl Builder<'_> {
         match kind {
             Underline::None => {}
             Underline::Single => self.quads.push(Quad::solid([x, y], full, color)),
-            Underline::Double => {
-                self.quads.push(Quad::solid([x, y], full, color));
-                self.quads
-                    .push(Quad::solid([x, y + thick * 2.0], full, color));
-            }
+            Underline::Double => self.double([x, y], width, color),
             Underline::Curly => self.wave([x, y], width, color),
-            Underline::Dotted => self.pieces([x, y], width, thick * 2.0, thick, color),
-            Underline::Dashed => self.pieces([x, y], width, width / 2.0, width / 3.0, color),
+            Underline::Dotted => self.pieces(
+                [x, y],
+                width,
+                thick * dimaster_limits::UNDERLINE_DOT_STEP.get() as f32,
+                thick,
+                color,
+            ),
+            Underline::Dashed => self.dashes([x, y], width, color),
         }
     }
 

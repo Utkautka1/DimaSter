@@ -120,7 +120,11 @@ fn window_and_behavior(key: &str, value: &str, config: &mut Config) {
         "window-width" => config.window.columns = value.parse().ok(),
         "window-height" => config.window.rows = value.parse().ok(),
         "background-opacity" => {
-            config.window.opacity = value.parse::<f32>().unwrap_or(1.0).clamp(0.0, 1.0);
+            config.window.opacity = value
+                .parse::<f32>()
+                .unwrap_or(1.0)
+                .max(dimaster_limits::opacity_range().0)
+                .min(dimaster_limits::opacity_range().1);
         }
         "background-blur-radius" | "background-blur" => {
             config.window.blur = !matches!(value, "0" | "false");
