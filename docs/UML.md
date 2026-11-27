@@ -159,6 +159,10 @@ classDiagram
     Config *-- Ui
     Config *-- CursorLook
     class Drawn { rects; labels }
+    class Skin { name; theme }
+    class Skins { names; query; selected; saved; +press() +click(row) }
+    View ..> Skins : gallery
+    Skins ..> Skin
     class Picker { kind; items; values; query; +press() }
     class Snippet { name; command }
     Config *-- Snippet

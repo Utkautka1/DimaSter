@@ -111,6 +111,10 @@ The following are available starting with version 0.2.0:
   ```
   Without a display the image can still run commands: `docker run --rm ghcr.io/utkautka1/dimaster --headless ls`. Settings and history are kept in `~/.local/share/dimaster-docker`. Build locally: `docker build -f dimaster.dockerfile -t dimaster .` and `DIMASTER_IMAGE=dimaster ./packaging/docker/run.sh`.
 
+## Skins
+
+Press `Ctrl+Shift+K` to browse 50 built-in color schemes with live preview; click or Enter keeps one. No config editing.
+
 ## Usage
 
 ```sh

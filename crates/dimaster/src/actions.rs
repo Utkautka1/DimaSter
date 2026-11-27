@@ -58,7 +58,7 @@ impl View {
     }
 
     // режим забирается из self на время обработки и возвращается, если не закрыт
-    fn mode_press(&mut self, press: Press) {
+    pub(crate) fn mode_press(&mut self, press: Press) {
         match std::mem::take(&mut self.mode) {
             Mode::Normal => {}
             Mode::Search(mut state) => {
@@ -73,6 +73,7 @@ impl View {
             Mode::Hint(state) => self.hint_press(state, press),
             Mode::History(state) => self.history_press(state, press),
             Mode::Picker(state) => self.picker_press(state, press),
+            Mode::Skins(state) => self.skin_press(state, press),
             Mode::Minimap(state) => self.minimap_press(state, press),
             Mode::Paste(state) => self.paste_press(state, press),
             Mode::CloseConfirm => self.close_press(press),

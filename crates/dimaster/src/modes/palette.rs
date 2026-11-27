@@ -5,7 +5,8 @@ use dimaster_i18n::tr;
 
 use super::Press;
 
-const COMMANDS: [(&str, Action); 28] = [
+const COMMANDS: [(&str, Action); 29] = [
+    ("Скины: витрина цветов", Action::Skins),
     ("SSH: подключиться к серверу", Action::SshHosts),
     ("Сниппеты", Action::Snippets),
     ("Docker: контейнеры", Action::Docker),

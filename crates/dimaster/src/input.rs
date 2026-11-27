@@ -282,6 +282,7 @@ impl View {
             Action::SshHosts => self.open_ssh(),
             Action::Snippets => self.open_snippets(),
             Action::Docker => self.open_docker(),
+            Action::Skins => self.open_skins(),
             Action::SudoFix => self.sudo_fix(),
             Action::Presentation => self.toggle_presentation(),
             Action::Minimap => self.open_minimap(),

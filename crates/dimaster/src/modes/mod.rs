@@ -8,6 +8,7 @@ pub(crate) mod palette;
 pub(crate) mod paste;
 pub(crate) mod picker;
 pub(crate) mod search;
+pub(crate) mod skins;
 pub(crate) mod vi;
 
 use winit::keyboard::{Key, ModifiersState, NamedKey};
@@ -69,6 +70,7 @@ pub(crate) enum Mode {
     Hint(hint::Hints),
     History(history::History),
     Picker(picker::Picker),
+    Skins(skins::Skins),
     Minimap(minimap::Minimap),
     Paste(paste::PasteConfirm),
     CloseConfirm,

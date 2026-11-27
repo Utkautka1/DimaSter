@@ -194,6 +194,7 @@ impl View {
         out.merge(self.prompt());
         out.merge(self.palette_panel());
         out.merge(self.mode_panels());
+        out.merge(self.skins_panel());
         out.merge(self.link_panel());
         out.merge(self.monitor_panel());
         out.merge(self.notice_panel());

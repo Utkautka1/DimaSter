@@ -42,6 +42,7 @@ mod settings;
 mod setup;
 mod shared;
 mod signals;
+mod skins;
 mod smart;
 mod sources;
 mod status;

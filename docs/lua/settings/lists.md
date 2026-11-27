@@ -50,5 +50,5 @@ return {
 Действия: `ssh_hosts`, `snippets`, `docker`.
 
 ```lua
-return { keys = { { key = "ctrl+shift+k", action = "docker" } } }
+return { keys = { { key = "ctrl+alt+d", action = "docker" } } }
 ```

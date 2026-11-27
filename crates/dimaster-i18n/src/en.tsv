@@ -300,3 +300,9 @@ Docker не отвечает	Docker is not responding
 SSH: подключиться к серверу	SSH: connect to a server
 Сниппеты	Snippets
 Docker: контейнеры	Docker: containers
+Скин не сохранён: {error}	Skin not saved: {error}
+Как в настройках	As configured
+ Скины: {q}_	 Skins: {q}_
+ клик или Enter — выбрать · Esc — закрыть	 click or Enter to keep · Esc to close
+СКИНЫ	SKINS
+Скины: витрина цветов	Skins: color gallery

@@ -31,6 +31,7 @@ fn mode_name(mode: &Mode) -> String {
         Mode::Hint(_) => "МЕТКИ",
         Mode::History(_) => "ИСТОРИЯ",
         Mode::Picker(_) => "ВЫБОР",
+        Mode::Skins(_) => "СКИНЫ",
         Mode::Minimap(_) => "КАРТА",
         Mode::Paste(_) => "ВСТАВКА",
         Mode::CloseConfirm => "ВЫХОД",

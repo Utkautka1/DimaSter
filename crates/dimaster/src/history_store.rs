@@ -13,7 +13,7 @@ pub(crate) struct AssistStore {
     pub(crate) dirs: Vec<(u32, String)>,
 }
 
-fn data_dir() -> Option<PathBuf> {
+pub(crate) fn data_dir() -> Option<PathBuf> {
     let base = std::env::var_os("XDG_DATA_HOME")
         .map(PathBuf::from)
         .or_else(|| Some(PathBuf::from(std::env::var_os("HOME")?).join(".local/share")))?;

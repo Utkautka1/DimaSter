@@ -20,6 +20,7 @@
 | `statusbar.lua` | [Строка статуса и виджеты](interface/statusbar.md) |
 | ключи `programs`, `bell` | [Программы и звонок](settings/programs.md) |
 | ключ `cursor` | [Курсор](interface/cursor.md) |
+| `Ctrl+Shift+K` | [Витрина скинов](themes/skins.md) |
 | `themes/*.lua` | [Темы](themes/themes.md) |
 | `lang/*.lua` | [Языки](lang/lang.md) |
 | `plugins/*.lua` | [Плагины](plugins/plugins.md) |

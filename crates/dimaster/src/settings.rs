@@ -36,6 +36,14 @@ pub(crate) fn read() -> Result<Config, String> {
 
 /// То же с таблицами, установленными плагинами через `dimaster.set`.
 pub(crate) fn read_with(overrides: &[String]) -> Result<Config, String> {
+    // скин — первый слой: то, что ставят плагины, важнее его
+    let skin = crate::skins::chosen_literal().into_iter();
+    let layers: Vec<String> = skin.chain(overrides.iter().cloned()).collect();
+    read_plain(&layers)
+}
+
+/// Настройки без выбранного скина.
+pub(crate) fn read_plain(overrides: &[String]) -> Result<Config, String> {
     let Some(path) = config_path() else {
         return Ok(Config::default());
     };

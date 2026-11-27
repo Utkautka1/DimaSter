@@ -6,6 +6,7 @@ use dimaster_grid::{Match, Point};
 
 use crate::clipboard::Target;
 use crate::desktop;
+use crate::modes::{Mode, Press};
 use crate::mouse::{self, Action, Button, MouseEvent};
 use crate::view::View;
 
@@ -50,6 +51,9 @@ impl View {
             _ => return,
         };
         let pressed = state.is_pressed();
+        if pressed && button == Button::Left && self.skins_click() {
+            return;
+        }
         if pressed
             && button == Button::Left
             && (self.chrome_press() || self.minimap_click() || self.follow_link())
@@ -140,6 +144,11 @@ impl View {
 
     /// `lines` > 0 — вверх, к истории.
     pub(crate) fn wheel(&mut self, lines: f64) {
+        if matches!(self.mode, Mode::Skins(_)) {
+            let key = if lines > 0.0 { Press::Up } else { Press::Down };
+            self.mode_press(key);
+            return self.window.request_redraw();
+        }
         // `lines` — щелчки колеса; множитель из настроек
         self.pointer.wheel_rest += lines * f64::from(self.config.scroll_multiplier);
         let whole = self.pointer.wheel_rest.trunc();
