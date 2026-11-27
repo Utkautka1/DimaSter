@@ -1,5 +1,7 @@
 # DimaSter
 
+**English** · [Русский](README.ru.md)
+
 [![CI](https://github.com/Utkautka1/DimaSter/actions/workflows/ci.yml/badge.svg)](https://github.com/Utkautka1/DimaSter/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
