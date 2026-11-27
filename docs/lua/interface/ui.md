@@ -12,6 +12,7 @@
 | `history` | `width` (доля окна), `rows`, `side` |
 | `marks` | `hint_color`, `hint_background`, `found`, `current`, `link` |
 | `scrollbar`, `minimap` | `width`, `color`, `command`, `error`, `found`, `side` |
+| `notice` | плашка после копирования, см. ниже |
 | `monitor` | `side`, `position`, `format` (`{process}`, `{cpu}`, `{memory}`), `waiting` |
 | `texts` | `vi`, `hint`, `minimap`, `search`, `search_plain`, `search_regex`, `history`, `history_output`, `history_failed` |
 | сам `ui` | `prompt_position`: `"top"` или `"bottom"` |
@@ -96,6 +97,16 @@ return {
       -- waiting = " ожидание ",
     },
 
+    notice = { -- плашка после копирования
+      -- copy = true,
+      -- text = " ✓ Скопировано: {count} ",
+      -- duration = 1200,
+      -- side = "right",
+      -- position = "bottom",
+      -- margin = { x = 10, y = 4 },
+      -- свой вид (иначе как у panel): background, color, radius, padding, opacity
+    },
+
     texts = {
       -- vi = " VI: hjkl w b 0 $ g G · v V · y копировать · / поиск · q выход ",
       -- hint = " Метка — открыть, ЗАГЛАВНАЯ — копировать, Esc ",
@@ -110,3 +121,27 @@ return {
   },
 }
 ```
+
+## Плашка после копирования
+
+```lua
+ui = {
+  notice = {
+    text = " 󰅍 Скопировано \n {preview} ({count}) ",
+    duration = 1500,                  -- мс, 200–60000
+    side = "center",                  -- left | center | right
+    position = "top",                 -- top | center | bottom
+    margin = { x = 12, y = 12 },
+    background = "#a6e3a1", color = "#11111b", radius = 12, padding = 8, opacity = 0.95,
+  },
+}
+```
+
+| Подстановка | Что вставляется |
+|---|---|
+| `{count}` | число символов |
+| `{lines}` | число строк |
+| `{preview}` | начало первой строки, до 30 знаков |
+| `{target}` | `clipboard` или `primary` (выделение мышью) |
+
+`copy = false` отключает плашку.

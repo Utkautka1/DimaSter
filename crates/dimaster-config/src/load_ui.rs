@@ -5,7 +5,7 @@
 
 use mlua::Table;
 
-use crate::ui::{Align, Anchor, TitleButton, Ui, WindowButton};
+use crate::ui::{Align, Anchor, PanelStyle, TitleButton, Ui, WindowButton};
 use crate::{Action, ConfigError, parse_color};
 
 type Done = Result<(), ConfigError>;
@@ -57,8 +57,7 @@ fn section(table: &Table, key: &str, apply: impl FnOnce(&Table) -> Done) -> Done
     }
 }
 
-fn panel(table: &Table, ui: &mut Ui) -> Done {
-    let style = &mut ui.panel;
+fn look(table: &Table, style: &mut PanelStyle) -> Done {
     theme_color(table, "background", &mut style.background)?;
     theme_color(table, "color", &mut style.color)?;
     theme_color(table, "selected_background", &mut style.selected_background)?;
@@ -177,6 +176,57 @@ fn monitor(table: &Table, ui: &mut Ui) -> Done {
     set(table, "waiting", &mut style.waiting)
 }
 
+// любой ключ вида отделяет плашку от общих панелей, начиная с их значений
+fn notice_look(table: &Table, ui: &mut Ui) -> Done {
+    let keys = ["background", "color", "radius", "padding", "opacity"];
+    if keys.iter().any(|k| table.contains_key(*k).unwrap_or(false)) {
+        let mut own = ui.panel;
+        look(table, &mut own)?;
+        ui.notice.look = Some(own);
+    }
+    Ok(())
+}
+
+// число — по обеим осям, таблица { x, y } — раздельно
+fn margin(table: &Table, target: &mut (u32, u32)) -> Done {
+    match table.get::<mlua::Value>("margin")? {
+        mlua::Value::Nil => Ok(()),
+        mlua::Value::Table(pair) => {
+            *target = (pair.get("x")?, pair.get("y")?);
+            Ok(())
+        }
+        _ => {
+            let both: u32 = table.get("margin")?;
+            *target = (both, both);
+            Ok(())
+        }
+    }
+}
+
+fn notice(table: &Table, ui: &mut Ui) -> Done {
+    notice_look(table, ui)?;
+    let style = &mut ui.notice;
+    set(table, "copy", &mut style.copy)?;
+    set(table, "text", &mut style.text)?;
+    set(table, "duration", &mut style.duration)?;
+    style.duration = style.duration.clamp(200, 60_000);
+    let sides = [
+        ("left", Align::Left),
+        ("center", Align::Center),
+        ("right", Align::Right),
+    ];
+    word(table, "side", &sides, &mut style.side)?;
+    let anchors = [
+        ("top", Anchor::Top),
+        ("center", Anchor::Center),
+        ("bottom", Anchor::Bottom),
+    ];
+    word(table, "position", &anchors, &mut style.position)?;
+    margin(table, &mut style.margin)?;
+    style.margin = (style.margin.0.min(2000), style.margin.1.min(2000));
+    Ok(())
+}
+
 fn texts(table: &Table, ui: &mut Ui) -> Done {
     let texts = &mut ui.texts;
     let fields = [
@@ -196,7 +246,7 @@ fn texts(table: &Table, ui: &mut Ui) -> Done {
 }
 
 pub(crate) fn apply(table: &Table, ui: &mut Ui) -> Done {
-    section(table, "panel", |t| panel(t, ui))?;
+    section(table, "panel", |t| look(t, &mut ui.panel))?;
     section(table, "title", |t| title(t, ui))?;
     section(table, "palette", |t| palette(t, ui))?;
     section(table, "history", |t| history(t, ui))?;
@@ -204,6 +254,7 @@ pub(crate) fn apply(table: &Table, ui: &mut Ui) -> Done {
     section(table, "scrollbar", |t| strip(t, &mut ui.scrollbar))?;
     section(table, "minimap", |t| strip(t, &mut ui.minimap))?;
     section(table, "monitor", |t| monitor(t, ui))?;
+    section(table, "notice", |t| notice(t, ui))?;
     word(
         table,
         "prompt_position",

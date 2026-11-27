@@ -28,8 +28,11 @@ impl Clipboard {
         Self(clipboard.ok())
     }
 
-    pub(crate) fn set(&mut self, target: Target, text: String) {
-        let Some(clipboard) = &mut self.0 else { return };
+    /// `true`, если текст действительно попал в буфер.
+    pub(crate) fn set(&mut self, target: Target, text: String) -> bool {
+        let Some(clipboard) = &mut self.0 else {
+            return false;
+        };
         if let Err(e) = clipboard.set().clipboard(target.kind()).text(text) {
             log::warn!(
                 "{}",
@@ -39,7 +42,9 @@ impl Clipboard {
                     error = e
                 )
             );
+            return false;
         }
+        true
     }
 
     pub(crate) fn get(&mut self, target: Target) -> Option<String> {

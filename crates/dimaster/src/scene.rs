@@ -196,6 +196,7 @@ impl View {
         out.merge(self.mode_panels());
         out.merge(self.link_panel());
         out.merge(self.monitor_panel());
+        out.merge(self.notice_panel());
         out.rects.extend(self.glow_rects());
         out.rects.extend(self.signal_rects());
         out

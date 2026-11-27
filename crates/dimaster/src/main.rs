@@ -23,6 +23,7 @@ mod keys;
 mod minimap;
 mod modes;
 mod mouse;
+mod notice;
 mod overlay;
 mod panels;
 mod pointer;

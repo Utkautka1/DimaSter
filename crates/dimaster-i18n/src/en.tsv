@@ -278,3 +278,7 @@ dimaster.command("insert_date", dimaster.tr("Вставить сегодняшн
  Поиск: {q}_	 Filter: {q}_
 ВЫБОР	PICKER
   -- random = "~/Pictures/avatars", -- папка: каждый запуск новая картинка	  -- random = "~/Pictures/avatars", -- a folder: a new picture on every run
+ ✓ Скопировано: {count} 	 ✓ Copied: {count} 
+    notice = { -- плашка после копирования	    notice = { -- toast after copying
+      -- text = " ✓ Скопировано: {count} ",	      -- text = " ✓ Copied: {count} ",
+      -- свой вид (иначе как у panel): background, color, radius, padding, opacity	      -- own looks (otherwise as panel): background, color, radius, padding, opacity

@@ -48,6 +48,21 @@ fn values_are_read_and_clamped() {
 }
 
 #[test]
+fn notice_has_its_own_text_place_and_looks() {
+    let source = r##"return { ui = { panel = { radius = 3 }, notice = {
+        text = "ok {preview}", side = "center", position = "top", margin = 7, color = "#ff0000",
+    } } }"##;
+    let notice = parse(source, None).unwrap().ui.notice;
+    assert_eq!(
+        (notice.text.as_str(), notice.margin),
+        ("ok {preview}", (7, 7))
+    );
+    let look = notice.look.unwrap();
+    assert_eq!((look.color, look.radius), (Some(0xff0000), 3));
+    assert!(parse("return {}", None).unwrap().ui.notice.look.is_none());
+}
+
+#[test]
 fn wrong_word_is_reported() {
     let source = r#"return { ui = { title = { align = "middle" } } }"#;
     assert!(parse(source, None).is_err());

@@ -73,6 +73,16 @@ return {
       -- waiting = " ожидание ",
     },
 
+    notice = { -- плашка после копирования
+      -- copy = true,
+      -- text = " ✓ Скопировано: {count} ",
+      -- duration = 1200,
+      -- side = "right",
+      -- position = "bottom",
+      -- margin = { x = 10, y = 4 },
+      -- свой вид (иначе как у panel): background, color, radius, padding, opacity
+    },
+
     texts = {
       -- vi = " VI: hjkl w b 0 $ g G · v V · y копировать · / поиск · q выход ",
       -- hint = " Метка — открыть, ЗАГЛАВНАЯ — копировать, Esc ",

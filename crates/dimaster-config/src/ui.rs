@@ -247,6 +247,36 @@ impl Default for Texts {
     }
 }
 
+/// Плашка «скопировано».
+#[derive(Debug, Clone, PartialEq)]
+pub struct NoticeStyle {
+    pub copy: bool,
+    // `{count}`, `{lines}`, `{preview}`, `{target}`; `\n` — новая строка
+    pub text: String,
+    // миллисекунды на экране
+    pub duration: u32,
+    pub side: Align,
+    pub position: Anchor,
+    // отступ от краёв окна в пикселях
+    pub margin: (u32, u32),
+    /// Свои цвета и форма; `None` — как у остальных панелей.
+    pub look: Option<PanelStyle>,
+}
+
+impl Default for NoticeStyle {
+    fn default() -> Self {
+        Self {
+            copy: true,
+            text: " ✓ Скопировано: {count} ".to_owned(),
+            duration: 1200,
+            side: Align::Right,
+            position: Anchor::Bottom,
+            margin: (10, 4),
+            look: None,
+        }
+    }
+}
+
 /// Вся таблица `ui`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Ui {
@@ -258,6 +288,7 @@ pub struct Ui {
     pub scrollbar: Strip,
     pub minimap: Strip,
     pub monitor: MonitorStyle,
+    pub notice: NoticeStyle,
     /// Где строка поиска и подсказки режимов: `true` — сверху.
     pub prompt_top: bool,
     pub texts: Texts,
@@ -274,6 +305,7 @@ impl Default for Ui {
             scrollbar: Strip::sized(5),
             minimap: Strip::sized(90),
             monitor: MonitorStyle::default(),
+            notice: NoticeStyle::default(),
             prompt_top: false,
             texts: Texts::default(),
         }

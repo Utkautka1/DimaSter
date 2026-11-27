@@ -155,7 +155,7 @@ impl View {
         };
         let text = self.term.selected_text(selection);
         if !text.is_empty() {
-            self.clipboard.set(target, text);
+            self.put_clipboard(target, text);
         }
     }
 

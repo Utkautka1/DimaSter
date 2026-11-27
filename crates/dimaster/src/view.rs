@@ -20,6 +20,7 @@ use crate::desktop;
 use crate::history_store::AssistStore;
 use crate::keymap::KeyState;
 use crate::modes::Mode;
+use crate::notice::Notice;
 use crate::pointer::Pointer;
 use crate::select::Selecting;
 use crate::session::{Launch, Output, Session};
@@ -70,6 +71,7 @@ pub(crate) struct View {
     // когда показать следующий кадр анимации
     animate_at: Option<Instant>,
     pub(crate) clipboard: Clipboard,
+    pub(crate) notice: Notice,
     pub(crate) selecting: Selecting,
     // текст, который пользователь набирает в IME
     pub(crate) preedit: String,
@@ -165,6 +167,7 @@ impl View {
             sync_since: None,
             animate_at: None,
             clipboard: Clipboard::new(),
+            notice: Notice::default(),
             selecting: Selecting::default(),
             preedit: String::new(),
             mode: Mode::Normal,
@@ -263,7 +266,7 @@ impl View {
                 } else {
                     Target::Clipboard
                 };
-                self.clipboard.set(target, text);
+                let _ = self.clipboard.set(target, text);
             }
         }
         for (title, body) in self.term.take_notifications() {
@@ -347,7 +350,11 @@ impl View {
             .next_frame(self.config.effects, self.focused, now);
         // кадр, который погасит вспышку звонка
         let flash = self.ringer.since.map(|t| t + FLASH).filter(|&t| t > now);
-        self.animate_at = [picture, motion, glow, flash].into_iter().flatten().min();
+        let notice = self.notice.expires(now);
+        self.animate_at = [picture, motion, glow, flash, notice]
+            .into_iter()
+            .flatten()
+            .min();
     }
 
     // номера строк изменились: поиск повторяется, vi-курсор теряет смысл

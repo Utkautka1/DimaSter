@@ -3,6 +3,7 @@
 //! Подложки (`rects`) рисуются под всеми подписями, поэтому панели не должны
 //! накладываться друг на друга: сквозь верхнюю проступил бы текст нижней.
 
+use dimaster_config::PanelStyle;
 use dimaster_render::{Label, Rect};
 use unicode_width::UnicodeWidthChar;
 
@@ -70,8 +71,8 @@ impl View {
 
     // цвета панелей выводятся из фона и текста темы: цвет выделения бывает
     // светлым, и светлый текст на нём не читается
-    fn panel_colors(&self, selected: bool) -> (u32, u32) {
-        let (style, theme) = (self.config.ui.panel, self.config.theme);
+    fn panel_colors(&self, style: PanelStyle, selected: bool) -> (u32, u32) {
+        let theme = self.config.theme;
         let color = style.color.unwrap_or(theme.foreground);
         let background = style
             .background
@@ -87,14 +88,17 @@ impl View {
 
     /// Размер панели в пикселях вместе с полями.
     pub(crate) fn panel_size(&self, columns: usize, rows: usize) -> (u32, u32) {
-        let (metrics, pad) = (self.fonts.metrics(), self.config.ui.panel.padding * 2);
+        self.styled_size(self.config.ui.panel, columns, rows)
+    }
+
+    pub(crate) fn styled_size(&self, style: PanelStyle, columns: usize, rows: usize) -> (u32, u32) {
+        let (metrics, pad) = (self.fonts.metrics(), style.padding * 2);
         let width = columns as u32 * metrics.cell_width + pad;
         (width, rows as u32 * metrics.cell_height + pad)
     }
 
-    fn backdrop(&self, at: (u32, u32), size: (u32, u32)) -> Rect {
-        let style = self.config.ui.panel;
-        let (_, color) = self.panel_colors(false);
+    fn backdrop(&self, style: PanelStyle, at: (u32, u32), size: (u32, u32)) -> Rect {
+        let (_, color) = self.panel_colors(style, false);
         let rect = self.plain_rect(at.0, at.1, size, color);
         Rect {
             radius: style.radius,
@@ -105,13 +109,24 @@ impl View {
 
     /// Панель с левым верхним углом `at`; пара — текст строки и выбрана ли она.
     pub(crate) fn panel(&self, at: (u32, u32), columns: usize, lines: &[(String, bool)]) -> Drawn {
-        let (metrics, pad) = (self.fonts.metrics(), self.config.ui.panel.padding);
+        self.styled_panel(self.config.ui.panel, at, columns, lines)
+    }
+
+    /// То же со своими цветами и формой.
+    pub(crate) fn styled_panel(
+        &self,
+        style: PanelStyle,
+        at: (u32, u32),
+        columns: usize,
+        lines: &[(String, bool)],
+    ) -> Drawn {
+        let (metrics, pad) = (self.fonts.metrics(), style.padding);
         let mut out = Drawn::default();
         out.rects
-            .push(self.backdrop(at, self.panel_size(columns, lines.len())));
+            .push(self.backdrop(style, at, self.styled_size(style, columns, lines.len())));
         for (index, (text, selected)) in lines.iter().enumerate() {
             let (x, y) = (at.0 + pad, at.1 + pad + index as u32 * metrics.cell_height);
-            let (color, background) = self.panel_colors(*selected);
+            let (color, background) = self.panel_colors(style, *selected);
             if *selected {
                 let size = (columns as u32 * metrics.cell_width, metrics.cell_height);
                 out.rects.push(self.plain_rect(x, y, size, background));

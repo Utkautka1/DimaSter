@@ -159,6 +159,8 @@ classDiagram
     Config *-- Ui
     Config *-- CursorLook
     class Drawn { rects; labels }
+    class Notice { shown; +expires(now) }
+    View *-- Notice
     class Layout { lines; logo; image; random; picture; logo_width }
     class PictureStyle { width; height; fit; position; gap; border }
     Layout *-- PictureStyle

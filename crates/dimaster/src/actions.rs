@@ -162,7 +162,7 @@ impl View {
         match state.press(press) {
             hint::Outcome::Stay => self.mode = Mode::Hint(state),
             hint::Outcome::Open(link) => desktop::open(&link, self.term.cwd()),
-            hint::Outcome::Copy(text) => self.clipboard.set(Target::Clipboard, text),
+            hint::Outcome::Copy(text) => self.put_clipboard(Target::Clipboard, text),
             hint::Outcome::Close => {}
         }
     }
@@ -171,7 +171,7 @@ impl View {
         match state.press(press) {
             history::Outcome::Stay => self.mode = Mode::History(state),
             history::Outcome::Insert(command) => self.type_bytes(command.into_bytes()),
-            history::Outcome::CopyOutput(text) => self.clipboard.set(Target::Clipboard, text),
+            history::Outcome::CopyOutput(text) => self.put_clipboard(Target::Clipboard, text),
             history::Outcome::Close => {}
         }
     }

@@ -41,7 +41,9 @@ pub use programs::{Bell, Programs};
 pub use scaffold::{File, scaffold};
 pub use smart::Smart;
 pub use theme::{Theme, builtin_names};
-pub use ui::{Align, Anchor, HistoryStyle, Marks, MonitorStyle, PaletteStyle, PanelStyle, Strip};
+pub use ui::{
+    Align, Anchor, HistoryStyle, Marks, MonitorStyle, NoticeStyle, PaletteStyle, PanelStyle, Strip,
+};
 pub use ui::{Texts, TitleButton, TitleStyle, Ui, WindowButton};
 pub use widgets::Widgets;
 pub use window::{Decorations, Effects, WindowConfig};
