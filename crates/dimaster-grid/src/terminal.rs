@@ -6,7 +6,7 @@ use unicode_width::UnicodeWidthChar;
 use crate::colors::ColorOverrides;
 use crate::command::Commands;
 use crate::extensions::{Policy, Progress};
-use crate::graphics::{Store, VirtualPlacement};
+use crate::graphics::{DecodedImage, SlowImage, Store, VirtualPlacement};
 use crate::hyperlink::Links;
 use crate::keyboard::KeyboardStack;
 use crate::reflow::Position;
@@ -71,6 +71,8 @@ pub(crate) struct State {
     // форма, к которой возвращает DECSCUSR 0
     pub(crate) default_cursor: CursorShape,
     pub(crate) graphics: Store,
+    // картинка, на которой разбор остановился
+    pub(crate) deferred: Option<SlowImage>,
     pub(crate) notifications: Vec<(String, String)>,
     // сколько раз прозвенел BEL
     pub(crate) bells: u64,
@@ -87,8 +89,27 @@ impl Terminal {
         }
     }
 
-    pub fn advance(&mut self, bytes: &[u8]) {
-        self.parser.advance(&mut self.state, bytes);
+    /// Разбирает вывод целиком, декодируя картинки на месте.
+    pub fn advance(&mut self, mut bytes: &[u8]) {
+        while !bytes.is_empty() {
+            let (used, slow) = self.advance_part(bytes);
+            bytes = &bytes[used..];
+            if let Some(slow) = slow {
+                self.finish_image(slow.decode());
+            }
+        }
+    }
+
+    /// Разбирает до первой картинки для внешнего декодера. Возвращает число
+    /// разобранных байтов и эту картинку; остаток передаётся после
+    /// [`Terminal::finish_image`].
+    pub fn advance_part(&mut self, bytes: &[u8]) -> (usize, Option<SlowImage>) {
+        let used = self.parser.advance(&mut self.state, bytes);
+        (used, self.state.deferred.take())
+    }
+
+    pub fn finish_image(&mut self, image: DecodedImage) {
+        self.state.finish_image(image);
     }
 
     pub fn resize(&mut self, size: Size) {
@@ -293,6 +314,7 @@ impl State {
             clipboard: Vec::new(),
             default_cursor: CursorShape::Block,
             graphics: Store::default(),
+            deferred: None,
             notifications: Vec::new(),
             bells: 0,
             pointer: None,

@@ -1,14 +1,14 @@
 //! Переданные, но ещё не обязательно показанные картинки Kitty.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 use dimaster_image::Animation;
 
 use super::{Pending, Picture, VirtualPlacement};
 
-// суммарный объём хранимых пикселей
-const LIMIT: usize = 256 * 1024 * 1024;
+// суммарный объём хранимых пикселей; он же предел кадров одной анимации
+pub(super) const LIMIT: usize = 256 * 1024 * 1024;
 
 #[derive(Debug, Default)]
 pub(crate) struct Store {
@@ -25,18 +25,34 @@ impl Store {
         Arc::new(Picture::new(self.serial, animation))
     }
 
-    /// Самые старые картинки вытесняются, когда память заканчивается.
     pub(crate) fn keep(&mut self, id: u32, picture: Arc<Picture>) {
         self.images.insert(id, picture);
-        while self.images.values().map(|p| p.bytes()).sum::<usize>() > LIMIT {
-            let oldest = self
-                .images
-                .iter()
-                .min_by_key(|(_, p)| p.serial)
-                .map(|(&id, _)| id);
-            let Some(oldest) = oldest else { return };
-            self.images.remove(&oldest);
+        self.trim();
+    }
+
+    /// Вытесняет самые старые картинки, пока всё хранимое не уложится в лимит.
+    pub(crate) fn trim(&mut self) {
+        // одна картинка может быть и сохранённой, и виртуальной: считаем раз
+        let virtuals = self.virtuals.values().map(|v| &v.picture);
+        let sizes: BTreeMap<u64, usize> = self
+            .images
+            .values()
+            .chain(virtuals)
+            .map(|p| (p.serial, p.bytes()))
+            .collect();
+        let mut total: usize = sizes.values().sum();
+        for (serial, bytes) in sizes {
+            if total <= LIMIT {
+                return;
+            }
+            self.forget(serial);
+            total -= bytes;
         }
+    }
+
+    fn forget(&mut self, serial: u64) {
+        self.images.retain(|_, p| p.serial != serial);
+        self.virtuals.retain(|_, v| v.picture.serial != serial);
     }
 
     pub(crate) fn get(&self, id: u32) -> Option<Arc<Picture>> {
@@ -45,6 +61,7 @@ impl Store {
 
     pub(crate) fn put_virtual(&mut self, id: (u32, u32), placement: VirtualPlacement) {
         self.virtuals.insert(id, placement);
+        self.trim();
     }
 
     pub(crate) fn get_virtual(

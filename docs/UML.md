@@ -33,8 +33,9 @@ graph TD
 
 ```mermaid
 classDiagram
-    class Parser { +advance(perform, bytes) }
+    class Parser { +advance(perform, bytes) usize }
     class Perform {
+        +paused() bool
         <<trait>>
         print(ch)
         execute(byte)
@@ -47,6 +48,8 @@ classDiagram
     class Sequence { params; intermediates; action }
     class Params { +groups() +get_or(index, default) }
     class Terminal {
+        +advance_part(bytes) SlowImage
+        +finish_image(decoded)
         +advance(bytes)
         +resize(size)
         +take_reply()
@@ -95,7 +98,9 @@ classDiagram
     class Run { text; cells; color }
     class Image { width; height; pixels }
     class Animation { width; height; frames; +frame_at(elapsed) +frame_at_limit(elapsed, loops) }
-    class Store { +picture(animation) +keep(id, picture) +put_virtual() +get_virtual() }
+    class Store { +picture(animation) +keep(id, picture) +put_virtual() +get_virtual() +trim() }
+    class SlowImage { +decode() DecodedImage }
+    State o-- SlowImage : deferred
     class Picture { serial; animation; started; generation; playback }
     class Placement { col; cols; rows; picture; crop }
     class VirtualPlacement { picture; cols; rows }
@@ -141,7 +146,7 @@ classDiagram
     class Commands { options; input_start; running; history }
     class CommandCache { bins; +highlight_input(term, palette) }
     View *-- CommandCache
-    class Links { uris; +uri(number) }
+    class Links { uris; free; +uri(number) +sweep(used) }
     State *-- Links
     class Finished { command; exit; duration; output }
     class SmartOptions { ok; empty; errors; search_tools }
@@ -258,7 +263,11 @@ classDiagram
 
 ```mermaid
 classDiagram
-    class Database { +load(path) +query(sql) +table(name) }
+    class Database { +load(path) +query(sql) +table(name) +set_limits(limits) }
+    class Limits { time; bytes }
+    class Watchdog { +start(connection, time) }
+    Database *-- Limits
+    Database ..> Watchdog : query
     class Table { name; columns; rows }
     class App { sheets; active; mode; +press(key) }
     class Sheet { sql; table; columns; shown; +search() +apply() }

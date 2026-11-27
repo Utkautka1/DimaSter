@@ -61,6 +61,13 @@ impl PackedRow {
         }
     }
 
+    /// Номера гиперссылок, встречающиеся в строке.
+    pub(crate) fn links(&self) -> impl Iterator<Item = u16> + '_ {
+        self.runs.iter().map(|run| match run {
+            CellRun::Repeat { style, .. } | CellRun::Text { style, .. } => style.link,
+        })
+    }
+
     /// Текст строки без распаковки всех ячеек.
     pub(crate) fn text(&self) -> String {
         let mut out = String::with_capacity(self.text.len());

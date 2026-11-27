@@ -53,7 +53,7 @@ fn spawn_ffmpeg() -> Option<Child> {
         .ok()
 }
 
-// декодирование идёт в потоке окна: подвисший ffmpeg нельзя ждать бесконечно
+// вызывающий поток ждёт результата: подвисший ffmpeg нельзя ждать бесконечно
 fn wait_or_kill(child: &mut Child) {
     let deadline = Instant::now() + TIMEOUT;
     while matches!(child.try_wait(), Ok(None)) {

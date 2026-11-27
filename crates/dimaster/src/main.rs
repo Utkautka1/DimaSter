@@ -5,6 +5,7 @@ mod animate;
 mod app;
 mod autopair;
 mod bar;
+mod bounded;
 mod canvas;
 mod choice;
 mod chrome;

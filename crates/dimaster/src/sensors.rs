@@ -7,13 +7,17 @@
 use dimaster_i18n::tr;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Command;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
+use crate::bounded;
+
 // тактов в секунде в /proc/<pid>/stat на всех распространённых ядрах
 const TICKS: f64 = 100.0;
+// дольше этого git и docker не ждут: иначе виджеты замирают
+const TIMEOUT: Duration = Duration::from_secs(5);
 
 pub(crate) type Facts = Vec<(String, String)>;
 
@@ -77,17 +81,9 @@ fn foreground(shell: u32) -> Option<(String, u64, u64)> {
 }
 
 fn output(program: &str, args: &[&str], directory: &Path) -> Option<String> {
-    let result = Command::new(program)
-        .args(args)
-        .current_dir(directory)
-        .stdin(Stdio::null())
-        .stderr(Stdio::null())
-        .output()
-        .ok()?;
-    result
-        .status
-        .success()
-        .then(|| String::from_utf8_lossy(&result.stdout).into_owned())
+    let mut command = Command::new(program);
+    command.args(args).current_dir(directory);
+    bounded::output(command, TIMEOUT)
 }
 
 // каталог .git этого репозитория; в worktree вместо него файл со ссылкой

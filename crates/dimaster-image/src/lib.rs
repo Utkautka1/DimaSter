@@ -11,7 +11,7 @@ mod inflate;
 mod png;
 mod sixel;
 
-pub use animation::{Animation, Frame, decode};
+pub use animation::{Animation, Decoding, Frame, decode, decode_external, decode_native};
 pub use base64::{decode_base64, encode_base64};
 pub use gif::decode_gif;
 pub use png::{Image, decode_png};

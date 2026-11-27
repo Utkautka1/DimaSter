@@ -5,6 +5,7 @@
 //! освобождается, когда строка вытесняется.
 
 mod budget;
+mod defer;
 mod diacritics;
 mod fit;
 mod iterm;
@@ -17,9 +18,11 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
-use dimaster_image::{Animation, decode, decode_base64, decode_sixel};
+use dimaster_image::{Animation, decode_base64, decode_sixel};
 use parking_lot::RwLock;
 
+pub(crate) use defer::Then;
+pub use defer::{DecodedImage, SlowImage};
 pub use diacritics::{PLACEHOLDER_CHAR, PlaceholderCell, placeholder_info};
 pub(crate) use kitty::Pending;
 pub(crate) use store::Store;
@@ -141,17 +144,21 @@ impl State {
         let Some(split) = data.iter().position(|&b| b == b';') else {
             return;
         };
-        let header = String::from_utf8_lossy(&data[..split]);
+        let header = String::from_utf8_lossy(&data[..split]).into_owned();
+        if !header.split(',').any(|p| p == "a=show") {
+            return;
+        }
+        if let Some(file) = decode_base64(&data[split + 1..]) {
+            self.decode_or_defer(file, Then::Own(header));
+        }
+    }
+
+    fn show_own(&mut self, header: &str, animation: Option<Animation>) {
+        let Some(animation) = animation else { return };
         let value = |key: &str| {
             header
                 .split(',')
                 .find_map(|p| p.strip_prefix(key)?.strip_prefix('=')?.parse().ok())
-        };
-        if !header.split(',').any(|p| p == "a=show") {
-            return;
-        }
-        let Some(animation) = decode_base64(&data[split + 1..]).and_then(|d| decode(&d)) else {
-            return;
         };
         let picture = self.graphics.picture(animation);
         let mode = header.split(',').find_map(|p| p.strip_prefix("fit="));

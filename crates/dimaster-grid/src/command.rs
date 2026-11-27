@@ -136,12 +136,14 @@ impl State {
         let start = from.max(end.saturating_sub(SNAPSHOT_LINES as u64));
         let skip = start.saturating_sub(self.screen.evicted) as usize;
         let count = end.saturating_sub(start) as usize;
+        // пропуск до распаковки: иначе после команды читалась бы вся история
+        let history = self.screen.history.len();
+        let rows = self.screen.rows.iter().skip(skip.saturating_sub(history));
         self.screen
             .history
-            .iter()
+            .range(skip.min(history)..)
             .map(|r| r.text())
-            .chain(self.screen.rows.iter().map(|r| r.text()))
-            .skip(skip)
+            .chain(rows.map(|r| r.text()))
             .take(count)
             .collect()
     }

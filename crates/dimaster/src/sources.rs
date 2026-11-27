@@ -1,9 +1,10 @@
 //! Откуда берутся строки списков: серверы из `~/.ssh/config` и контейнеры.
 
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
-use std::sync::mpsc;
+use std::process::Command;
 use std::time::Duration;
+
+use crate::bounded;
 
 // вложенные Include глубже этого — почти наверняка цикл
 const MAX_INCLUDE: u8 = 3;
@@ -103,19 +104,10 @@ fn parse_containers(output: &str) -> Vec<Container> {
 
 /// `None`, если Docker не установлен, не отвечает или отказал.
 pub(crate) fn containers() -> Option<Vec<Container>> {
-    let (send, receive) = mpsc::channel();
-    std::thread::spawn(move || {
-        let format = "{{.Names}}\t{{.Status}}\t{{.Image}}";
-        let output = Command::new("docker")
-            .args(["ps", "--all", "--format", format])
-            .stdin(Stdio::null())
-            .output();
-        // получатель мог уже перестать ждать
-        let _ = send.send(output);
-    });
-    let output = receive.recv_timeout(DOCKER_TIMEOUT).ok()?.ok()?;
-    let text = String::from_utf8_lossy(&output.stdout).into_owned();
-    output.status.success().then(|| parse_containers(&text))
+    let format = "{{.Names}}\t{{.Status}}\t{{.Image}}";
+    let mut command = Command::new("docker");
+    command.args(["ps", "--all", "--format", format]);
+    bounded::output(command, DOCKER_TIMEOUT).map(|text| parse_containers(&text))
 }
 
 #[cfg(test)]

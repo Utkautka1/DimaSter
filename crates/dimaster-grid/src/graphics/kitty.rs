@@ -10,9 +10,10 @@ use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
-use dimaster_image::{Animation, Frame, decode, decode_base64, inflate_zlib};
+use dimaster_image::{Animation, Frame, decode_base64, inflate_zlib};
 
-use super::{MAX_IMAGE_ROWS, Picture, VirtualPlacement};
+use super::store::LIMIT;
+use super::{MAX_IMAGE_ROWS, Picture, Then, VirtualPlacement};
 use crate::terminal::State;
 
 // предел на один файл или передачу по частям
@@ -167,7 +168,13 @@ fn raw_pixels(command: &Pending, data: Vec<u8>, depth: usize) -> Option<Animatio
     Some(Animation::still(width, height, pixels))
 }
 
-fn load(command: &Pending) -> Option<Animation> {
+/// Содержимое передачи: готовые пиксели или файл картинки.
+enum Loaded {
+    Pixels(Option<Animation>),
+    File(Vec<u8>),
+}
+
+fn load(command: &Pending) -> Option<Loaded> {
     let mut data = decode_base64(&command.data)?;
     match command.letter(b't', b'd') {
         b'd' => {}
@@ -179,9 +186,9 @@ fn load(command: &Pending) -> Option<Animation> {
         data = inflate_zlib(&data, MAX_PAYLOAD * 4)?;
     }
     match command.number(b'f') {
-        100 => decode(&data),
-        24 => raw_pixels(command, data, 3),
-        0 | 32 => raw_pixels(command, data, 4),
+        100 => Some(Loaded::File(data)),
+        24 => Some(Loaded::Pixels(raw_pixels(command, data, 3))),
+        0 | 32 => Some(Loaded::Pixels(raw_pixels(command, data, 4))),
         _ => None,
     }
 }
@@ -241,6 +248,32 @@ fn frame_delay(command: &Pending) -> u32 {
     }
 }
 
+// кадр поверх базового заменяет номер `r` или добавляется в конец
+fn add_frame(command: &Pending, anim: &mut Animation, source: &Animation) -> bool {
+    let (width, height) = (anim.width, anim.height);
+    let index = command.number(b'r').checked_sub(1).map(|i| i as usize);
+    let replaced = index.filter(|&i| i < anim.frames.len());
+    // крошечная команда создаёт полный кадр: без предела память кончится
+    if replaced.is_none() && anim.bytes() + width * height * 4 > LIMIT {
+        return false;
+    }
+    let base = command.number(b'c').checked_sub(1);
+    let base = base.and_then(|i| anim.frames.get(i as usize));
+    let mut pixels = base.map_or_else(|| vec![0; width * height * 4], |f| f.pixels.clone());
+    let at = (command.number(b'x') as usize, command.number(b'y') as usize);
+    let replace = command.number(b'X') == 1;
+    blit_frame(&mut pixels, width, height, source, at, replace);
+    let frame = Frame {
+        pixels,
+        delay: frame_delay(command),
+    };
+    match replaced {
+        Some(i) => anim.frames[i] = frame,
+        None => anim.frames.push(frame),
+    }
+    true
+}
+
 impl State {
     pub(crate) fn kitty(&mut self, data: &[u8]) {
         let part = parse(data);
@@ -261,26 +294,42 @@ impl State {
             return;
         }
         command.keys.remove(&b'm');
-        self.kitty_command(&command);
+        self.kitty_command(command);
     }
 
-    fn kitty_command(&mut self, command: &Pending) {
-        let action = command.letter(b'a', b't');
-        let ok = match action {
-            b't' | b'T' | b'q' => self.kitty_transmit(command, action),
-            b'p' => self.kitty_put(command),
-            b'f' => self.kitty_frame(command),
-            b'a' => self.kitty_animate(command),
-            b'd' => return self.kitty_delete(command),
+    fn kitty_command(&mut self, command: Pending) {
+        let ok = match command.letter(b'a', b't') {
+            b't' | b'T' | b'q' | b'f' => return self.kitty_load(command),
+            b'p' => self.kitty_put(&command),
+            b'a' => self.kitty_animate(&command),
+            b'd' => return self.kitty_delete(&command),
             _ => false,
         };
+        self.kitty_reply(&command, ok);
+    }
+
+    // команды с данными: ответ уходит после декодирования
+    fn kitty_load(&mut self, mut command: Pending) {
+        let loaded = load(&command);
+        // исходный base64 больше не нужен и не должен ждать декодера
+        command.data = Vec::new();
+        match loaded {
+            Some(Loaded::File(file)) => self.decode_or_defer(file, Then::Kitty(command)),
+            Some(Loaded::Pixels(animation)) => self.kitty_finish(&command, animation),
+            None => self.kitty_finish(&command, None),
+        }
+    }
+
+    pub(super) fn kitty_finish(&mut self, command: &Pending, animation: Option<Animation>) {
+        let action = command.letter(b'a', b't');
+        let ok = animation.is_some_and(|animation| match action {
+            b'f' => self.kitty_frame(command, &animation),
+            _ => self.kitty_transmit(command, action, animation),
+        });
         self.kitty_reply(command, ok);
     }
 
-    fn kitty_transmit(&mut self, command: &Pending, action: u8) -> bool {
-        let Some(animation) = load(command) else {
-            return false;
-        };
+    fn kitty_transmit(&mut self, command: &Pending, action: u8, animation: Animation) -> bool {
         if action == b'q' {
             return true;
         }
@@ -326,29 +375,17 @@ impl State {
         }
     }
 
-    fn kitty_frame(&mut self, command: &Pending) -> bool {
+    fn kitty_frame(&mut self, command: &Pending, source: &Animation) -> bool {
         let Some(picture) = self.graphics.get(command.number(b'i')) else {
             return false;
         };
-        let Some(src) = load(command) else {
+        if !add_frame(command, &mut picture.animation.write(), source) {
             return false;
-        };
-        let delay = frame_delay(command);
-        let mut anim = picture.animation.write();
-        let (cw, ch) = (anim.width, anim.height);
-        let base = command
-            .number(b'c')
-            .checked_sub(1)
-            .and_then(|i| anim.frames.get(i as usize));
-        let mut pixels = base.map_or_else(|| vec![0; cw * ch * 4], |f| f.pixels.clone());
-        let at = (command.number(b'x') as usize, command.number(b'y') as usize);
-        blit_frame(&mut pixels, cw, ch, &src, at, command.number(b'X') == 1);
-        let frame = Frame { pixels, delay };
-        match command.number(b'r').checked_sub(1) {
-            Some(idx) if (idx as usize) < anim.frames.len() => anim.frames[idx as usize] = frame,
-            _ => anim.frames.push(frame),
         }
         picture.generation.fetch_add(1, Ordering::Relaxed);
+        // выросшая анимация может вытеснить другие картинки
+        self.graphics.trim();
+        self.enforce_image_budget();
         true
     }
 

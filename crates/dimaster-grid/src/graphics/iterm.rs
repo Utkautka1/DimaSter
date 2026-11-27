@@ -1,7 +1,8 @@
 //! Встроенные картинки iTerm2 (OSC 1337 `File=`).
 
-use dimaster_image::{decode, decode_base64};
+use dimaster_image::{Animation, decode_base64};
 
+use super::Then;
 use crate::terminal::State;
 
 // `N` — ячейки, `Npx` — пиксели, `N%` — доля экрана, `auto` — по картинке
@@ -15,6 +16,13 @@ fn cells(value: &str, cell: usize, total: usize) -> Option<usize> {
     value.parse().ok()
 }
 
+// значение из заголовка вида `ключ=значение;…`
+fn field<'a>(header: &'a str, key: &str) -> Option<&'a str> {
+    header
+        .split(';')
+        .find_map(|p| p.strip_prefix(key)?.strip_prefix('='))
+}
+
 impl State {
     /// `payload` — всё после `1337;`.
     pub(crate) fn iterm(&mut self, payload: &[u8]) {
@@ -24,21 +32,20 @@ impl State {
         let Some(split) = rest.iter().position(|&b| b == b':') else {
             return;
         };
-        let header = String::from_utf8_lossy(&rest[..split]);
-        let value = |key: &str| {
-            header
-                .split(';')
-                .find_map(|p| p.strip_prefix(key)?.strip_prefix('='))
-        };
-        if value("inline") != Some("1") {
+        let header = String::from_utf8_lossy(&rest[..split]).into_owned();
+        if field(&header, "inline") != Some("1") {
             return;
         }
-        let Some(animation) = decode_base64(&rest[split + 1..]).and_then(|d| decode(&d)) else {
-            return;
-        };
+        if let Some(file) = decode_base64(&rest[split + 1..]) {
+            self.decode_or_defer(file, Then::Iterm(header));
+        }
+    }
+
+    pub(super) fn show_iterm(&mut self, header: &str, animation: Option<Animation>) {
+        let Some(animation) = animation else { return };
         let (cell, rows) = (self.cell_size(), self.screen.rows.len());
-        let width = value("width").and_then(|v| cells(v, cell.0, self.screen.cols()));
-        let height = value("height").and_then(|v| cells(v, cell.1, rows));
+        let width = field(header, "width").and_then(|v| cells(v, cell.0, self.screen.cols()));
+        let height = field(header, "height").and_then(|v| cells(v, cell.1, rows));
         let picture = self.graphics.picture(animation);
         let size = self.image_cells(&picture, width, height, None);
         self.place_and_advance(picture, size, (0, 0), None);

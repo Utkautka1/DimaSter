@@ -7,6 +7,10 @@ use crate::terminal::{Size, State};
 use crate::{Cell, sgr};
 
 impl Perform for State {
+    fn paused(&self) -> bool {
+        self.deferred.is_some()
+    }
+
     fn print(&mut self, ch: char) {
         self.put(ch);
     }
@@ -143,18 +147,21 @@ impl State {
             cols: self.screen.cols(),
         };
         self.set_alternate(false);
-        let history = std::mem::take(&mut self.screen.history);
-        let reply = std::mem::take(&mut self.reply);
-        let (cell_pixels, colors) = (self.cell_pixels, self.colors);
-        let (shape, limit) = (self.default_cursor, self.screen.limit);
-        let keep_images = self.screen.keep_images;
-        *self = Self::new(size);
-        (self.cell_pixels, self.colors) = (cell_pixels, colors);
-        (self.default_cursor, self.modes.cursor_shape) = (shape, shape);
-        self.screen.limit = limit;
-        self.screen.keep_images = keep_images;
-        self.screen.history = history;
-        self.reply = reply;
+        let old = std::mem::replace(self, Self::new(size));
+        self.keep_from(old);
+    }
+
+    // настройки окна, неотправленные ответы и история переживают сброс
+    fn keep_from(&mut self, old: Self) {
+        (self.cell_pixels, self.colors) = (old.cell_pixels, old.colors);
+        self.default_cursor = old.default_cursor;
+        self.modes.cursor_shape = old.default_cursor;
+        self.screen.limit = old.screen.limit;
+        self.screen.keep_images = old.screen.keep_images;
+        self.screen.history = old.screen.history;
+        // ячейки истории хранят номера: без прежней таблицы они сменят адрес
+        self.links = old.links;
+        self.reply = old.reply;
     }
 
     // DECALN: vttest проверяет им геометрию экрана

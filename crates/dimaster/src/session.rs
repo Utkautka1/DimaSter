@@ -9,6 +9,7 @@ use std::io::{self, Read, Write};
 use std::path::Path;
 use std::process::Command;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::thread;
 
@@ -78,22 +79,47 @@ pub(crate) struct Output {
     pub(crate) wake: Box<dyn Fn() + Send>,
 }
 
+// сколько ждущих записи байтов терпим, прежде чем отбрасывать ответы
+const REPLY_BACKLOG: usize = 1 << 20;
+
+/// Очередь к потоку записи и объём того, что в ней ждёт.
+#[derive(Clone)]
+struct Input {
+    sender: Sender<Vec<u8>>,
+    queued: Arc<AtomicUsize>,
+}
+
+impl Input {
+    fn send(&self, bytes: Vec<u8>) -> bool {
+        self.queued.fetch_add(bytes.len(), Ordering::Relaxed);
+        self.sender.send(bytes).is_ok()
+    }
+
+    // программа, которая спрашивает, но не читает, не должна растить память
+    fn reply(&self, bytes: Vec<u8>) -> bool {
+        self.queued.load(Ordering::Relaxed) > REPLY_BACKLOG || self.send(bytes)
+    }
+}
+
 /// Запущенный shell и потоки обмена с ним.
 pub(crate) struct Session {
     pty: Pty,
-    input: Sender<Vec<u8>>,
+    input: Input,
 }
 
 impl Session {
     /// Запускает shell и поток, который разбирает его вывод прямо в терминал.
     pub(crate) fn spawn(launch: &Launch<'_>, size: WindowSize, output: Output) -> io::Result<Self> {
         let pty = Pty::spawn(command(launch), size)?;
-        let (input, input_rx) = channel();
+        let (sender, input_rx) = channel();
+        let queued = Arc::default();
+        let input = Input { sender, queued };
         let reader = pty.try_clone_master()?;
         let writer = pty.try_clone_master()?;
         let replies = input.clone();
+        let queued = input.queued.clone();
         thread::spawn(move || read_loop(reader, &output, &replies));
-        thread::spawn(move || write_loop(writer, &input_rx));
+        thread::spawn(move || write_loop(writer, &input_rx, &queued));
         Ok(Self { pty, input })
     }
 
@@ -102,7 +128,7 @@ impl Session {
     }
 
     pub(crate) fn send(&self, bytes: Vec<u8>) {
-        if !bytes.is_empty() && self.input.send(bytes).is_err() {
+        if !bytes.is_empty() && !self.input.send(bytes) {
             log::debug!("{}", t!("shell уже закрыт, ввод отброшен"));
         }
     }
@@ -117,14 +143,20 @@ impl Session {
     }
 }
 
-// блокировка берётся на одну порцию и сразу отдаётся
-fn feed(terminal: &SharedTerminal, bytes: &[u8]) -> Vec<u8> {
-    let mut terminal = terminal.lock();
-    terminal.advance(bytes);
-    terminal.take_reply()
+// блокировка берётся на одну порцию и отдаётся на время работы ffmpeg
+fn feed(terminal: &SharedTerminal, mut bytes: &[u8]) -> Vec<u8> {
+    while !bytes.is_empty() {
+        let (used, slow) = terminal.lock().advance_part(bytes);
+        bytes = &bytes[used..];
+        if let Some(slow) = slow {
+            let image = slow.decode();
+            terminal.lock().finish_image(image);
+        }
+    }
+    terminal.lock().take_reply()
 }
 
-fn read_loop(mut reader: impl Read, output: &Output, replies: &Sender<Vec<u8>>) {
+fn read_loop(mut reader: impl Read, output: &Output, replies: &Input) {
     let mut buf = [0; 64 * 1024];
     loop {
         // EIO после выхода shell — обычное завершение
@@ -135,7 +167,7 @@ fn read_loop(mut reader: impl Read, output: &Output, replies: &Sender<Vec<u8>>) 
             return (output.wake)();
         }
         let reply = feed(&output.terminal, &buf[..read]);
-        if !reply.is_empty() && replies.send(reply).is_err() {
+        if !reply.is_empty() && !replies.reply(reply) {
             return;
         }
         if output.signals.raise() {
@@ -144,11 +176,12 @@ fn read_loop(mut reader: impl Read, output: &Output, replies: &Sender<Vec<u8>>) 
     }
 }
 
-fn write_loop(mut writer: impl Write, input: &Receiver<Vec<u8>>) {
+fn write_loop(mut writer: impl Write, input: &Receiver<Vec<u8>>, queued: &AtomicUsize) {
     for bytes in input {
         if let Err(e) = writer.write_all(&bytes) {
             log::debug!("{}", t!("запись в PTY прекращена: {error}", error = e));
             return;
         }
+        queued.fetch_sub(bytes.len(), Ordering::Relaxed);
     }
 }

@@ -7,13 +7,15 @@ use std::path::Path;
 
 use rusqlite::limits::Limit;
 use rusqlite::types::ValueRef;
-use rusqlite::{Connection, params_from_iter};
+use rusqlite::{Connection, Statement, params_from_iter};
 
 use crate::format::parse;
+use crate::limit::{Limits, Watchdog, row_bytes};
 use crate::{DataError, Format, Options, Table, Value, is_leveldb, leveldb};
 
 pub struct Database {
     connection: Connection,
+    limits: Limits,
 }
 
 fn quote(name: &str) -> String {
@@ -55,7 +57,14 @@ impl Database {
     pub fn new() -> Result<Self, DataError> {
         let connection = Connection::open_in_memory()?;
         connection.set_limit(Limit::SQLITE_LIMIT_ATTACHED, 0)?;
-        Ok(Self { connection })
+        Ok(Self {
+            connection,
+            limits: Limits::default(),
+        })
+    }
+
+    pub fn set_limits(&mut self, limits: Limits) {
+        self.limits = limits;
     }
 
     /// Читает файл и возвращает имена добавленных таблиц.
@@ -155,7 +164,9 @@ impl Database {
 
     fn script(&mut self, sql: &str) -> Result<Vec<String>, DataError> {
         let before = self.tables()?;
+        let watchdog = Watchdog::start(&self.connection, self.limits.time);
         self.connection.execute_batch(sql)?;
+        drop(watchdog);
         self.added_since(&before)
     }
 
@@ -165,14 +176,20 @@ impl Database {
         std::fs::metadata(path)?;
         let before = self.tables()?;
         self.connection.set_limit(Limit::SQLITE_LIMIT_ATTACHED, 1)?;
+        let result = self.through_attach(path);
+        // запрет возвращается при любом исходе, в том числе при битом файле
+        self.connection.set_limit(Limit::SQLITE_LIMIT_ATTACHED, 0)?;
+        result?;
+        self.added_since(&before)
+    }
+
+    fn through_attach(&self, path: &Path) -> Result<(), DataError> {
         let file = path.to_string_lossy();
         self.connection
             .execute("ATTACH ?1 AS source", [file.as_ref()])?;
         let result = self.copy_attached();
         self.connection.execute_batch("DETACH source")?;
-        self.connection.set_limit(Limit::SQLITE_LIMIT_ATTACHED, 0)?;
-        result?;
-        self.added_since(&before)
+        result
     }
 
     fn copy_attached(&self) -> Result<(), DataError> {
@@ -191,23 +208,37 @@ impl Database {
         Ok(())
     }
 
-    /// Результат первого оператора запроса.
+    /// Результат первого оператора запроса в пределах [`Limits`].
     pub fn query(&self, sql: &str) -> Result<Table, DataError> {
+        let _watchdog = Watchdog::start(&self.connection, self.limits.time);
         let mut statement = self.connection.prepare(sql)?;
         let names = statement.column_names();
         let columns: Vec<String> = names.into_iter().map(str::to_owned).collect();
-        let width = columns.len();
-        let mut found = statement.query([])?;
-        let mut rows = Vec::new();
-        while let Some(row) = found.next()? {
-            let cells: Result<Vec<_>, _> = (0..width).map(|i| row.get_ref(i).map(value)).collect();
-            rows.push(cells?);
-        }
+        let rows = self.collect(&mut statement, columns.len())?;
         Ok(Table {
             name: String::new(),
             columns,
             rows,
         })
+    }
+
+    fn collect(
+        &self,
+        statement: &mut Statement<'_>,
+        width: usize,
+    ) -> Result<Vec<Vec<Value>>, DataError> {
+        let mut found = statement.query([])?;
+        let (mut rows, mut bytes) = (Vec::new(), 0);
+        while let Some(row) = found.next()? {
+            let cells: Result<Vec<_>, _> = (0..width).map(|i| row.get_ref(i).map(value)).collect();
+            let cells = cells?;
+            bytes += row_bytes(&cells);
+            if bytes > self.limits.bytes {
+                return Err(DataError::TooLarge);
+            }
+            rows.push(cells);
+        }
+        Ok(rows)
     }
 
     /// Таблица целиком.

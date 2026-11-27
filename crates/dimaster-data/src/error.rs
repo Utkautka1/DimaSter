@@ -10,6 +10,8 @@ pub enum DataError {
     UnknownFormat,
     /// В файле не нашлось ни одной таблицы.
     Empty,
+    /// Результат запроса не помещается в отведённую память.
+    TooLarge,
     Parse(String),
     Sql(rusqlite::Error),
 }
@@ -20,6 +22,7 @@ impl fmt::Display for DataError {
             Self::Io(e) => write!(f, "{e}"),
             Self::UnknownFormat => f.write_str("unknown format"),
             Self::Empty => f.write_str("no tables"),
+            Self::TooLarge => f.write_str("result is too large"),
             Self::Parse(text) => f.write_str(text),
             Self::Sql(e) => write!(f, "{e}"),
         }

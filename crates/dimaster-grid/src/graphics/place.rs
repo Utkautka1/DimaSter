@@ -40,10 +40,12 @@ impl State {
         rows: Option<usize>,
     ) -> (usize, usize) {
         let (cw, ch) = self.cell_size();
+        // размеры присылает программа: насыщение вместо переполнения
+        let product = |a: usize, b: usize, c: usize| a.saturating_mul(b).saturating_mul(c);
         match (cols.filter(|&c| c > 0), rows.filter(|&r| r > 0)) {
             (Some(c), Some(r)) => (c, r),
-            (Some(c), None) => (c, (c * cw * height).div_ceil(width * ch)),
-            (None, Some(r)) => ((r * ch * width).div_ceil(height * cw), r),
+            (Some(c), None) => (c, product(c, cw, height).div_ceil(width * ch)),
+            (None, Some(r)) => (product(r, ch, width).div_ceil(height * cw), r),
             (None, None) => (width.div_ceil(cw), height.div_ceil(ch)),
         }
     }
@@ -52,7 +54,7 @@ impl State {
     fn fit_width(&self, cols: usize, rows: usize) -> (usize, usize) {
         let available = (self.screen.cols() - self.cursor.col).max(1);
         let rows = if cols > available {
-            (rows * available).div_ceil(cols)
+            rows.saturating_mul(available).div_ceil(cols)
         } else {
             rows
         };

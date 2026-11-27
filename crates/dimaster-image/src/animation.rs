@@ -61,17 +61,42 @@ impl Animation {
     }
 }
 
-/// Определяет формат по сигнатуре и декодирует.
-pub fn decode(data: &[u8]) -> Option<Animation> {
+/// Итог декодирования своими силами.
+#[derive(Debug)]
+pub enum Decoding {
+    Ready(Option<Animation>),
+    /// Нужен внешний `ffmpeg`: это долго.
+    External,
+}
+
+/// Разбирает PNG и GIF, не запуская внешних программ.
+pub fn decode_native(data: &[u8]) -> Decoding {
     if data.starts_with(b"\x89PNG") {
         // редкие варианты PNG (16 бит, интерлейс) достаются ffmpeg
         return match decode_png(data) {
-            Some(image) => Some(Animation::still(image.width, image.height, image.pixels)),
-            None => external::decode(data),
+            Some(image) => Decoding::Ready(Some(Animation::still(
+                image.width,
+                image.height,
+                image.pixels,
+            ))),
+            None => Decoding::External,
         };
     }
     if data.starts_with(b"GIF8") {
-        return decode_gif(data);
+        return Decoding::Ready(decode_gif(data));
     }
+    Decoding::External
+}
+
+/// Декодирует через `ffmpeg`; ждёт его до нескольких секунд.
+pub fn decode_external(data: &[u8]) -> Option<Animation> {
     external::decode(data)
+}
+
+/// Определяет формат по сигнатуре и декодирует.
+pub fn decode(data: &[u8]) -> Option<Animation> {
+    match decode_native(data) {
+        Decoding::Ready(animation) => animation,
+        Decoding::External => decode_external(data),
+    }
 }

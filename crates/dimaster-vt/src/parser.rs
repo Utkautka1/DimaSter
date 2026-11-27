@@ -39,7 +39,11 @@ pub struct Parser {
 
 impl Parser {
     /// Разбирает очередную порцию байтов; порции можно резать где угодно.
-    pub fn advance<P: Perform>(&mut self, perform: &mut P, mut bytes: &[u8]) {
+    ///
+    /// Возвращает число разобранных байтов: меньше длины порции, только если
+    /// получатель попросил паузу через [`Perform::paused`].
+    pub fn advance<P: Perform>(&mut self, perform: &mut P, mut bytes: &[u8]) -> usize {
+        let length = bytes.len();
         while let Some((&byte, rest)) = bytes.split_first() {
             let used = self.fast(perform, bytes);
             if used > 0 {
@@ -48,7 +52,11 @@ impl Parser {
                 self.step(perform, byte);
                 bytes = rest;
             }
+            if perform.paused() {
+                break;
+            }
         }
+        length - bytes.len()
     }
 
     // обычный текст идёт мимо автомата: сериями ASCII и целыми символами UTF-8
