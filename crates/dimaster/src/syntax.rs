@@ -246,16 +246,23 @@ fn list_below(term: &Terminal) -> bool {
 }
 
 pub(crate) fn input_text_at_end(term: &Terminal) -> Option<String> {
-    let cells = read_input_cells(term)?;
-    let last = cells.last()?;
+    let text = input_before_cursor(term)?;
     let cursor = term.cursor();
     let cursor_line = term.visible_line(0) + cursor.row as u64;
     // чужая подсказка под курсором уже занимает место нашей
     let below = term
         .line(cursor_line)
         .and_then(|r| r.cells.get(cursor.col).map(|c| c.ch));
-    let taken = below.is_some_and(|ch| ch != ' ');
-    if cursor_line != last.line || cursor.col <= last.col || taken || list_below(term) {
+    (!below.is_some_and(|ch| ch != ' ')).then_some(text)
+}
+
+/// То же для клавиш: серая подсказка плагина после курсора им не мешает.
+pub(crate) fn input_before_cursor(term: &Terminal) -> Option<String> {
+    let cells = read_input_cells(term)?;
+    let last = cells.last()?;
+    let cursor = term.cursor();
+    let cursor_line = term.visible_line(0) + cursor.row as u64;
+    if cursor_line != last.line || cursor.col <= last.col || list_below(term) {
         return None;
     }
     Some(cells.iter().map(|c| c.ch).collect())
@@ -521,6 +528,15 @@ fn push_span(out: &mut Vec<(Match, u32)>, slice: &[CellChar], color: u32) {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn foreign_suggestion_does_not_hide_input_from_keys() {
+        let mut term = dimaster_grid::Terminal::new(dimaster_grid::Size { rows: 4, cols: 40 });
+        // набрано `cd `, дальше серым подсказка zsh-autosuggestions
+        term.advance(b"\x1b]133;A\x07$ \x1b]133;B\x07cd \x1b[90m/tmp/x\x1b[0m\x1b[6D");
+        assert_eq!(super::input_before_cursor(&term).as_deref(), Some("cd"));
+        assert_eq!(super::input_text_at_end(&term), None);
+    }
+
     use super::*;
 
     fn cells(text: &str) -> Vec<CellChar> {

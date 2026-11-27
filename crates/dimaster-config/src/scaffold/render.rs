@@ -338,9 +338,10 @@ fn native_keys(n: &Native) -> String {
 // удобства shell силами терминала
 fn native(n: &Native) -> String {
     format!(
-        "  native = {{\n    history_search = {},\n    complete = {},\n    man_flags = {},\n{}    \
+        "  native = {{\n    history_search = {},\n    shell_history = {},\n    complete = {},\n    man_flags = {},\n{}    \
          path_commands = {},\n    abbreviations = {},\n    aliases = {},\n  }},\n",
         n.history_search,
+        n.shell_history,
         n.complete,
         n.man_flags,
         native_keys(n),

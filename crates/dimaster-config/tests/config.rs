@@ -83,6 +83,7 @@ fn customize_help(config: &mut Config) {
     config.tuning.video_fps = 30;
     config.tuning.memory_commands = 7;
     config.native.complete = false;
+    config.native.shell_history = false;
     config.native.history_back = Vec::new();
     config.native.abbreviations = vec![("gs".into(), "git status".into())];
     config.native.aliases = vec![("ll".into(), "ls -la 'x'".into())];

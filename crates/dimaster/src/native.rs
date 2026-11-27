@@ -20,6 +20,8 @@ pub(crate) struct Walk {
     // 0 — набранное, дальше найденные команды от новых к старым
     index: usize,
     shown: String,
+    // совпадения, собранные в начале листания: файл shell читается один раз
+    found: Vec<String>,
 }
 
 impl Walk {
@@ -47,9 +49,20 @@ impl View {
         if self.term.is_alternate() || !crate::syntax::editing_command(&self.term) {
             return None;
         }
-        let input = crate::syntax::input_text_at_end(&self.term)?;
+        let input = crate::syntax::input_before_cursor(&self.term)?;
         let spaced = crate::autopair::neighbors(&self.term).0 == Some(' ');
         Some((input, spaced))
+    }
+
+    // сначала новые из этого окна и DimaSter, затем история самого shell
+    fn past_commands(&self, prefix: &str) -> Vec<String> {
+        let live: Vec<String> = self.term.commands().map(|c| c.command.clone()).collect();
+        let mut older = match self.config.native.shell_history {
+            true => crate::shell_history::read(&crate::settings::shell(&self.config)[0]),
+            false => Vec::new(),
+        };
+        older.extend(live);
+        self.history_store.matching(prefix, &older)
     }
 
     fn history_bytes(&mut self, input: &str, back: bool) -> Option<Vec<u8>> {
@@ -62,14 +75,16 @@ impl View {
                 prefix: input.to_owned(),
                 index: 0,
                 shown: input.to_owned(),
+                found: self.past_commands(input),
             };
         }
-        let live: Vec<String> = self.term.commands().map(|c| c.command.clone()).collect();
-        let found = self.history_store.matching(&self.assist.walk.prefix, &live);
+        let found = std::mem::take(&mut self.assist.walk.found);
         if found.is_empty() {
             return None;
         }
-        let Some(line) = self.assist.walk.step(input, &found, back) else {
+        let line = self.assist.walk.step(input, &found, back);
+        self.assist.walk.found = found;
+        let Some(line) = line else {
             return Some(Vec::new());
         };
         Some([CLEAR_LINE, line.as_bytes()].concat())
@@ -132,6 +147,7 @@ mod tests {
             prefix: "git".into(),
             index: 0,
             shown: "git".into(),
+            found: Vec::new(),
         };
         assert_eq!(walk.step("git", &found, true).as_deref(), Some("git push"));
         assert_eq!(

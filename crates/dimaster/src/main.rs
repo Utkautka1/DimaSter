@@ -49,6 +49,7 @@ mod session;
 mod settings;
 mod setup;
 mod shared;
+mod shell_history;
 mod signals;
 mod skins;
 mod smart;

@@ -10,6 +10,8 @@ use crate::{Chord, ConfigError};
 pub struct Native {
     /// Стрелки листают команды, начинающиеся с набранного.
     pub history_search: bool,
+    /// Искать и в истории самого shell, не только DimaSter.
+    pub shell_history: bool,
     pub history_back: Vec<Chord>,
     pub history_forward: Vec<Chord>,
     /// Меню дополнения; чего оно не знает, достаётся shell.
@@ -31,6 +33,7 @@ impl Default for Native {
                         mkdir rmdir touch source open du stat file chmod chown";
         Self {
             history_search: true,
+            shell_history: true,
             history_back: chords(&["up"]),
             history_forward: chords(&["down"]),
             complete: true,
@@ -86,6 +89,7 @@ fn words(table: &Table, key: &str, target: &mut Vec<(String, String)>) -> Result
 
 fn switches(table: &Table, native: &mut Native) -> mlua::Result<()> {
     set(table, "history_search", &mut native.history_search)?;
+    set(table, "shell_history", &mut native.shell_history)?;
     set(table, "complete", &mut native.complete)?;
     set(table, "man_flags", &mut native.man_flags)?;
     set(table, "path_commands", &mut native.path_commands)?;

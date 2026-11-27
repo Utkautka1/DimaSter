@@ -42,6 +42,7 @@ return { native = { aliases = { ll = "ls -la", g = "git" } } }
 | Ключ | По умолчанию | Что делает |
 |---|---|---|
 | `history_search` | `true` | поиск по истории стрелками |
+| `shell_history` | `true` | искать и в истории shell (`~/.zsh_history` или `$HISTFILE`, `~/.bash_history`, история fish); файлы только читаются. История Atuin отдельно не читается |
 | `history_back`, `history_forward` | `{ "up" }`, `{ "down" }` | клавиши листания; формат как в [`tuning`](tuning.md) |
 | `complete` | `true` | меню дополнения |
 | `complete_keys` | `{ "tab" }` | клавиши меню |

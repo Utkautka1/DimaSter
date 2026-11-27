@@ -163,7 +163,7 @@ classDiagram
     class DockerTiming { query; action; ssh_persist; tunnel }
     View ..> Tuning
     class Native { history_search; complete; abbreviations; aliases }
-    class Walk { prefix; index; shown }
+    class Walk { prefix; index; shown; found }
     View ..> Native
     Assist *-- Walk
     class Limit { name; default; min; max; risk; +get() +set(value) }
