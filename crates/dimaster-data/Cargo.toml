@@ -16,9 +16,11 @@ bytes.workspace = true
 calamine.workspace = true
 parquet.workspace = true
 csv.workspace = true
+rusty-leveldb.workspace = true
 rusqlite.workspace = true
 serde_json.workspace = true
 
 [dev-dependencies]
+rusty-leveldb.workspace = true
 rust_xlsxwriter.workspace = true
 rusqlite.workspace = true

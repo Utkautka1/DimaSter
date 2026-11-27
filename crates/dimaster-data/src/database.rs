@@ -10,7 +10,7 @@ use rusqlite::types::ValueRef;
 use rusqlite::{Connection, params_from_iter};
 
 use crate::format::parse;
-use crate::{DataError, Format, Options, Table, Value};
+use crate::{DataError, Format, Options, Table, Value, is_leveldb, leveldb};
 
 pub struct Database {
     connection: Connection,
@@ -60,6 +60,12 @@ impl Database {
 
     /// Читает файл и возвращает имена добавленных таблиц.
     pub fn load(&mut self, path: &Path, options: &Options) -> Result<Vec<String>, DataError> {
+        // база LevelDB — это папка, расширение тут ни при чём
+        if is_leveldb(path) {
+            let stem = path.file_stem().map(|s| s.to_string_lossy().into_owned());
+            let table = leveldb::read(path)?;
+            return Ok(vec![self.add(stem.as_deref().unwrap_or("data"), &table)?]);
+        }
         let format = options.format.or_else(|| Format::of(path));
         let stem = path
             .file_stem()

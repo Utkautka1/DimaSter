@@ -1,5 +1,6 @@
 //! Связь с рабочим столом: открытие ссылок и уведомления.
 
+use dimaster_data::is_leveldb;
 use dimaster_grid::is_web_address;
 use dimaster_i18n::t;
 use std::io::Read;
@@ -63,9 +64,13 @@ pub(crate) fn target(link: &str, cwd: Option<&str>) -> Option<PathBuf> {
 /// Файл с расширением из `click`: его по щелчку показывает `dimaster view`,
 /// который только читает.
 pub(crate) fn table_file(link: &str, cwd: Option<&str>, click: &[String]) -> Option<PathBuf> {
-    let path = local_path(link, cwd).filter(|p| p.is_file())?;
+    let path = local_path(link, cwd)?;
+    let has = |name: &str| click.iter().any(|c| c.eq_ignore_ascii_case(name));
+    if path.is_dir() {
+        return (has("leveldb") && is_leveldb(&path)).then_some(path);
+    }
     let extension = path.extension()?.to_str()?.to_ascii_lowercase();
-    let listed = click.iter().any(|c| c.eq_ignore_ascii_case(&extension));
+    let listed = path.is_file() && has(&extension);
     // `.db` бывает чем угодно, поэтому проверяется подпись SQLite
     let table = listed && (extension != "db" || is_sqlite(&path));
     table.then_some(path)
