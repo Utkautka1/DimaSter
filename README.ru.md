@@ -13,7 +13,7 @@
   <a href="#возможности">О проекте</a> ·
   <a href="https://github.com/Utkautka1/DimaSter/releases/latest">Скачать</a> ·
   <a href="docs/lua/README.md">Документация</a> ·
-  <a href="https://github.com/Utkautka1/DimaSter/issues">Участие</a> ·
+  <a href="CONTRIBUTING.ru.md">Участие</a> ·
   <a href="#разработка">Разработка</a>
 </p>
 

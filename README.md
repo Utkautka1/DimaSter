@@ -13,7 +13,7 @@
   <a href="#features">About</a> ·
   <a href="https://github.com/Utkautka1/DimaSter/releases/latest">Download</a> ·
   <a href="docs/lua/README.md">Documentation</a> ·
-  <a href="https://github.com/Utkautka1/DimaSter/issues">Contributing</a> ·
+  <a href="CONTRIBUTING.md">Contributing</a> ·
   <a href="#development--tests">Developing</a>
 </p>
 
