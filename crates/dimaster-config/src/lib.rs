@@ -44,7 +44,7 @@ pub use plugins::{BarStyle, Segment, StatusBar, StatusLine};
 pub use plugins::{Effect, Plugins, Snapshot};
 pub use plugins::{Paint, Shape};
 pub use programs::{Bell, Programs};
-pub use scaffold::{File, scaffold};
+pub use scaffold::{File, preset, scaffold};
 pub use skins::{Skin, skin_literal, skins, theme_literal};
 pub use smart::Smart;
 pub use snippets::Snippet;

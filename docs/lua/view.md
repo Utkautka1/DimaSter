@@ -48,7 +48,7 @@ dimaster view users.csv orders.json
 
 ## view.lua
 
-Файл `~/.config/dimaster/view.lua` возвращает таблицу. Всё в ней необязательно; читается при каждом запуске `dimaster view`.
+Файл `~/.config/dimaster/view.lua` (мастер настройки создаёт его) возвращает таблицу. Всё в ней необязательно; читается при каждом запуске `dimaster view`.
 
 ```lua
 return {

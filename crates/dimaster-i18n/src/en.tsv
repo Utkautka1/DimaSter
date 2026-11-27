@@ -330,3 +330,9 @@ macOS	macOS
 f — вид · c — копировать · Esc — назад	f — view · c — copy · Esc — back
 {title} [{tab}/{tabs}] · строка {row}/{rows} · {column}	{title} [{tab}/{tabs}] · row {row}/{rows} · {column}
 просмотр таблиц выключен в view.lua	table viewer is disabled in view.lua
+-- Вид DimaSter из коробки: с него начинает мастер настройки.	-- DimaSter's look out of the box: the setup wizard starts from it.
+  -- папка с картинками: при каждом запуске новая	  -- a folder of pictures: a new one on every launch
+  -- размеры в ячейках; position: left | right | top; fit: cover | contain | stretch	  -- sizes in cells; position: left | right | top; fit: cover | contain | stretch
+  -- border: "rounded" | "single" | "double" | "heavy" | "none"	  -- border: "rounded" | "single" | "double" | "heavy" | "none"
+-- Просмотр таблиц: dimaster view файл.csv	-- Table viewer: dimaster view file.csv
+-- Все ключи описаны в документации, раздел «Просмотр таблиц».	-- Every key is described in the docs, section "Table viewer".

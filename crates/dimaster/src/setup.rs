@@ -9,7 +9,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use dimaster_config::config_dir;
 use dimaster_config::import::{Source, detect};
-use dimaster_config::{Config, File, scaffold};
+use dimaster_config::{Config, File, preset, scaffold};
 
 use crate::{integration, settings};
 
@@ -60,7 +60,7 @@ fn ask(found: &[Source]) -> io::Result<Option<Vec<Source>>> {
 }
 
 fn build(chosen: &[Source], config_home: &Path) -> Config {
-    let mut config = Config::default();
+    let mut config = preset();
     for source in chosen {
         match source.apply(config_home, &mut config) {
             Ok(()) => println!(

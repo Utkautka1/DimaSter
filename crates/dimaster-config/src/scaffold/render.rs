@@ -61,7 +61,19 @@ pub(super) fn appearance(config: &Config) -> String {
         "-- Цвета, отступы и курсор.\nreturn {{\n{theme}  -- colors = {{ background = \"#101010\" }},\n  \
          padding = {{ x = {x}, y = {y} }},\n  minimum_contrast = {},\n  cursor = {},\n}}\n",
         config.minimum_contrast,
-        quote(config.cursor.name()),
+        cursor(config),
+    )
+}
+
+// только форма — строкой; изменённый вид курсора — таблицей
+fn cursor(config: &Config) -> String {
+    let (shape, look) = (quote(config.cursor.name()), config.cursor_look);
+    if look == crate::CursorLook::default() {
+        return shape;
+    }
+    format!(
+        "{{ shape = {shape}, pulse = {}, pulse_period = {}, pulse_min = {}, thickness = {}, height = {} }}",
+        look.pulse, look.pulse_period, look.pulse_min, look.thickness, look.height
     )
 }
 

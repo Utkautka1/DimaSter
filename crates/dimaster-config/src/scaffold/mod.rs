@@ -19,11 +19,12 @@ pub struct File {
     pub owned_by_user: bool,
 }
 
-const FIXED: [(&str, &str, bool); 13] = [
+const FIXED: [(&str, &str, bool); 14] = [
     ("draw.lua", include_str!("files/draw.lua"), true),
     ("ui.lua", include_str!("files/ui.lua"), true),
     ("statusbar.lua", include_str!("files/statusbar.lua"), true),
     ("fetch.lua", include_str!("files/fetch.lua"), true),
+    ("view.lua", include_str!("files/view.lua"), true),
     ("starship.toml", include_str!("files/starship.toml"), true),
     (
         "plugins/example.lua",
@@ -74,6 +75,13 @@ fn generated(config: &Config) -> Vec<File> {
     files
 }
 
+/// Настройки, с которых начинает мастер; перенесённые из других терминалов
+/// значения ложатся поверх них.
+pub fn preset() -> Config {
+    // файл вшит в программу и проверяется тестом
+    crate::parse(include_str!("files/preset.lua"), None).unwrap_or_default()
+}
+
 /// Полное дерево настроек, равнозначное `config`.
 pub fn scaffold(config: &Config) -> Vec<File> {
     let mut files: Vec<File> = FIXED
@@ -95,4 +103,17 @@ pub fn scaffold(config: &Config) -> Vec<File> {
 fn translated(content: &str) -> String {
     let lines: Vec<String> = content.lines().map(tr).collect();
     lines.join("\n") + "\n"
+}
+
+#[cfg(test)]
+mod preset_tests {
+    use super::*;
+
+    #[test]
+    fn preset_and_viewer_files_are_valid() {
+        let preset = preset();
+        assert_eq!((preset.padding, preset.font_size as u32), ((25, 20), 11));
+        assert!(preset.window.blur && preset.smart.fetch_early);
+        assert!(crate::Viewer::parse(include_str!("files/view.lua")).is_ok());
+    }
 }
