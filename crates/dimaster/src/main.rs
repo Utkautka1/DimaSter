@@ -15,6 +15,7 @@ mod docker_command;
 mod fetch;
 mod fetch_random;
 mod fetch_view;
+mod flags;
 mod headless;
 mod help;
 mod history_store;

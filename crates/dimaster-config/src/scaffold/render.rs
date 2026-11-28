@@ -326,6 +326,12 @@ fn dictionary(pairs: &[(String, String)]) -> String {
     list(pairs, |p| format!("[{}] = {}", quote(&p.0), quote(&p.1)))
 }
 
+fn own_flags(n: &Native) -> String {
+    list(&n.flags, |f| {
+        format!("[{}] = {}", quote(&f.0), list(&f.1, |s| quote(s)))
+    })
+}
+
 fn native_keys(n: &Native) -> String {
     format!(
         "    history_back = {},\n    history_forward = {},\n    complete_keys = {},\n",
@@ -338,12 +344,15 @@ fn native_keys(n: &Native) -> String {
 // удобства shell силами терминала
 fn native(n: &Native) -> String {
     format!(
-        "  native = {{\n    history_search = {},\n    shell_history = {},\n    complete = {},\n    man_flags = {},\n{}    \
+        "  native = {{\n    history_search = {},\n    shell_history = {},\n    complete = {},\n    man_flags = {},\n    fish_flags = {},\n    help_flags = {},\n    flags = {},\n{}    \
          path_commands = {},\n    abbreviations = {},\n    aliases = {},\n  }},\n",
         n.history_search,
         n.shell_history,
         n.complete,
         n.man_flags,
+        n.fish_flags,
+        n.help_flags,
+        own_flags(n),
         native_keys(n),
         list(&n.path_commands, |c| quote(c)),
         dictionary(&n.abbreviations),

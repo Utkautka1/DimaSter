@@ -162,7 +162,7 @@ classDiagram
     class Tuning { timings; limits; hint_letters; pairs; suggest_keys; sizes }
     class DockerTiming { query; action; ssh_persist; tunnel }
     View ..> Tuning
-    class Native { history_search; complete; abbreviations; aliases }
+    class Native { history_search; complete; abbreviations; aliases; flag_sources; flags }
     class Walk { prefix; index; shown; found }
     View ..> Native
     Assist *-- Walk

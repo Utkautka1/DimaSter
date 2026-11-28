@@ -21,6 +21,12 @@ pub struct Native {
     pub path_commands: Vec<String>,
     /// Брать флаги из `man`.
     pub man_flags: bool,
+    /// Брать флаги из дополнений `fish`, если он установлен.
+    pub fish_flags: bool,
+    /// Если иначе не нашлось, запускать программу с `--help`.
+    pub help_flags: bool,
+    /// Свои флаги: команда с подкомандами и список.
+    pub flags: Vec<(String, Vec<String>)>,
     /// Разворачиваются пробелом после первого слова.
     pub abbreviations: Vec<(String, String)>,
     /// Алиасы shell, одинаковые для zsh, bash и fish.
@@ -40,6 +46,9 @@ impl Default for Native {
             complete_keys: chords(&["tab"]),
             path_commands: commands.split_whitespace().map(str::to_owned).collect(),
             man_flags: true,
+            fish_flags: true,
+            help_flags: false,
+            flags: Vec::new(),
             abbreviations: Vec::new(),
             aliases: Vec::new(),
         }
@@ -87,11 +96,27 @@ fn words(table: &Table, key: &str, target: &mut Vec<(String, String)>) -> Result
     Ok(())
 }
 
+fn lists(table: &Table, target: &mut Vec<(String, Vec<String>)>) -> mlua::Result<()> {
+    let Some(found) = table.get::<Option<Table>>("flags")? else {
+        return Ok(());
+    };
+    for pair in found.pairs::<String, Vec<String>>() {
+        let (command, flags) = pair?;
+        target.retain(|t| t.0 != command);
+        target.push((command, flags));
+    }
+    target.sort();
+    Ok(())
+}
+
 fn switches(table: &Table, native: &mut Native) -> mlua::Result<()> {
     set(table, "history_search", &mut native.history_search)?;
     set(table, "shell_history", &mut native.shell_history)?;
     set(table, "complete", &mut native.complete)?;
     set(table, "man_flags", &mut native.man_flags)?;
+    set(table, "fish_flags", &mut native.fish_flags)?;
+    set(table, "help_flags", &mut native.help_flags)?;
+    lists(table, &mut native.flags)?;
     set(table, "path_commands", &mut native.path_commands)?;
     keys(table, "history_back", &mut native.history_back)?;
     keys(table, "history_forward", &mut native.history_forward)?;

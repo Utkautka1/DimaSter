@@ -1,12 +1,8 @@
-//! Что предложить по `Tab`: команды, флаги из `man` и файлы.
+//! Что предложить по `Tab`: команды, флаги и файлы.
 //!
-//! Программа, чьи флаги нужны, не запускается: читается только её `man`.
 //! Если предложить нечего, возвращается `None` и дополняет сам shell.
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
-
-use dimaster_docker::capture;
 
 use crate::modes::picker::shell_escape;
 use crate::view::View;
@@ -60,44 +56,11 @@ fn files(word: &str, cwd: &Path, only_directories: bool, limit: usize) -> Vec<St
     found
 }
 
-// строки вида `-a, --all` из раздела с описанием параметров
-fn flags_in(manual: &str) -> Vec<String> {
-    let mut found: Vec<String> = manual
-        .lines()
-        .map(str::trim_start)
-        .filter(|l| l.starts_with('-'))
-        .flat_map(|l| l.split([' ', ',', '=', '[', '<', '|']))
-        .filter(|w| w.starts_with('-') && !w.trim_start_matches('-').is_empty())
-        .filter(|w| w.chars().all(|c| c.is_ascii_alphanumeric() || c == '-'))
-        .map(str::to_owned)
-        .collect();
-    found.sort();
-    found.dedup();
-    found
-}
-
-fn manual_flags(program: &str, start: &str) -> Vec<String> {
-    let plain = |c: char| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.');
-    if program.starts_with('-') || !program.chars().all(plain) {
-        return Vec::new();
-    }
-    let mut command = Command::new("man");
-    command.args(["-P", "cat", program]);
-    command.env("MANWIDTH", "100");
-    let wait = dimaster_limits::SENSOR_TIMEOUT.secs();
-    let text = capture(command, wait).unwrap_or_default();
-    let mut flags = flags_in(&text);
-    flags.retain(|f| f.starts_with(start));
-    flags
-}
-
-fn arguments(view: &View, program: &str, word: &str) -> Vec<String> {
+fn arguments(view: &View, typed: &[&str], word: &str) -> Vec<String> {
+    let program = typed.first().copied().unwrap_or_default();
     let native = &view.config.native;
     if word.starts_with('-') {
-        return match native.man_flags {
-            true => manual_flags(program, word),
-            false => Vec::new(),
-        };
+        return crate::flags::find(native, typed, word);
     }
     let listed = native.path_commands.iter().any(|c| c == program);
     if !(listed || word.contains('/')) {
@@ -121,7 +84,14 @@ pub(crate) fn find(view: &mut View, input: &str, spaced: bool) -> Option<Found> 
     let first = !spaced && program == word && !word.contains('/');
     let items = match first {
         true => view.syntax.names(word),
-        false => arguments(view, program, word),
+        false => {
+            let mut typed: Vec<&str> = input.split_whitespace().collect();
+            // дополняемое слово само не подкоманда
+            if !spaced {
+                typed.pop();
+            }
+            arguments(view, &typed, word)
+        }
     };
     // единственный вариант, равный набранному, — решать shell
     let useless = items.is_empty() || items == [word];
@@ -134,12 +104,6 @@ pub(crate) fn find(view: &mut View, input: &str, spaced: bool) -> Option<Found> 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn reads_flags_from_manual_text() {
-        let manual = "  -a, --all\n         text -x\n  --color[=WHEN]\n - item";
-        assert_eq!(flags_in(manual), ["--all", "--color", "-a"]);
-    }
 
     #[test]
     fn completes_files_and_keeps_the_typed_directory() {
