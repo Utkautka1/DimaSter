@@ -34,18 +34,27 @@ fn output(program: &str, args: &[&str]) -> Option<String> {
     capture(command, wait).ok().filter(|text| !text.is_empty())
 }
 
+fn variants(line: &str) -> Vec<String> {
+    match line.contains("[no-]") {
+        true => vec![line.replace("[no-]", ""), line.replace("[no-]", "no-")],
+        false => vec![line.to_owned()],
+    }
+}
+
 // строки вида `-a, --all` из справки
 fn parse(text: &str) -> Vec<String> {
     text.lines()
         .map(str::trim_start)
         .filter(|l| l.starts_with('-'))
         // `--[no-]verify` — это два флага
-        .flat_map(|l| [l.replace("[no-]", ""), l.replace("[no-]", "no-")])
+        .flat_map(variants)
         .flat_map(|l| {
             let words = l.split([' ', '\t', ',', '=', '[', '<', '|']);
             words.map(str::to_owned).collect::<Vec<_>>()
         })
-        .filter(|w| w.starts_with('-') && !w.trim_start_matches('-').is_empty())
+        .filter(|w| {
+            w.starts_with('-') && !w.starts_with("---") && !w.trim_start_matches('-').is_empty()
+        })
         .filter(|w| w.chars().all(|c| c.is_ascii_alphanumeric() || c == '-'))
         .collect()
 }
@@ -83,8 +92,8 @@ fn from_settings(native: &Native, typed: &[&str]) -> Vec<String> {
     found.next().map(|f| f.1.clone()).unwrap_or_default()
 }
 
-/// Флаги команды `typed`, начинающиеся с `start`, без повторов.
-pub(crate) fn find(native: &Native, typed: &[&str], start: &str) -> Vec<String> {
+// всё, что известно без запуска самой программы
+fn known(native: &Native, typed: &[&str], start: &str) -> Vec<String> {
     let mut flags = from_settings(native, typed);
     if native.fish_flags {
         flags.extend(from_fish(typed, start));
@@ -92,15 +101,47 @@ pub(crate) fn find(native: &Native, typed: &[&str], start: &str) -> Vec<String> 
     if native.man_flags {
         flags.extend(from_manual(typed));
     }
-    flags.retain(|f| f.starts_with(start));
-    // спрашиваем программу, только когда иначе ничего не нашлось
-    if flags.is_empty() && native.help_flags {
-        flags = from_help(typed);
-        flags.retain(|f| f.starts_with(start));
-    }
+    flags
+}
+
+// опечатка (`--onelain`): ближайшие по написанию, не дальше двух правок
+fn similar(flags: &[String], typed: &str) -> Vec<String> {
+    let scored = flags.iter().filter(|_| typed.len() > 3);
+    let mut near: Vec<(usize, &String)> = scored
+        .filter_map(|f| Some((crate::syntax::edit_distance(typed, f, 2)?, f)))
+        .collect();
+    near.sort();
+    let best = near.first().map(|n| n.0);
+    near.into_iter()
+        .filter(|n| Some(n.0) == best)
+        .map(|n| n.1.clone())
+        .collect()
+}
+
+fn matching(mut flags: Vec<String>, start: &str) -> Vec<String> {
     flags.sort();
     flags.dedup();
-    flags
+    let exact: Vec<String> = flags
+        .iter()
+        .filter(|f| f.starts_with(start))
+        .cloned()
+        .collect();
+    match exact.is_empty() {
+        true => similar(&flags, start),
+        false => exact,
+    }
+}
+
+/// Флаги команды `typed`, начинающиеся с `start`; при опечатке — похожие.
+pub(crate) fn find(native: &Native, typed: &[&str], start: &str) -> Vec<String> {
+    // fish спрашивается с `--`, чтобы при опечатке было из чего выбирать
+    let dashes = if start.starts_with("--") { "--" } else { "-" };
+    let found = matching(known(native, typed, dashes), start);
+    // саму программу спрашиваем, только когда иначе ничего не нашлось
+    if found.is_empty() && native.help_flags {
+        return matching(from_help(typed), start);
+    }
+    found
 }
 
 #[cfg(test)]
@@ -114,10 +155,9 @@ mod tests {
         found.sort();
         found.dedup();
         assert_eq!(found, ["--all", "--color", "--no-verify", "--verify", "-a"]);
-        assert_eq!(
-            parse("--force-if-includes\tForce an update"),
-            ["--force-if-includes"]
-        );
+        assert_eq!(parse("--force\tForce an update"), ["--force"]);
+        // рисунки из man (`---X---A`) флагами не являются
+        assert!(parse("---X---A").is_empty());
     }
 
     #[test]
@@ -125,6 +165,13 @@ mod tests {
         let found = names(&["git", "push", "-q", "origin"]);
         assert_eq!(found, [vec!["git", "push"], vec!["git"]]);
         assert!(names(&["--help"]).is_empty());
+    }
+
+    #[test]
+    fn typo_offers_the_closest_flag() {
+        let flags = ["--oneline", "--online-help", "--all"].map(str::to_owned);
+        assert_eq!(matching(flags.to_vec(), "--onelain"), ["--oneline"]);
+        assert!(matching(flags.to_vec(), "--zzzzzz").is_empty());
     }
 
     #[test]

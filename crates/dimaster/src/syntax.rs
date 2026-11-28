@@ -201,7 +201,7 @@ fn closest<'a>(word: &str, candidates: impl Iterator<Item = &'a str>) -> Option<
         .map(|found| found.2)
 }
 
-fn edit_distance(a: &str, b: &str, limit: usize) -> Option<usize> {
+pub(crate) fn edit_distance(a: &str, b: &str, limit: usize) -> Option<usize> {
     let (a, b): (Vec<char>, Vec<char>) = (a.chars().collect(), b.chars().collect());
     if a.len().abs_diff(b.len()) > limit {
         return None;
